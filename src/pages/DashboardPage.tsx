@@ -1,40 +1,55 @@
-import { useState } from 'react'; // Import useState
-import { LogOut, Camera, Database, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveOfflineAttendance, db } from '../lib/db';
-import { useAttendanceInput } from '../hooks/useAttendanceInput'; // Import our new hook
+import { syncPendingRecords } from '../lib/sync';
+import { useAttendanceInput } from '../hooks/useAttendanceInput';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 export const DashboardPage = () => {
   const { signOut, user } = useAuth();
   const { captureData, loading: captureLoading, error: captureError } = useAttendanceInput();
   const [successMsg, setSuccessMsg] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleLogout = () => {
-    signOut();
-  };
+  // Auto-update pending count using Dexie hook
+  const pendingCount = useLiveQuery(
+    () => db.attendance.where('syncStatus').equals('PENDING').count()
+  );
+
+  const handleLogout = () => signOut();
 
   const handleClockIn = async () => {
     if (!user) return;
     setSuccessMsg('');
-
-    // 1. Trigger the input capture (Camera + GPS)
     const data = await captureData();
 
     if (data) {
       try {
-        // 2. Save to Local DB
         await saveOfflineAttendance(
           user.id,
           'CLOCK_IN',
           { lat: data.lat, lng: data.lng },
           data.photoBlob
         );
-
-        const count = await db.attendance.count();
-        setSuccessMsg(`Clock In Successful! (Records Pending: ${count})`);
+        setSuccessMsg('Saved locally!');
+        // Optional: Try to sync immediately if online
+        if (navigator.onLine) handleSync();
       } catch (err) {
         alert('Failed to save record locally.');
       }
+    }
+  };
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncPendingRecords();
+      if (result.synced > 0) {
+        setSuccessMsg(`Successfully synced ${result.synced} records!`);
+      }
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -54,30 +69,44 @@ export const DashboardPage = () => {
       {/* Main Content */}
       <div className="flex-1 p-4 flex flex-col items-center justify-center space-y-6">
 
+        {/* Sync Status Card - Only shows if there are pending items */}
+        {pendingCount && pendingCount > 0 ? (
+          <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col items-center animate-in fade-in slide-in-from-top-4">
+            <div className="flex items-center text-orange-700 mb-2">
+              <CloudOff size={20} className="mr-2" />
+              <span className="font-semibold">{pendingCount} Records Pending</span>
+            </div>
+            <button
+              onClick={handleSync}
+              disabled={isSyncing}
+              className="text-xs bg-orange-100 text-orange-800 px-3 py-1 rounded-full flex items-center hover:bg-orange-200"
+            >
+              {isSyncing ? <Loader2 className="animate-spin mr-1" size={12}/> : <RefreshCw className="mr-1" size={12}/>}
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          </div>
+        ) : (
+          <div className="w-full bg-green-50 border border-green-200 rounded-xl p-4 flex items-center justify-center text-green-700">
+            <Cloud size={20} className="mr-2" />
+            <span className="text-sm font-semibold">All data synced</span>
+          </div>
+        )}
+
         {/* Status Card */}
         <div className="w-full bg-blue-50 border border-blue-100 rounded-xl p-6 text-center">
           <p className="text-sm text-gray-500 mb-1">Current Status</p>
           <h2 className="text-3xl font-bold text-gray-800">Clocked OUT</h2>
-          <p className="text-xs text-gray-400 mt-2">Last activity: --</p>
         </div>
 
         {/* Error / Success Messages */}
-        {captureError && (
-          <div className="p-3 bg-red-100 text-red-700 text-sm rounded-lg">
-            {captureError}
-          </div>
-        )}
-        {successMsg && (
-          <div className="p-3 bg-green-100 text-green-700 text-sm rounded-lg font-medium">
-            {successMsg}
-          </div>
-        )}
+        {captureError && <div className="text-red-600 text-sm">{captureError}</div>}
+        {successMsg && <div className="text-green-600 text-sm font-medium">{successMsg}</div>}
 
         {/* Big Action Button */}
         <button
           onClick={handleClockIn}
           disabled={captureLoading}
-          className="group relative flex flex-col items-center justify-center w-48 h-48 bg-white border-4 border-blue-100 rounded-full shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          className="group relative flex flex-col items-center justify-center w-48 h-48 bg-white border-4 border-blue-100 rounded-full shadow-lg active:scale-95 transition-all"
         >
           <div className="bg-blue-600 p-4 rounded-full text-white mb-2 shadow-md group-hover:bg-blue-700">
             {captureLoading ? <Loader2 className="animate-spin" size={40} /> : <Camera size={40} />}
@@ -87,9 +116,6 @@ export const DashboardPage = () => {
           </span>
         </button>
 
-        <p className="text-xs text-center text-gray-400 max-w-xs">
-          Ensure you are at the site location. A photo verification will be required.
-        </p>
       </div>
     </div>
   );
