@@ -1,74 +1,57 @@
-# React + TypeScript + Vite
+# Remote Staff Attendance & Verification System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An offline-first Progressive Web App (PWA) designed to track remote staff attendance with biometric security and GPS verification.
 
-Currently, two official plugins are available:
+## 🚀 Key Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+* **Offline-First:** Works entirely without internet. Data is stored locally on the device and syncs automatically when connectivity returns.
+* **Biometric Liveness Detection:** Uses AI to detect a "live smile" before allowing a Clock In/Out to prevent photo spoofing.
+* **Geolocation Tracking:** Captures precise GPS coordinates for every attendance record.
+* **Smart Toggling:** Automatically handles Clock In vs. Clock Out states with a 5-minute safety cooldown.
+* **Admin Dashboard:** A central view for managers to see staff photos, timestamps, and map locations.
 
-## React Compiler
+## 🛠 Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Frontend:** React 19 + TypeScript + Vite
+* **Styling:** Tailwind CSS v4
+* **Mobile Capabilities:** Capacitor 7 (Camera, Geolocation)
+* **AI/ML:** face-api.js (On-device face detection)
+* **Local Database:** Dexie.js (IndexedDB wrapper)
+* **Cloud Backend:** Supabase (PostgreSQL + Storage)
+* **Deployment:** Vercel
 
-## Expanding the ESLint configuration
+## ⚙️ Setup & Installation
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+1.  **Clone the repository**
+    ```bash
+    git clone <repository-url>
+    cd remote-attendance-app
+    ```
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+2.  **Install dependencies**
+    ```bash
+    npm install
+    ```
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+3.  **Environment Variables**
+    Create a `.env` file in the root directory and add your Supabase credentials:
+    ```env
+    VITE_SUPABASE_URL=your_project_url
+    VITE_SUPABASE_ANON_KEY=your_anon_key
+    ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+4.  **Run Locally**
+    ```bash
+    npm run dev
+    ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## 📱 Mobile Testing
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Since this is a PWA, it can be installed on mobile devices directly from the browser:
+* **iOS:** Share -> Add to Home Screen.
+* **Android:** Menu -> Add to Home Screen.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# remote-attendance-app
+## 🔐 Security Notes
+
+* **Liveness:** The app requires a high-confidence "Happy" expression to trigger the shutter.
+* **Storage:** Photos are stored in a public Supabase bucket for Admin visibility, but file paths are obfuscated using UUIDs.
