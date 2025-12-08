@@ -21,10 +21,12 @@
     "@tailwindcss/vite": "^4.1.17",
     "dexie": "^4.2.1",
     "dexie-react-hooks": "^4.2.0",
+    "face-api.js": "^0.22.2",
     "lucide-react": "^0.556.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.10.1",
+    "react-webcam": "^7.2.0",
     "tailwindcss": "^4.1.17"
   },
   "devDependencies": {
