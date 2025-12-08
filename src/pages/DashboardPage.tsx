@@ -1,20 +1,18 @@
-import React from 'react';
 import { LogOut, Camera } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export const DashboardPage = () => {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    navigate('/');
-  };
+  const { signOut, user } = useAuth(); // Get user info
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-10">
-        <h1 className="text-lg font-bold text-gray-800">My Attendance</h1>
-        <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">
+        <div>
+           <h1 className="text-lg font-bold text-gray-800">My Attendance</h1>
+           <p className="text-xs text-gray-500">{user?.email}</p>
+        </div>
+        <button onClick={signOut} className="text-gray-500 hover:text-red-500">
           <LogOut size={20} />
         </button>
       </div>
