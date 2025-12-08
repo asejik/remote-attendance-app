@@ -1,9 +1,18 @@
-import React from 'react';
+import React, { useEffect } from 'react'; // Add useEffect
 import { useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
+import { supabase } from '../lib/supabase'; // Import client
 
 export const LoginPage = () => {
   const navigate = useNavigate();
+
+  // TEMPORARY: Test connection on load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) console.error('Supabase Error:', error);
+      else console.log('Supabase Connected:', data);
+    });
+  }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
