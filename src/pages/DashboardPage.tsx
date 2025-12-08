@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff } from 'lucide-react';
+import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, Shield } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { saveOfflineAttendance, db } from '../lib/db';
 import { syncPendingRecords } from '../lib/sync';
@@ -7,6 +8,7 @@ import { useAttendanceInput } from '../hooks/useAttendanceInput';
 import { useLiveQuery } from 'dexie-react-hooks';
 
 export const DashboardPage = () => {
+  const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { captureData, loading: captureLoading, error: captureError } = useAttendanceInput();
   const [successMsg, setSuccessMsg] = useState('');
@@ -61,9 +63,21 @@ export const DashboardPage = () => {
            <h1 className="text-lg font-bold text-gray-800">My Attendance</h1>
            <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
-        <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">
-          <LogOut size={20} />
-        </button>
+
+        <div className="flex items-center space-x-2">
+          {/* NEW ADMIN BUTTON */}
+          <button
+            onClick={() => navigate('/admin')}
+            className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-full"
+            title="Go to Admin Panel"
+          >
+            <Shield size={20} />
+          </button>
+
+          <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">
+            <LogOut size={20} />
+          </button>
+        </div>
       </div>
 
       {/* Main Content */}

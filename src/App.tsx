@@ -3,6 +3,7 @@ import { MobileLayout } from './components/MobileLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { AdminPage } from './pages/AdminPage';
 
 // Protected Route Component
 // If not logged in, kick them back to Login page
@@ -27,6 +28,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
           </Routes>
         </MobileLayout>
       </BrowserRouter>

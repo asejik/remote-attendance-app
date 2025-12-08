@@ -106,6 +106,11 @@ export const LoginPage = () => {
           </button>
         </div>
       </form>
+      <div className="mt-8 text-center">
+        <a href="/admin" className="text-xs text-gray-300 hover:text-gray-500">
+          Admin Portal Access
+        </a>
+      </div>
     </div>
   );
 };
