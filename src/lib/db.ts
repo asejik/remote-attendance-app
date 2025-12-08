@@ -1,56 +1,59 @@
 import Dexie, { type Table } from 'dexie';
 
-// 1. Define the shape of our Attendance Record
 export interface LocalAttendanceRecord {
-  id?: number; // Auto-incrementing ID for local usage
+  id?: number;
   userId: string;
-  timestamp: string; // ISO String
+  userName?: string; // NEW: Store the name locally
+  siteId: string;    // NEW: Store selected site ID
+  siteName: string;  // NEW: Store selected site Name
+  timestamp: string;
   type: 'CLOCK_IN' | 'CLOCK_OUT';
   latitude: number;
   longitude: number;
-  photoBlob: Blob; // We store the actual image data locally!
+  photoBlob: Blob;       // Face Photo
+  sitePhotoBlob: Blob;   // NEW: Background Photo
   syncStatus: 'PENDING' | 'SYNCED';
-  onlineId?: string; // The ID from Supabase once synced
 }
 
-// 2. Define the Database Class
 class RemoteAttendanceDB extends Dexie {
   attendance!: Table<LocalAttendanceRecord>;
 
   constructor() {
     super('RemoteAttendanceDB');
-
-    // Define tables and indexes
-    // '++id' means auto-increment primary key
-    // 'userId' and 'syncStatus' are indexed for fast searching
-    this.version(1).stores({
-      attendance: '++id, userId, timestamp, syncStatus'
+    // We update the version to 2 because we changed the schema
+    this.version(2).stores({
+      attendance: '++id, userId, siteId, timestamp, syncStatus'
     });
   }
 }
 
-// 3. Export the initialized database
 export const db = new RemoteAttendanceDB();
 
-// 4. Helper function to save a new record
+// Updated Helper to save with new fields
 export const saveOfflineAttendance = async (
   userId: string,
+  userName: string,
+  site: { id: string; name: string },
   type: 'CLOCK_IN' | 'CLOCK_OUT',
   coords: { lat: number; lng: number },
-  photoBlob: Blob
+  photoBlob: Blob,
+  sitePhotoBlob: Blob
 ) => {
   await db.attendance.add({
     userId,
+    userName,
+    siteId: site.id,
+    siteName: site.name,
     type,
     timestamp: new Date().toISOString(),
     latitude: coords.lat,
     longitude: coords.lng,
     photoBlob,
+    sitePhotoBlob,
     syncStatus: 'PENDING'
   });
 };
 
-// 5. Helper to get pending items (for the Sync engine later)
 export const getPendingRecords = async () => {
   return await db.attendance.where('syncStatus').equals('PENDING').toArray();
 };
