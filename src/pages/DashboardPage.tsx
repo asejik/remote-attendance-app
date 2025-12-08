@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-// FIX: All these icons are now used in the UI below
-import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, Shield, CheckCircle, Clock, History, MapPin } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+// FIX: Removed unused imports, kept used ones
+import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, CheckCircle, Clock, History, MapPin, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveOfflineAttendance, db } from '../lib/db';
 import { syncPendingRecords } from '../lib/sync';
@@ -16,7 +15,7 @@ interface Site {
 }
 
 export const DashboardPage = () => {
-  const navigate = useNavigate();
+  // FIX: Removed 'useNavigate' hook entirely
   const { signOut, user } = useAuth();
 
   // State
@@ -25,11 +24,13 @@ export const DashboardPage = () => {
   const [showFaceCamera, setShowFaceCamera] = useState(false);
   const [gpsLoading, setGpsLoading] = useState(false);
 
+  // Instruction State
+  const [showSiteInstruction, setShowSiteInstruction] = useState(false);
+  const [tempFaceBlob, setTempFaceBlob] = useState<Blob | null>(null);
+
   // Site State
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
-
-  // FIX: Removed 'tempFaceBlob' state (not needed)
 
   // Queries
   const pendingCount = useLiveQuery(() => db.attendance.where('syncStatus').equals('PENDING').count());
@@ -48,7 +49,7 @@ export const DashboardPage = () => {
 
   const handleLogout = () => signOut();
 
-  // STEP 1: Validate Selection & Start
+  // STEP 1: Start
   const startClockProcess = () => {
     if (!selectedSiteId) {
       alert('Please select your CURRENT SITE location first.');
@@ -58,18 +59,24 @@ export const DashboardPage = () => {
     setShowFaceCamera(true);
   };
 
-  // STEP 2: Face Captured -> Move to Background Cam
+  // STEP 2: Face Captured -> Show Instruction
   const handleFaceCaptured = async (photoDataUrl: string) => {
     setShowFaceCamera(false);
-
     const res = await fetch(photoDataUrl);
     const faceBlob = await res.blob();
-
-    // Pass blob directly to next function (No state needed)
-    setTimeout(() => captureBackgroundPhoto(faceBlob), 500);
+    setTempFaceBlob(faceBlob);
+    setShowSiteInstruction(true);
   };
 
-  // STEP 3: Background Cam -> Save
+  // STEP 3: Confirm Instruction -> Open Site Camera
+  const handleInstructionConfirmed = () => {
+    setShowSiteInstruction(false);
+    if (tempFaceBlob) {
+      captureBackgroundPhoto(tempFaceBlob);
+    }
+  };
+
+  // STEP 4: Site Camera
   const captureBackgroundPhoto = async (faceBlob: Blob) => {
     try {
       const image = await CapacitorCamera.getPhoto({
@@ -80,19 +87,18 @@ export const DashboardPage = () => {
       });
 
       if (!image.webPath) throw new Error('No photo taken');
-
       const response = await fetch(image.webPath);
       const siteBlob = await response.blob();
-
       saveCompleteRecord(faceBlob, siteBlob);
 
     } catch (e) {
       console.error(e);
       alert('Background photo cancelled. Clock In aborted.');
+      setTempFaceBlob(null);
     }
   };
 
-  // STEP 4: Save to Dexie
+  // STEP 5: Save
   const saveCompleteRecord = (faceBlob: Blob, siteBlob: Blob) => {
     setGpsLoading(true);
     const selectedSite = sites.find(s => s.id === selectedSiteId);
@@ -114,6 +120,7 @@ export const DashboardPage = () => {
 
       setSuccessMsg(newType === 'CLOCK_IN' ? 'Success! Clocked In.' : 'Success! Clocked Out.');
       setGpsLoading(false);
+      setTempFaceBlob(null);
     }, (err) => {
       console.error(err);
       alert('GPS Failed. Enable Location.');
@@ -132,11 +139,41 @@ export const DashboardPage = () => {
 
   return (
     <div className="h-full flex flex-col relative bg-gray-50 overflow-y-auto">
+      {/* 1. LIVENESS CAMERA */}
       {showFaceCamera && (
         <LivenessCamera
           onCapture={handleFaceCaptured}
           onCancel={() => setShowFaceCamera(false)}
         />
+      )}
+
+      {/* 2. SITE INSTRUCTION MODAL */}
+      {showSiteInstruction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 animate-in zoom-in-95">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
+              <Camera size={32} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900">Step 2: Site Photo</h3>
+            <p className="text-gray-600">
+              Great! Face verified. <br/>
+              <strong>Now, please take a clear picture of the site background to prove location.</strong>
+            </p>
+            <button
+              onClick={handleInstructionConfirmed}
+              className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center space-x-2"
+            >
+              <span>Open Camera</span>
+              <ArrowRight size={20} />
+            </button>
+            <button
+              onClick={() => { setShowSiteInstruction(false); setTempFaceBlob(null); }}
+              className="text-gray-400 text-sm hover:text-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Header */}
@@ -145,14 +182,9 @@ export const DashboardPage = () => {
            <h1 className="text-lg font-bold text-gray-800">My Attendance</h1>
            <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
-        <div className="flex items-center space-x-2">
-          <button onClick={() => navigate('/admin')} className="p-2 text-gray-500 hover:text-blue-600 rounded-full">
-            <Shield size={20} />
-          </button>
-          <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">
-            <LogOut size={20} />
-          </button>
-        </div>
+        <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">
+          <LogOut size={20} />
+        </button>
       </div>
 
       {/* Main Content */}
@@ -177,7 +209,7 @@ export const DashboardPage = () => {
           </div>
         </div>
 
-        {/* SYNC STATUS CARD (Restored Green State) */}
+        {/* SYNC & STATUS CARDS */}
         {pendingCount && pendingCount > 0 ? (
           <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-4 flex flex-col items-center">
             <div className="flex items-center text-orange-700 mb-2">
@@ -196,7 +228,6 @@ export const DashboardPage = () => {
           </div>
         )}
 
-        {/* STATUS CARD (Restored Icons & Timestamp) */}
         <div className={`w-full border rounded-xl p-6 text-center transition-colors duration-500 ${isClockedIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
           <p className="text-sm text-gray-500 mb-1">Current Status</p>
           <h2 className={`text-3xl font-bold ${isClockedIn ? 'text-green-700' : 'text-gray-800'}`}>{isClockedIn ? 'CLOCKED IN' : 'CLOCKED OUT'}</h2>
@@ -211,11 +242,10 @@ export const DashboardPage = () => {
             </div>
           )}
 
-          {/* Check Circle Icon */}
+          {/* FIX: Restored CheckCircle usage here */}
           {isClockedIn && <div className="mt-2 flex justify-center text-green-600"><CheckCircle size={16} /></div>}
         </div>
 
-        {/* Success Msg */}
         {successMsg && <div className="text-green-600 text-sm font-medium animate-bounce">{successMsg}</div>}
 
         {/* Action Button */}
@@ -235,11 +265,7 @@ export const DashboardPage = () => {
           </span>
         </button>
 
-        <p className="text-xs text-center text-gray-400">
-          Step 1: Face Check  |  Step 2: Site Photo
-        </p>
-
-        {/* HISTORY PANE (Restored History Icon) */}
+        {/* HISTORY PANE */}
         <div className="w-full bg-white rounded-xl border border-gray-200 overflow-hidden">
           <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 flex items-center">
             <History size={16} className="text-gray-500 mr-2" />
