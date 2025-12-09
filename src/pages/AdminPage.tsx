@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Download, LogOut, ChevronDown, Calendar, Map, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { MapPin, Loader2, Download, LogOut, Calendar, Map, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface Log {
@@ -106,7 +106,7 @@ export const AdminPage = () => {
             src={selectedImage}
             className="max-w-full max-h-[85vh] object-contain rounded-lg"
             alt="Evidence Fullscreen"
-            onClick={(e) => e.stopPropagation()} // Prevent close when clicking image
+            onClick={(e) => e.stopPropagation()}
           />
         </div>
       )}
@@ -129,47 +129,41 @@ export const AdminPage = () => {
 
       <div className="p-4 max-w-3xl mx-auto space-y-4">
 
-        {/* FILTERS - WRAPPED & LABELED */}
-        <div className="flex flex-wrap items-center gap-2 pb-2">
+        {/* COMPACT HORIZONTAL FILTERS */}
+        <div className="flex items-center gap-2 w-full">
 
-          {/* User Filter */}
-          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1.5 hover:bg-gray-50 transition-colors">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Staff</span>
-            <div className="relative">
-              <select
-                className="appearance-none bg-transparent text-sm font-medium text-gray-700 focus:outline-none pr-6 cursor-pointer"
-                value={filterUser}
-                onChange={e => setFilterUser(e.target.value)}
-              >
-                <option value="">All</option>
-                {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
-              <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-            </div>
+          {/* 1. Staff Filter (Flex-1 to share space) */}
+          <div className="flex-1 min-w-0 relative bg-white border border-gray-300 rounded-lg h-9 hover:bg-gray-50 transition-colors">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-gray-400 uppercase">Staff</span>
+            <select
+              className="w-full h-full bg-transparent pl-10 pr-4 text-xs font-semibold text-gray-700 focus:outline-none appearance-none cursor-pointer"
+              value={filterUser}
+              onChange={e => setFilterUser(e.target.value)}
+            >
+              <option value="">All</option>
+              {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
           </div>
 
-          {/* Site Filter */}
-          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1.5 hover:bg-gray-50 transition-colors">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Site</span>
-            <div className="relative">
-              <select
-                className="appearance-none bg-transparent text-sm font-medium text-gray-700 focus:outline-none pr-6 cursor-pointer"
-                value={filterSite}
-                onChange={e => setFilterSite(e.target.value)}
-              >
-                <option value="">All</option>
-                {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-            </div>
+          {/* 2. Site Filter (Flex-1 to share space) */}
+          <div className="flex-1 min-w-0 relative bg-white border border-gray-300 rounded-lg h-9 hover:bg-gray-50 transition-colors">
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[9px] font-bold text-gray-400 uppercase">Site</span>
+            <select
+              className="w-full h-full bg-transparent pl-8 pr-4 text-xs font-semibold text-gray-700 focus:outline-none appearance-none cursor-pointer"
+              value={filterSite}
+              onChange={e => setFilterSite(e.target.value)}
+            >
+              <option value="">All</option>
+              {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
 
-          {/* Date Filter */}
-          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-3 py-1.5 hover:bg-gray-50 transition-colors">
-             <Calendar size={14} className="text-gray-400 mr-2" />
+          {/* 3. Date Filter (Auto width) */}
+          <div className="relative bg-white border border-gray-300 rounded-lg h-9 hover:bg-gray-50 transition-colors flex items-center px-2">
+             <Calendar size={12} className="text-gray-400 mr-1.5 shrink-0" />
              <input
               type="date"
-              className="bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs font-semibold text-gray-700 focus:outline-none cursor-pointer w-24 sm:w-auto"
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
             />
@@ -179,9 +173,10 @@ export const AdminPage = () => {
           {(filterUser || filterSite || filterDate) && (
              <button
                onClick={() => { setFilterUser(''); setFilterSite(''); setFilterDate(''); }}
-               className="text-xs text-blue-600 hover:underline px-2 font-medium"
+               className="text-gray-400 hover:text-red-500"
+               title="Clear Filters"
              >
-               Clear
+               <X size={16} />
              </button>
           )}
         </div>
