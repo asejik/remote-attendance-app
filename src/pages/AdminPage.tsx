@@ -1,13 +1,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Download, LogOut, Search, Filter, ArrowDown, ArrowUp } from 'lucide-react';
+import { MapPin, Loader2, Download, LogOut, ChevronDown, User, Calendar, Map, ArrowUp, ArrowDown } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface Log {
   id: string;
   user_id: string;
   timestamp: string;
-  type?: string; // New field
+  type?: string;
   photo_path: string;
   site_photo_path?: string;
   site_name_snapshot?: string;
@@ -23,7 +23,7 @@ interface Profile {
 export const AdminPage = () => {
   const { signOut } = useAuth();
   const [logs, setLogs] = useState<Log[]>([]);
-  const [profiles, setProfiles] = useState<Record<string, string>>({}); // Map ID -> Name
+  const [profiles, setProfiles] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -35,49 +35,31 @@ export const AdminPage = () => {
 
   const fetchData = async () => {
     try {
-      // 1. Fetch Logs
-      const { data: logsData } = await supabase
-        .from('attendance_logs')
-        .select('*')
-        .order('timestamp', { ascending: false });
-
-      // 2. Fetch Profiles (to map names)
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, full_name');
+      const { data: logsData } = await supabase.from('attendance_logs').select('*').order('timestamp', { ascending: false });
+      const { data: profilesData } = await supabase.from('profiles').select('id, full_name');
 
       if (logsData) setLogs(logsData);
 
-      // Create a lookup map: { 'uuid-123': 'John Doe' }
       if (profilesData) {
         const profileMap: Record<string, string> = {};
-        profilesData.forEach((p: Profile) => {
-          profileMap[p.id] = p.full_name;
-        });
+        profilesData.forEach((p: Profile) => { profileMap[p.id] = p.full_name; });
         setProfiles(profileMap);
       }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
   };
 
-  // Filter Logic
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
       const userName = profiles[log.user_id] || 'Unknown';
       const logDate = new Date(log.timestamp).toISOString().split('T')[0];
-
       const matchesUser = filterUser ? userName === filterUser : true;
       const matchesSite = filterSite ? (log.site_name_snapshot || '') === filterSite : true;
       const matchesDate = filterDate ? logDate === filterDate : true;
-
       return matchesUser && matchesSite && matchesDate;
     });
   }, [logs, profiles, filterUser, filterSite, filterDate]);
 
-  // Unique Lists for Dropdowns
   const uniqueUsers = Array.from(new Set(Object.values(profiles))).sort();
   const uniqueSites = Array.from(new Set(logs.map(l => l.site_name_snapshot || 'Unknown'))).sort();
 
@@ -108,178 +90,155 @@ export const AdminPage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* HEADER */}
-      <div className="bg-white shadow-sm border-b px-6 py-4 flex justify-between items-center sticky top-0 z-20">
+      <div className="bg-white border-b px-4 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Attendance Monitoring</h1>
-          <p className="text-xs text-gray-500">HQ View • {filteredLogs.length} Records Found</p>
+          <h1 className="text-lg font-bold text-gray-800">Attendance Monitoring</h1>
+          <p className="text-xs text-gray-500">{filteredLogs.length} Records</p>
         </div>
-        <button onClick={() => signOut()} className="flex items-center space-x-2 text-gray-500 hover:text-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors">
-          <span className="text-sm font-medium">Logout</span>
-          <LogOut size={18} />
-        </button>
+        <div className="flex items-center space-x-2">
+           <button onClick={downloadReport} className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-full" title="Export CSV">
+              <Download size={20} />
+           </button>
+           <button onClick={() => signOut()} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full" title="Logout">
+              <LogOut size={20} />
+           </button>
+        </div>
       </div>
 
-      <div className="p-4 max-w-6xl mx-auto">
+      <div className="p-4 max-w-3xl mx-auto space-y-4">
 
-        {/* FILTERS BAR */}
-        <div className="bg-white p-4 rounded-xl border shadow-sm mb-4 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
-          <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+        {/* NEW "PILL" FILTERS (Google Maps Style) */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
 
-            {/* User Filter */}
-            <div className="relative">
-              <label className="text-[10px] uppercase text-gray-400 font-bold ml-1">Staff Member</label>
-              <div className="relative">
-                <select
-                  className="w-full md:w-48 pl-8 pr-4 py-2 bg-gray-50 border rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none"
-                  value={filterUser}
-                  onChange={e => setFilterUser(e.target.value)}
-                >
-                  <option value="">All Staff</option>
-                  {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-                <Search size={14} className="absolute left-2.5 top-3 text-gray-400" />
-              </div>
-            </div>
-
-            {/* Site Filter */}
-            <div className="relative">
-              <label className="text-[10px] uppercase text-gray-400 font-bold ml-1">Site Location</label>
-              <div className="relative">
-                <select
-                  className="w-full md:w-48 pl-8 pr-4 py-2 bg-gray-50 border rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500 appearance-none"
-                  value={filterSite}
-                  onChange={e => setFilterSite(e.target.value)}
-                >
-                  <option value="">All Sites</option>
-                  {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-                <Filter size={14} className="absolute left-2.5 top-3 text-gray-400" />
-              </div>
-            </div>
-
-            {/* Date Filter */}
-            <div className="relative">
-              <label className="text-[10px] uppercase text-gray-400 font-bold ml-1">Date</label>
-              <input
-                type="date"
-                className="w-full md:w-auto py-2 px-3 bg-gray-50 border rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500"
-                value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-              />
-            </div>
-
-            {/* Clear Filters */}
-            {(filterUser || filterSite || filterDate) && (
-               <button
-                 onClick={() => { setFilterUser(''); setFilterSite(''); setFilterDate(''); }}
-                 className="mb-1 text-xs text-red-500 hover:text-red-700 underline self-end pb-2"
-               >
-                 Clear
-               </button>
-            )}
+          {/* User Filter Pill */}
+          <div className="relative shrink-0">
+            <select
+              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 pl-4 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
+              value={filterUser}
+              onChange={e => setFilterUser(e.target.value)}
+            >
+              <option value="">All Staff</option>
+              {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
           </div>
 
-          <button
-            onClick={downloadReport}
-            className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm shadow-sm whitespace-nowrap"
-          >
-            <Download size={16} />
-            <span>Export CSV</span>
-          </button>
+          {/* Site Filter Pill */}
+          <div className="relative shrink-0">
+            <select
+              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 pl-4 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
+              value={filterSite}
+              onChange={e => setFilterSite(e.target.value)}
+            >
+              <option value="">All Sites</option>
+              {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          </div>
+
+          {/* Date Filter Pill */}
+          <div className="relative shrink-0">
+            <input
+              type="date"
+              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
+              value={filterDate}
+              onChange={e => setFilterDate(e.target.value)}
+            />
+          </div>
+
+          {/* Clear Button */}
+          {(filterUser || filterSite || filterDate) && (
+             <button
+               onClick={() => { setFilterUser(''); setFilterSite(''); setFilterDate(''); }}
+               className="text-xs text-blue-600 hover:underline px-2 shrink-0 font-medium"
+             >
+               Clear filters
+             </button>
+          )}
         </div>
 
-        {/* COMPACT LIST VIEW */}
-        <div className="bg-white border rounded-xl shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-gray-50 text-gray-500 text-xs uppercase border-b">
-                  <th className="px-4 py-3 font-medium">Evidence</th>
-                  <th className="px-4 py-3 font-medium">Staff Name</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Site & Time</th>
-                  <th className="px-4 py-3 font-medium text-right">Location</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredLogs.map((log) => (
-                  <tr key={log.id} className="hover:bg-gray-50 transition-colors">
+        {/* LOG CARDS (Two-Row Layout) */}
+        <div className="space-y-3">
+          {filteredLogs.map((log) => (
+            <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
 
-                    {/* 1. Evidence Photos (Compact) */}
-                    <td className="px-4 py-2">
-                      <div className="flex -space-x-2 hover:space-x-1 transition-all">
-                        <img
-                          src={log.photo_path}
-                          className="w-10 h-10 rounded-full border-2 border-white object-cover shadow-sm z-10"
-                          alt="Face"
-                          title="Face Verification"
-                        />
-                        {log.site_photo_path && (
-                          <img
-                            src={log.site_photo_path}
-                            className="w-10 h-10 rounded-full border-2 border-white object-cover shadow-sm"
-                            alt="Site"
-                            title="Site Background"
-                          />
-                        )}
-                      </div>
-                    </td>
+              <div className="flex items-start gap-4">
 
-                    {/* 2. Staff Name */}
-                    <td className="px-4 py-2">
-                      <div className="font-semibold text-gray-900">
+                {/* LEFT: Photos (Stacked visually) */}
+                <div className="flex -space-x-3 shrink-0 pt-1">
+                  <img
+                    src={log.photo_path}
+                    className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm z-10 bg-gray-100"
+                    alt="Face"
+                  />
+                  {log.site_photo_path && (
+                    <img
+                      src={log.site_photo_path}
+                      className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm bg-gray-100"
+                      alt="Site"
+                    />
+                  )}
+                </div>
+
+                {/* RIGHT: Data Content (Two Rows) */}
+                <div className="flex-1 min-w-0 grid gap-1.5">
+
+                  {/* ROW 1: Name, Site, Type Badge */}
+                  <div className="flex justify-between items-start">
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-gray-900 truncate pr-2">
                         {profiles[log.user_id] || 'Unknown User'}
-                      </div>
-                      <div className="text-xs text-gray-400 font-mono">
-                        {log.user_id.slice(0, 6)}...
-                      </div>
-                    </td>
+                      </h3>
+                      <p className="text-xs text-gray-500 truncate flex items-center">
+                        <MapPin size={10} className="mr-1" />
+                        {log.site_name_snapshot || 'Unknown Site'}
+                      </p>
+                    </div>
 
-                    {/* 3. Type Indicator */}
-                    <td className="px-4 py-2">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                    {/* Badge */}
+                    <span className={`shrink-0 inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${
                         log.type === 'CLOCK_IN'
                           ? 'bg-green-50 text-green-700 border-green-200'
                           : 'bg-red-50 text-red-700 border-red-200'
                       }`}>
-                        {log.type === 'CLOCK_IN' ? <ArrowDown size={12} className="mr-1"/> : <ArrowUp size={12} className="mr-1"/>}
+                        {log.type === 'CLOCK_IN' ? <ArrowDown size={10} className="mr-1"/> : <ArrowUp size={10} className="mr-1"/>}
                         {log.type === 'CLOCK_IN' ? 'IN' : 'OUT'}
-                      </span>
-                    </td>
+                    </span>
+                  </div>
 
-                    {/* 4. Site & Time */}
-                    <td className="px-4 py-2">
-                      <div className="text-gray-900 font-medium">{log.site_name_snapshot || 'Unknown Site'}</div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(log.timestamp).toLocaleDateString()} • {new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </div>
-                    </td>
+                  {/* ROW 2: Date, ID, Map Link */}
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-0.5 border-t border-gray-50 pt-2">
+                    <div className="flex items-center">
+                       <Calendar size={12} className="mr-1 text-gray-400" />
+                       <span>{new Date(log.timestamp).toLocaleDateString()}</span>
+                       <span className="mx-1">•</span>
+                       <span>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    </div>
 
-                    {/* 5. Map Link */}
-                    <td className="px-4 py-2 text-right">
-                      <a
-                        href={`http://maps.google.com/?q=${log.latitude},${log.longitude}`}
-                        target="_blank"
-                        className="inline-flex items-center justify-end text-blue-600 hover:text-blue-800 text-xs font-medium"
-                      >
-                        <MapPin size={14} className="mr-1" />
-                        Map
-                      </a>
-                    </td>
+                    <div className="flex items-center font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
+                       <User size={10} className="mr-1" />
+                       {log.user_id.slice(0, 6)}...
+                    </div>
 
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    <a
+                       href={`http://maps.google.com/?q=${log.latitude},${log.longitude}`}
+                       target="_blank"
+                       className="flex items-center text-blue-600 hover:text-blue-800 font-medium ml-auto"
+                    >
+                       <Map size={12} className="mr-1" />
+                       View Map
+                    </a>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          ))}
 
           {filteredLogs.length === 0 && (
-            <div className="p-12 text-center text-gray-400 bg-white">
-              <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
-                <Search size={20} className="text-gray-400"/>
-              </div>
-              <p>No records found matching your filters.</p>
-            </div>
+             <div className="text-center py-10 text-gray-400">
+               No records found.
+             </div>
           )}
         </div>
       </div>
