@@ -29,23 +29,28 @@ export const syncPendingRecords = async () => {
       const { data: { publicUrl: faceUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(facePath);
       const { data: { publicUrl: siteUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(sitePath);
 
-      // 3. Insert Record (NOW INCLUDING TYPE)
+      // 3. Insert Record
       const { error: insertError } = await supabase.from('attendance_logs').insert({
         user_id: record.userId,
         site_id: record.siteId,
         site_name_snapshot: record.siteName,
-        type: record.type, // <--- NEW: Sending the type to Supabase
+
+        // --- THE FIX IS HERE ---
+        type: record.type, // We must explicitly send the type (CLOCK_IN / CLOCK_OUT)
+        // -----------------------
+
         timestamp: record.timestamp,
         latitude: record.latitude,
         longitude: record.longitude,
         photo_path: faceUrl,
         site_photo_path: siteUrl,
-        device_info: { source: 'pwa', version: '2.1' },
+        device_info: { source: 'pwa', version: '2.2' },
         sync_status: 'synced'
       });
 
       if (insertError) throw insertError;
 
+      // 4. Update Local DB status
       await db.attendance.update(record.id!, { syncStatus: 'SYNCED' });
       syncedCount++;
 
