@@ -191,7 +191,10 @@ export const DashboardPage = () => {
       {/* Header */}
       <div className="bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
         <div>
-           <h1 className="text-lg font-bold text-gray-800">My Attendance</h1>
+          {/* FIX: Use user_metadata.full_name if available, else email */}
+           <h1 className="text-lg font-bold text-gray-800">
+             {user?.user_metadata?.full_name || 'Staff Member'}
+           </h1>
            <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
         <button onClick={handleLogout} className="text-gray-500 hover:text-red-500">

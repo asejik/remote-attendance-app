@@ -10,7 +10,7 @@ export const syncPendingRecords = async () => {
 
   for (const record of pendingRecords) {
     try {
-      const timestamp = record.timestamp.replace(/[:.]/g, '-'); // Safe filename
+      const timestamp = record.timestamp.replace(/[:.]/g, '-');
 
       // 1. Upload FACE Photo
       const facePath = `${record.userId}/face_${timestamp}.jpg`;
@@ -26,27 +26,26 @@ export const syncPendingRecords = async () => {
         .upload(sitePath, record.sitePhotoBlob, { upsert: true });
       if (siteErr) throw siteErr;
 
-      // 3. Get Public URLs
       const { data: { publicUrl: faceUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(facePath);
       const { data: { publicUrl: siteUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(sitePath);
 
-      // 4. Insert Record
+      // 3. Insert Record (NOW INCLUDING TYPE)
       const { error: insertError } = await supabase.from('attendance_logs').insert({
         user_id: record.userId,
-        site_id: record.siteId,          // NEW
-        site_name_snapshot: record.siteName, // NEW
+        site_id: record.siteId,
+        site_name_snapshot: record.siteName,
+        type: record.type, // <--- NEW: Sending the type to Supabase
         timestamp: record.timestamp,
         latitude: record.latitude,
         longitude: record.longitude,
         photo_path: faceUrl,
-        site_photo_path: siteUrl,        // NEW
-        device_info: { source: 'pwa', version: '2.0' },
+        site_photo_path: siteUrl,
+        device_info: { source: 'pwa', version: '2.1' },
         sync_status: 'synced'
       });
 
       if (insertError) throw insertError;
 
-      // 5. Update Local Status
       await db.attendance.update(record.id!, { syncStatus: 'SYNCED' });
       syncedCount++;
 
