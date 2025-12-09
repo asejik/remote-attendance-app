@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-// FIX: Removed unused imports, kept used ones
 import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, CheckCircle, Clock, History, MapPin, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { saveOfflineAttendance, db } from '../lib/db';
@@ -15,7 +14,6 @@ interface Site {
 }
 
 export const DashboardPage = () => {
-  // FIX: Removed 'useNavigate' hook entirely
   const { signOut, user } = useAuth();
 
   // State
@@ -32,10 +30,24 @@ export const DashboardPage = () => {
   const [sites, setSites] = useState<Site[]>([]);
   const [selectedSiteId, setSelectedSiteId] = useState<string>('');
 
-  // Queries
-  const pendingCount = useLiveQuery(() => db.attendance.where('syncStatus').equals('PENDING').count());
-  const lastRecord = useLiveQuery(() => db.attendance.orderBy('timestamp').last());
-  const historyRecords = useLiveQuery(() => db.attendance.orderBy('timestamp').reverse().limit(5).toArray());
+  // FIX: SCOPE QUERIES TO THE CURRENT USER
+  // 1. Pending Count: Only count MY pending records
+  const pendingCount = useLiveQuery(
+    () => user ? db.attendance.where('syncStatus').equals('PENDING').filter(rec => rec.userId === user.id).count() : 0,
+    [user]
+  );
+
+  // 2. Last Record: Only get MY last record
+  const lastRecord = useLiveQuery(
+    () => user ? db.attendance.where('userId').equals(user.id).last() : undefined,
+    [user]
+  );
+
+  // 3. History: Only get MY history
+  const historyRecords = useLiveQuery(
+    () => user ? db.attendance.where('userId').equals(user.id).reverse().limit(5).toArray() : [],
+    [user]
+  );
 
   const isClockedIn = lastRecord?.type === 'CLOCK_IN';
 
@@ -190,7 +202,7 @@ export const DashboardPage = () => {
       {/* Main Content */}
       <div className="flex-1 p-4 flex flex-col items-center space-y-6 max-w-md mx-auto w-full">
 
-        {/* SITE SELECTION */}
+        {/* SITE SELECTION - FIXED: Removed disabled={isClockedIn} */}
         <div className="w-full">
           <label className="block text-sm font-medium text-gray-700 mb-1">Select Your Current Site</label>
           <div className="relative">
@@ -198,7 +210,6 @@ export const DashboardPage = () => {
               value={selectedSiteId}
               onChange={(e) => setSelectedSiteId(e.target.value)}
               className="block w-full rounded-lg border-gray-300 bg-white py-3 pl-3 pr-10 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              disabled={isClockedIn}
             >
               <option value="">-- Choose Site --</option>
               {sites.map(site => (
@@ -242,7 +253,6 @@ export const DashboardPage = () => {
             </div>
           )}
 
-          {/* FIX: Restored CheckCircle usage here */}
           {isClockedIn && <div className="mt-2 flex justify-center text-green-600"><CheckCircle size={16} /></div>}
         </div>
 

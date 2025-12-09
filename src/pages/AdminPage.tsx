@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Download, LogOut } from 'lucide-react'; // Added LogOut
-import { useAuth } from '../context/AuthContext'; // Need this for signOut
+import { MapPin, Loader2, Download, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 interface Log {
   id: string;
@@ -15,7 +15,7 @@ interface Log {
 }
 
 export const AdminPage = () => {
-  const { signOut } = useAuth(); // Hook for logout
+  const { signOut } = useAuth();
   const [logs, setLogs] = useState<Log[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -48,7 +48,6 @@ export const AdminPage = () => {
 
   const handleLogout = async () => {
     await signOut();
-    // AuthContext will handle redirect
   };
 
   if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-blue-600" /></div>;
@@ -72,7 +71,6 @@ export const AdminPage = () => {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-lg font-semibold text-gray-700">Submission Logs</h2>
 
-          {/* SMALLER EXPORT BUTTON */}
           <button
             onClick={downloadReport}
             className="flex items-center space-x-2 bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700 transition text-sm shadow-sm"
@@ -87,14 +85,19 @@ export const AdminPage = () => {
           {logs.map((log) => (
             <div key={log.id} className="bg-white border rounded-xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 hover:shadow-md transition-shadow">
 
-              {/* Dual Photos */}
+              {/* FIX: Restored Labels (Face / Site) */}
               <div className="flex space-x-2 shrink-0">
+                 {/* FACE PHOTO */}
                  <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden relative border">
                    <img src={log.photo_path} className="w-full h-full object-cover" />
+                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center py-0.5">FACE</div>
                  </div>
+
+                 {/* SITE PHOTO */}
                  {log.site_photo_path && (
                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden relative border">
                      <img src={log.site_photo_path} className="w-full h-full object-cover" />
+                     <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[9px] text-center py-0.5">SITE</div>
                    </div>
                  )}
               </div>
