@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { MapPin, Loader2, Download, LogOut, ChevronDown, User, Calendar, Map, ArrowUp, ArrowDown } from 'lucide-react';
+import { MapPin, Loader2, Download, LogOut, ChevronDown, Calendar, Map, ArrowUp, ArrowDown, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 interface Log {
@@ -30,6 +30,9 @@ export const AdminPage = () => {
   const [filterUser, setFilterUser] = useState('');
   const [filterSite, setFilterSite] = useState('');
   const [filterDate, setFilterDate] = useState('');
+
+  // Lightbox State
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -89,6 +92,25 @@ export const AdminPage = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* PHOTO LIGHTBOX MODAL */}
+      {selectedImage && (
+        <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4" onClick={() => setSelectedImage(null)}>
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 text-white bg-white/10 p-2 rounded-full hover:bg-white/20"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={selectedImage}
+            className="max-w-full max-h-[85vh] object-contain rounded-lg"
+            alt="Evidence Fullscreen"
+            onClick={(e) => e.stopPropagation()} // Prevent close when clicking image
+          />
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="bg-white border-b px-4 py-3 flex justify-between items-center sticky top-0 z-20 shadow-sm">
         <div>
@@ -107,40 +129,47 @@ export const AdminPage = () => {
 
       <div className="p-4 max-w-3xl mx-auto space-y-4">
 
-        {/* NEW "PILL" FILTERS (Google Maps Style) */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {/* FILTERS - WRAPPED & LABELED */}
+        <div className="flex flex-wrap items-center gap-2 pb-2">
 
-          {/* User Filter Pill */}
-          <div className="relative shrink-0">
-            <select
-              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 pl-4 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
-              value={filterUser}
-              onChange={e => setFilterUser(e.target.value)}
-            >
-              <option value="">All Staff</option>
-              {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          {/* User Filter */}
+          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1.5 hover:bg-gray-50 transition-colors">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Staff</span>
+            <div className="relative">
+              <select
+                className="appearance-none bg-transparent text-sm font-medium text-gray-700 focus:outline-none pr-6 cursor-pointer"
+                value={filterUser}
+                onChange={e => setFilterUser(e.target.value)}
+              >
+                <option value="">All</option>
+                {uniqueUsers.map(u => <option key={u} value={u}>{u}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            </div>
           </div>
 
-          {/* Site Filter Pill */}
-          <div className="relative shrink-0">
-            <select
-              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 pl-4 pr-8 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
-              value={filterSite}
-              onChange={e => setFilterSite(e.target.value)}
-            >
-              <option value="">All Sites</option>
-              {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+          {/* Site Filter */}
+          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-2 py-1.5 hover:bg-gray-50 transition-colors">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mr-2">Site</span>
+            <div className="relative">
+              <select
+                className="appearance-none bg-transparent text-sm font-medium text-gray-700 focus:outline-none pr-6 cursor-pointer"
+                value={filterSite}
+                onChange={e => setFilterSite(e.target.value)}
+              >
+                <option value="">All</option>
+                {uniqueSites.map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <ChevronDown size={14} className="absolute right-0 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+            </div>
           </div>
 
-          {/* Date Filter Pill */}
-          <div className="relative shrink-0">
-            <input
+          {/* Date Filter */}
+          <div className="relative shrink-0 flex items-center bg-white border border-gray-300 rounded-full pl-3 pr-3 py-1.5 hover:bg-gray-50 transition-colors">
+             <Calendar size={14} className="text-gray-400 mr-2" />
+             <input
               type="date"
-              className="appearance-none bg-white border border-gray-300 rounded-full py-1.5 px-4 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-black/5 transition-all cursor-pointer"
+              className="bg-transparent text-sm font-medium text-gray-700 focus:outline-none cursor-pointer"
               value={filterDate}
               onChange={e => setFilterDate(e.target.value)}
             />
@@ -150,32 +179,33 @@ export const AdminPage = () => {
           {(filterUser || filterSite || filterDate) && (
              <button
                onClick={() => { setFilterUser(''); setFilterSite(''); setFilterDate(''); }}
-               className="text-xs text-blue-600 hover:underline px-2 shrink-0 font-medium"
+               className="text-xs text-blue-600 hover:underline px-2 font-medium"
              >
-               Clear filters
+               Clear
              </button>
           )}
         </div>
 
-        {/* LOG CARDS (Two-Row Layout) */}
+        {/* LOG CARDS */}
         <div className="space-y-3">
           {filteredLogs.map((log) => (
             <div key={log.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
 
               <div className="flex items-start gap-4">
 
-                {/* LEFT: Photos (Stacked visually) */}
-                <div className="flex -space-x-3 shrink-0 pt-1">
+                {/* LEFT: Photos (Clickable) */}
+                <div className="flex -space-x-3 shrink-0 pt-1 cursor-pointer" onClick={() => setSelectedImage(log.photo_path)}>
                   <img
                     src={log.photo_path}
-                    className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm z-10 bg-gray-100"
+                    className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm z-10 bg-gray-100 hover:scale-110 transition-transform"
                     alt="Face"
                   />
                   {log.site_photo_path && (
                     <img
                       src={log.site_photo_path}
-                      className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm bg-gray-100"
+                      className="w-12 h-12 rounded-full border-2 border-white object-cover shadow-sm bg-gray-100 hover:scale-110 transition-transform"
                       alt="Site"
+                      onClick={(e) => { e.stopPropagation(); setSelectedImage(log.site_photo_path!); }}
                     />
                   )}
                 </div>
@@ -206,18 +236,13 @@ export const AdminPage = () => {
                     </span>
                   </div>
 
-                  {/* ROW 2: Date, ID, Map Link */}
+                  {/* ROW 2: Date, Map Link (Removed User ID) */}
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-0.5 border-t border-gray-50 pt-2">
                     <div className="flex items-center">
                        <Calendar size={12} className="mr-1 text-gray-400" />
                        <span>{new Date(log.timestamp).toLocaleDateString()}</span>
                        <span className="mx-1">•</span>
                        <span>{new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                    </div>
-
-                    <div className="flex items-center font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded">
-                       <User size={10} className="mr-1" />
-                       {log.user_id.slice(0, 6)}...
                     </div>
 
                     <a
