@@ -3,7 +3,8 @@ import { MobileLayout } from './components/MobileLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminPage } from './pages/AdminPage'; // Ensure this is imported
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { useAuth } from './context/useAuth';
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 import { Loader2 } from 'lucide-react';

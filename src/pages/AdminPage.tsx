@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { MapPin, Loader2, Download, LogOut, Calendar, Map, ArrowUp, ArrowDown, X } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 
 interface Log {
   id: string;

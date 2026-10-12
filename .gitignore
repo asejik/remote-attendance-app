@@ -32,3 +32,17 @@ dist-ssr
 /android/.gradle
 /ios/App/App.xcodeproj/project.xcworkspace/
 /ios/App/Pods/
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# Private business and security docs (public repo): keep local only
+docs/PROJECT_PLAN.md
+docs/PROGRESS.md
+docs/IDEA_BRIEF.md
+docs/CLIENT_QUESTIONS.md
+docs/client/
+docs/private/
+supabase/legacy/

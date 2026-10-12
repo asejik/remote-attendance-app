@@ -3,9 +3,13 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 import { Loader2, Smile, X } from 'lucide-react';
 
+type WebkitWindow = Window & { webkitAudioContext?: typeof AudioContext };
+
 // BETTER APPROACH: Simple Beep using Web Audio API (No file needed)
 const playShutterSound = () => {
-  const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const AudioCtx = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+  if (!AudioCtx) return;
+  const ctx = new AudioCtx();
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   osc.connect(gain);
@@ -24,70 +28,84 @@ interface LivenessCameraProps {
 
 export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCancel }) => {
   const webcamRef = useRef<Webcam>(null);
+  const onCaptureRef = useRef(onCapture);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('Loading AI Models...');
   const [faceDetected, setFaceDetected] = useState(false);
 
   useEffect(() => {
-    loadModels();
-  }, []);
+    onCaptureRef.current = onCapture;
+  });
 
-  const loadModels = async () => {
-    try {
-      const MODEL_URL = '/models';
-      await Promise.all([
-        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
-      ]);
-      setLoading(false);
-      setMessage('Position your face in the oval...');
-      startDetection();
-    } catch (e) {
-      console.error(e);
-      setMessage('Error loading AI. Check connection.');
-    }
-  };
+  // Load models, then poll for a smiling face. Everything is torn down when the
+  // camera closes, so a cancelled camera can never capture afterwards.
+  useEffect(() => {
+    let cancelled = false;
+    let detecting = false;
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let captureTimeout: ReturnType<typeof setTimeout> | undefined;
 
-  const startDetection = () => {
-    const interval = setInterval(async () => {
-      if (!webcamRef.current?.video) return;
+    const capture = () => {
+      if (cancelled) return;
+      const imageSrc = webcamRef.current?.getScreenshot();
+      if (imageSrc) onCaptureRef.current(imageSrc);
+    };
 
-      const video = webcamRef.current.video;
-      if (video.readyState !== 4) return;
+    const detect = async () => {
+      const video = webcamRef.current?.video;
+      if (detecting || !video || video.readyState !== 4) return;
+      detecting = true;
+      try {
+        const detections = await faceapi
+          .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceExpressions();
+        if (cancelled) return;
 
-      const detections = await faceapi
-        .detectAllFaces(video, new faceapi.TinyFaceDetectorOptions())
-        .withFaceLandmarks()
-        .withFaceExpressions();
-
-      if (detections.length > 0) {
-        setFaceDetected(true);
-        const bestFace = detections[0];
-
-        if (bestFace.expressions.happy > 0.7) {
-          setMessage('Smile Detected!');
-          clearInterval(interval);
-          playShutterSound(); // PLAY SOUND
-          setTimeout(() => capture(), 200); // Slight delay for visual feedback
+        if (detections.length > 0) {
+          setFaceDetected(true);
+          if (detections[0].expressions.happy > 0.7) {
+            setMessage('Smile Detected!');
+            clearInterval(interval);
+            playShutterSound();
+            captureTimeout = setTimeout(capture, 200); // Slight delay for visual feedback
+          } else {
+            setMessage('Face found! Now SMILE :)');
+          }
         } else {
-          setMessage('Face found! Now SMILE :)');
+          setFaceDetected(false);
+          setMessage('Looking for face...');
         }
-      } else {
-        setFaceDetected(false);
-        setMessage('Looking for face...');
+      } finally {
+        detecting = false;
       }
-    }, 500);
+    };
 
-    return () => clearInterval(interval);
-  };
+    const loadModels = async () => {
+      try {
+        const MODEL_URL = '/models';
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+        ]);
+        if (cancelled) return;
+        setLoading(false);
+        setMessage('Position your face in the oval...');
+        interval = setInterval(detect, 500);
+      } catch (e) {
+        console.error(e);
+        if (!cancelled) setMessage('Error loading AI. Check connection.');
+      }
+    };
 
-  const capture = () => {
-    const imageSrc = webcamRef.current?.getScreenshot();
-    if (imageSrc) {
-      onCapture(imageSrc);
-    }
-  };
+    loadModels();
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+      clearTimeout(captureTimeout);
+    };
+  }, []);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">

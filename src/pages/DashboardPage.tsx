@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, CheckCircle, Clock, History, MapPin, ArrowRight } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth';
 import { saveOfflineAttendance, db } from '../lib/db';
 import { syncPendingRecords } from '../lib/sync';
 import { useLiveQuery } from 'dexie-react-hooks';
@@ -145,7 +145,7 @@ export const DashboardPage = () => {
     try {
       const result = await syncPendingRecords();
       if (result.synced > 0) setSuccessMsg(`Synced ${result.synced} records!`);
-    } catch (e) { alert('Sync failed.'); }
+    } catch { alert('Sync failed.'); }
     finally { setIsSyncing(false); }
   };
 
