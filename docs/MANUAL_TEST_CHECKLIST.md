@@ -6,6 +6,11 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## M1 Offline spike (2026-10-12)
+- ☐ Run the full phone test script in `docs/spikes/M1.md` (web app and Android app) and fill in its results table.
+- ☐ Web app on a laptop: install it from Chrome (install icon in the address bar). It opens from its own window with the blue pin icon.
+- ☐ Staff dashboard → "Device diagnostics" opens, and the back arrow returns to the dashboard.
+
 ## Task 2: lint fixes and camera cleanup (2026-10-12)
 - ☐ Staff: tap Clock IN, smile, and the photo is taken automatically. The "Step 2: Site Photo" prompt appears.
 - ☐ Staff: tap Clock IN, then close the camera with ✕ before smiling. Wait 5 seconds: no beep, and no "Step 2" prompt appears.

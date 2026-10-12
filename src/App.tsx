@@ -3,6 +3,7 @@ import { MobileLayout } from './components/MobileLayout';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminPage } from './pages/AdminPage'; // Ensure this is imported
+import { DiagnosticsPage } from './pages/DiagnosticsPage';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useEffect, useState } from 'react';
@@ -60,6 +61,16 @@ function App() {
               element={
                 <ProtectedRoute>
                   <DashboardPage />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* M1 spike: device diagnostics */}
+            <Route
+              path="/diagnostics"
+              element={
+                <ProtectedRoute>
+                  <DiagnosticsPage />
                 </ProtectedRoute>
               }
             />

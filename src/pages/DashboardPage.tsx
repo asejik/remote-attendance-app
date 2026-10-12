@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { LogOut, Camera, Loader2, RefreshCw, Cloud, CloudOff, CheckCircle, Clock, History, MapPin, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { saveOfflineAttendance, db } from '../lib/db';
-import { syncPendingRecords } from '../lib/sync';
+import { startAutoSync, syncPendingRecords } from '../lib/sync';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { LivenessCamera } from '../components/LivenessCamera';
 import { supabase } from '../lib/supabase';
@@ -12,6 +13,8 @@ interface Site {
   id: string;
   name: string;
 }
+
+const SITES_CACHE_KEY = 'sitesCache';
 
 export const DashboardPage = () => {
   const { signOut, user } = useAuth();
@@ -51,10 +54,26 @@ export const DashboardPage = () => {
 
   const isClockedIn = lastRecord?.type === 'CLOCK_IN';
 
+  useEffect(() => startAutoSync(), []);
+
   useEffect(() => {
+    // Keep the last known site list on the device so clock-in works offline.
     const fetchSites = async () => {
+      try {
+        const cached = localStorage.getItem(SITES_CACHE_KEY);
+        if (cached) setSites(JSON.parse(cached) as Site[]);
+      } catch {
+        // No cache available; fall through to the network.
+      }
       const { data } = await supabase.from('sites').select('id, name');
-      if (data) setSites(data);
+      if (data) {
+        setSites(data);
+        try {
+          localStorage.setItem(SITES_CACHE_KEY, JSON.stringify(data));
+        } catch {
+          // Cache is a convenience; ignore storage failures.
+        }
+      }
     };
     fetchSites();
   }, []);
@@ -298,6 +317,9 @@ export const DashboardPage = () => {
             ))}
           </div>
         </div>
+
+        {/* M1 spike: device diagnostics (remove or gate before launch) */}
+        <Link to="/diagnostics" className="text-xs text-gray-400 underline pb-6">Device diagnostics</Link>
 
       </div>
     </div>

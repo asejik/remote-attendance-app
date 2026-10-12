@@ -1,9 +1,41 @@
 import { supabase } from './supabase';
 import { db } from './db';
 
-export const syncPendingRecords = async () => {
+export interface SyncReport {
+  synced: number;
+  errors: number;
+  finishedAt: string;
+}
+
+const LAST_SYNC_KEY = 'lastSyncReport';
+let inFlight: Promise<{ synced: number; errors: number }> | null = null;
+
+export const getLastSyncReport = (): SyncReport | null => {
+  try {
+    const raw = localStorage.getItem(LAST_SYNC_KEY);
+    return raw ? (JSON.parse(raw) as SyncReport) : null;
+  } catch {
+    return null;
+  }
+};
+
+// Single-flight: the manual button, the online event and the timer can all fire
+// at once; they share one run instead of uploading the same records twice.
+export const syncPendingRecords = () => {
+  if (!inFlight) {
+    inFlight = runSync().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+};
+
+const runSync = async () => {
   const pendingRecords = await db.attendance.where('syncStatus').equals('PENDING').toArray();
-  if (pendingRecords.length === 0) return { synced: 0, errors: 0 };
+  if (pendingRecords.length === 0) {
+    saveSyncReport(0, 0);
+    return { synced: 0, errors: 0 };
+  }
 
   let syncedCount = 0;
   let errorCount = 0;
@@ -60,5 +92,39 @@ export const syncPendingRecords = async () => {
     }
   }
 
+  saveSyncReport(syncedCount, errorCount);
   return { synced: syncedCount, errors: errorCount };
+};
+
+const saveSyncReport = (synced: number, errors: number) => {
+  try {
+    const report: SyncReport = { synced, errors, finishedAt: new Date().toISOString() };
+    localStorage.setItem(LAST_SYNC_KEY, JSON.stringify(report));
+  } catch {
+    // Diagnostics only; ignore storage failures.
+  }
+};
+
+const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+
+// Upload queued records when the network returns, when the app comes back to the
+// foreground, and every 5 minutes. Returns a cleanup function.
+export const startAutoSync = () => {
+  const trigger = () => {
+    if (navigator.onLine) syncPendingRecords().catch((err) => console.error('Auto-sync failed', err));
+  };
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') trigger();
+  };
+
+  window.addEventListener('online', trigger);
+  document.addEventListener('visibilitychange', onVisible);
+  const interval = setInterval(trigger, AUTO_SYNC_INTERVAL_MS);
+  trigger();
+
+  return () => {
+    window.removeEventListener('online', trigger);
+    document.removeEventListener('visibilitychange', onVisible);
+    clearInterval(interval);
+  };
 };

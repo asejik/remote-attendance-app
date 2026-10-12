@@ -35,15 +35,18 @@ npm run typecheck      # tsc -b (noUnusedLocals/Parameters on)
 npm run lint           # ESLint
 npm test               # Vitest unit tests (src/**/*.test.ts, node env + fake-indexeddb)
 npx vitest run src/lib/db.test.ts -t "PENDING"   # single test file / name
-npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium, starts dev server, uses dev Supabase from .env)
+npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
 npm run knip           # unused files/deps/exports
 npx supabase ...       # Supabase CLI (migrations in supabase/migrations, from M2)
+npx cap sync android   # copy dist/ into the Android project after a build
 ```
 
 - Node 24 is installed through nvm in WSL. Non-interactive shells don't load it, so prefix commands with `. ~/.nvm/nvm.sh >/dev/null &&`. Otherwise `npm` resolves to the Windows install and fails on the `\\wsl.localhost` path.
 - CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets and lint on every push, using placeholder env values.
+- **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `attendance-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.attendance`.
+- The web app is a PWA (vite-plugin-pwa, `registerType: autoUpdate`). The service worker is registered manually in `main.tsx` and skipped on native. It precaches the app shell and `public/models/`.
 - `.env` also holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for server-side tooling only. The secret key bypasses RLS: use it read-only, against dev only, and **never** give it a `VITE_` prefix.
 - The legacy prototype schema, policies and security findings are recorded in `supabase/legacy/README.md` (private).
 - `vite` is aliased to `rolldown-vite` via `overrides` in package.json. Keep that override.

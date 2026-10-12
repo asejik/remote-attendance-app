@@ -1,0 +1,80 @@
+name: Android test APK
+
+# Builds a debug APK in the cloud (no Android Studio needed) and attaches it to
+# the "android-test" pre-release so it can be downloaded straight onto a phone.
+on:
+  workflow_dispatch:
+  push:
+    branches: [rebuild]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'android/**'
+      - 'index.html'
+      - 'package*.json'
+      - 'vite.config.ts'
+      - 'capacitor.config.ts'
+      - '.github/workflows/android.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-test
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Check required secrets
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY under Settings > Secrets and variables > Actions, then re-run."
+            exit 1
+          fi
+      - run: npm ci
+      - name: Build web app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npx vite build
+      - run: npm run check:secrets
+      - run: npx cap sync android
+      # A fixed debug key lets new APKs install over old ones, keeping queued
+      # offline records. Without it, each build would need an uninstall.
+      - name: Use shared debug keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            mkdir -p ~/.android
+            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
+          else
+            echo "::warning::ANDROID_DEBUG_KEYSTORE_B64 not set; APK updates will need an uninstall first."
+          fi
+      - name: Assemble debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+      - name: Publish to android-test pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk attendance-test.apk
+          gh release view android-test >/dev/null 2>&1 || \
+            gh release create android-test --prerelease --title "Android test build" \
+              --notes "Test build for field testing only. Talks to the dev database."
+          gh release upload android-test attendance-test.apk --clobber
+          gh release edit android-test --notes "Test build from ${GITHUB_SHA::7} ($(date -u +'%Y-%m-%d %H:%M UTC')). Talks to the dev database."

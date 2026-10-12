@@ -15,12 +15,12 @@
     "check:secrets": "node scripts/check-secrets.mjs"
   },
   "dependencies": {
-    "@capacitor/android": "^7.4.4",
-    "@capacitor/camera": "^7.0.2",
-    "@capacitor/cli": "^7.4.4",
-    "@capacitor/core": "^7.4.4",
-    "@capacitor/geolocation": "^7.1.6",
-    "@capacitor/ios": "^7.4.4",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/camera": "^8.2.5",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/geolocation": "^8.2.3",
+    "@capacitor/ios": "^8.5.3",
     "@ionic/pwa-elements": "^3.3.0",
     "@supabase/supabase-js": "^2.86.2",
     "@tailwindcss/vite": "^4.1.17",
@@ -40,6 +40,7 @@
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@vite-pwa/assets-generator": "^2.0.0",
     "@vitejs/plugin-react": "^5.1.1",
     "eslint": "^9.39.1",
     "eslint-plugin-react-hooks": "^7.0.1",
@@ -51,6 +52,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "npm:rolldown-vite@7.2.5",
+    "vite-plugin-pwa": "^2.0.0",
     "vitest": "^5.0.4"
   },
   "overrides": {
