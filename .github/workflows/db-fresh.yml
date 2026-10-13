@@ -48,8 +48,11 @@ jobs:
       - name: Access, functions and retention tests against the fresh database
         run: |
           eval "$(npx supabase status -o env)"
-          export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY"
-          npm run test:rls
+          export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" REQUIRE_RLS_TESTS=1
+          npm run test:rls 2>&1 | tee "$RUNNER_TEMP/rls.out"
+          # Fail if anything was skipped or nothing ran.
+          grep -Eq 'Tests +[0-9]+ passed' "$RUNNER_TEMP/rls.out"
+          ! grep -Eq 'skipped|failed' "$RUNNER_TEMP/rls.out"
       - name: Onboarding script against the fresh database
         run: |
           eval "$(npx supabase status -o env)"

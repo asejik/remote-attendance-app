@@ -8,6 +8,10 @@ const url = process.env.VITE_SUPABASE_URL!
 const anonKey = process.env.VITE_SUPABASE_ANON_KEY!
 const secretKey = process.env.SUPABASE_SECRET_KEY!
 export const hasCredentials = Boolean(url && anonKey && secretKey)
+// CI's fresh-database job sets this so a missing credential can't silently skip the suite.
+if (process.env.REQUIRE_RLS_TESTS === '1' && !hasCredentials) {
+  throw new Error('REQUIRE_RLS_TESTS=1 but VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY / SUPABASE_SECRET_KEY are missing')
+}
 
 // Calls a deployed Edge Function, optionally as a signed-in user.
 export const callFunction = async (name: string, body: unknown, client?: Client) => {

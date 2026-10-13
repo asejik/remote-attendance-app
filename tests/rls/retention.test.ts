@@ -6,6 +6,7 @@ import { buildWorld, destroyWorld, hasCredentials, jpeg, newEvent, purgeStaleWor
 // should (expired event photos, old deactivated staff's reference photos,
 // orphans) and keeps everything else, including all attendance records.
 const cronSecret = process.env.CRON_SECRET
+if (process.env.REQUIRE_RLS_TESTS === '1' && !cronSecret) throw new Error('REQUIRE_RLS_TESTS=1 but CRON_SECRET is missing')
 const DAY = 86_400_000
 
 describe.skipIf(!hasCredentials || !cronSecret)('photo retention job', () => {
