@@ -1,0 +1,60 @@
+name: Fresh database
+
+# Proves production can be built from nothing: starts an EMPTY local Supabase
+# stack (Docker on the runner), applies every migration in order, serves the
+# Edge Functions and runs the full access/functions/retention suite against it.
+# No cloud project or credentials involved.
+on:
+  push:
+    paths:
+      - 'supabase/**'
+      - 'tests/rls/**'
+      - 'scripts/onboard-org.mjs'
+      - 'package*.json'
+      - '.github/workflows/db-fresh.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CRON_SECRET: local-ci-cron-secret-0123456789abcdefghijklmnop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Start an empty Supabase and apply all migrations
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit,postgres-meta
+      - name: Re-apply every migration from scratch
+        run: npx supabase db reset --local
+      - name: Serve Edge Functions
+        run: |
+          printf 'CRON_SECRET=%s\n' "$CRON_SECRET" > "$RUNNER_TEMP/functions.env"
+          nohup npx supabase functions serve --no-verify-jwt --env-file "$RUNNER_TEMP/functions.env" > "$RUNNER_TEMP/functions.log" 2>&1 &
+          eval "$(npx supabase status -o env)"
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_URL/functions/v1/purge-expired-photos" || true)
+            [ "$code" = "401" ] && echo "functions ready" && exit 0
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/functions.log"; exit 1
+      - name: Access, functions and retention tests against the fresh database
+        run: |
+          eval "$(npx supabase status -o env)"
+          export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY"
+          npm run test:rls
+      - name: Onboarding script against the fresh database
+        run: |
+          eval "$(npx supabase status -o env)"
+          SUPABASE_URL="$API_URL" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" ORG_NAME="CI Org" ORG_SLUG="ci-org" \
+            ADMIN_NAME="CI Admin" ADMIN_EMAIL="ci-admin@example.test" node scripts/onboard-org.mjs
+      - name: Functions log (on failure)
+        if: failure()
+        run: cat "$RUNNER_TEMP/functions.log" || true

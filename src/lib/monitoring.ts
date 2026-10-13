@@ -7,7 +7,7 @@ const stripQuery = (url?: string) => url?.split('?')[0];
 
 export const initMonitoring = () => {
   const dsn = import.meta.env.VITE_SENTRY_DSN;
-  if (!dsn) return;
+  if (!dsn || import.meta.env.VITE_E2E === '1') return; // no reports from browser-test builds
   Sentry.init({
     dsn,
     release: __APP_VERSION__,
