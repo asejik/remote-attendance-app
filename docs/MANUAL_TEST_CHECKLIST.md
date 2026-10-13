@@ -6,6 +6,13 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## Bug fixes from the first phone run (2026-10-13)
+- ☐ Android app: Device diagnostics → Test face model load shows "loaded in … ms" (not FAILED).
+- ☐ Log in, close the app completely, then reopen it. You go straight to the dashboard, with no login screen.
+- ☐ Same as above in airplane mode.
+- ☐ Logged out, in airplane mode: try to log in. You see "You're offline. Connect to the internet to log in."
+- ☐ Staff account on the Admin Portal login shows "Access Denied", and you stay on the login page.
+
 ## M1 Offline spike (2026-10-12)
 - ☐ Run the full phone test script in `docs/spikes/M1.md` (web app and Android app) and fill in its results table.
 - ☐ Web app on a laptop: install it from Chrome (install icon in the address bar). It opens from its own window with the blue pin icon.

@@ -19,8 +19,8 @@ test('app opens and face models load with no network after the first visit', asy
   const modelsOk = await page.evaluate(async () => {
     const files = [
       '/models/tiny_face_detector_model-weights_manifest.json',
-      '/models/face_landmark_68_model-shard1',
-      '/models/face_expression_model-shard1',
+      '/models/face_landmark_68_model-shard1.bin',
+      '/models/face_expression_model-shard1.bin',
     ]
     const responses = await Promise.all(files.map((f) => fetch(f)))
     return responses.every((r) => r.ok)

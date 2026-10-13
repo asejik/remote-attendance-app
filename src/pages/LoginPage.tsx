@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapPin, Loader2, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getRole } from '../lib/role';
+import { useAuth } from '../context/useAuth';
 
 export const LoginPage = () => {
   const navigate = useNavigate();
@@ -16,10 +18,30 @@ export const LoginPage = () => {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState('');
 
+  // Returning user with a saved session: skip the form. The installed app
+  // always starts at "/", so without this every reopen looked like a logout.
+  const { user: sessionUser } = useAuth();
+  const submitting = useRef(false); // handleAuth does its own role checks and routing
+  useEffect(() => {
+    if (!sessionUser || submitting.current) return;
+    let cancelled = false;
+    getRole(sessionUser.id).then((role) => {
+      if (!cancelled) navigate(role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionUser, navigate]);
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
+    if (!navigator.onLine) {
+      setError("You're offline. Connect to the internet to log in.");
+      return;
+    }
+    setLoading(true);
+    submitting.current = true;
 
     try {
       let authResponse;
@@ -46,14 +68,7 @@ export const LoginPage = () => {
       if (authError) throw authError;
       if (!user) throw new Error('No user found');
 
-      // Check Role in Database
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      const userRole = profile?.role || 'staff';
+      const userRole = await getRole(user.id);
 
       // ROUTING LOGIC (STRICT)
       if (isAdminLogin) {
@@ -73,8 +88,12 @@ export const LoginPage = () => {
       }
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.');
+      const offline = !navigator.onLine || (err instanceof TypeError && err.message.includes('fetch'));
+      setError(offline
+        ? "You're offline. Connect to the internet to log in."
+        : err instanceof Error ? err.message : 'Something went wrong. Please try again.');
     } finally {
+      submitting.current = false;
       setLoading(false);
     }
   };

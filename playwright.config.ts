@@ -1,4 +1,8 @@
+import { existsSync } from 'node:fs'
 import { defineConfig, devices } from '@playwright/test'
+
+// Test-account credentials (E2E_*) come from the local .env; CI has none.
+if (existsSync('.env')) process.loadEnvFile('.env')
 
 // E2E tests run against a production build (so the service worker is active),
 // talking to the dev Supabase project configured in .env.

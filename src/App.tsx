@@ -7,7 +7,7 @@ import { DiagnosticsPage } from './pages/DiagnosticsPage';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useEffect, useState } from 'react';
-import { supabase } from './lib/supabase';
+import { getRole } from './lib/role';
 import { Loader2 } from 'lucide-react';
 
 // 1. Admin Protected Route
@@ -18,14 +18,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const checkRole = async () => {
       if (!user) return;
-      // Check the profiles table for role
-      const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      setIsAdmin(data?.role === 'admin');
+      setIsAdmin((await getRole(user.id)) === 'admin');
     };
     checkRole();
   }, [user]);
