@@ -49,6 +49,8 @@ npx cap sync android   # copy dist/ into the Android project after a build
 
 - Node 24 is installed through nvm in WSL. Non-interactive shells don't load it, so prefix commands with `. ~/.nvm/nvm.sh >/dev/null &&`. Otherwise `npm` resolves to the Windows install and fails on the `\\wsl.localhost` path.
 - CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets and lint on every push, using placeholder env values.
+- **`db-fresh.yml`** proves production can be built from nothing. On changes to `supabase/`, `tests/rls/` and related files, it starts an empty local Supabase in Docker on the runner, checks that every migration applied, serves the Edge Functions, runs `test:rls` with `REQUIRE_RLS_TESTS=1` (it fails if anything skips), and runs the onboarding script.
+- **CI logs:** `GITHUB_LOGS_TOKEN` in `.env` is a read-only, fine-grained token (Actions read on this repo only). Use it as `Authorization: Bearer` with `GET /repos/asejik/remote-attendance-app/actions/jobs/{id}/logs` to read failing runs.
 - **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `attendance-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.attendance`.
 - The web app is a PWA (vite-plugin-pwa, `registerType: autoUpdate`). The service worker is registered manually in `main.tsx` and skipped on native. It precaches the app shell and `public/models/`. **Every file served from `public/` needs a file extension.** Capacitor's Android server returns index.html for extensionless paths (`src/lib/models.test.ts` guards the models).
 - `.env` also holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for server-side tooling only. The secret key bypasses RLS: use it read-only, against dev only, and **never** give it a `VITE_` prefix.
@@ -74,7 +76,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Workers accept the privacy notice via the `accept_consent()` RPC.
   - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.
   - These screens became the default app in M4 (paths `/`, `/consent`, `/home`; admin under `/admin/*`).
-- **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable, so `db dump`, `db pull` and `test db` don't work.
+- **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable locally, so `db dump`, `db pull` and `test db` don't work here (the `db-fresh` CI job runs Docker on GitHub instead).
 - **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 
 ## App architecture (M4 onwards)
