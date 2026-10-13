@@ -6,6 +6,13 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## M6 Production readiness (2026-10-15). Mostly checked during go-live (docs/deploy/GO_LIVE.md)
+- ☐ Android test APK: the home-screen icon is the blue pin (not the Capacitor default), and the splash screen is blue.
+- ☐ Worker clock-in still works end to end (the camera now loads on demand, so the first time may take a second).
+- ☐ Production web app: the browser's Network tab shows the `content-security-policy` header. Admin map tiles, photos and login all work under it.
+- ☐ After go-live: the next morning, Supabase → Cron shows `purge-expired-photos` ran successfully.
+- ☐ Release APK (tag `v1.0.0`) installs on a phone (after uninstalling the test app) and talks to production.
+
 ## M5 Admin review and reporting (2026-10-14). Log in as the demo admin; you land on Review
 - ☐ Review: today's clock-ins appear, unreviewed and flagged ones first. Each card shows the clock-in photo next to the reference photo, plus the site photo. Tap a photo to enlarge it; Escape or a tap closes it.
 - ☐ Reject without a reason is refused. With a reason, the card leaves "Needs review". The Status filter "Rejected" shows it with the note. Approve works the same way.

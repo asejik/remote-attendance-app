@@ -107,6 +107,31 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **Test-only liveness bypass:** `import.meta.env.VITE_E2E === '1'` auto-captures in `LivenessCamera`. Playwright builds with it into `dist-e2e/`. `check:secrets` fails if the marker `E2E_LIVENESS_BYPASS` appears in `dist/`.
 - **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at M6.
 
+## Production and deployment (M6)
+
+- **Rule: no developer tool has production credentials.** Production lives only in the GitHub `production` environment (required reviewer: the owner). Everything that touches prod is a workflow the owner triggers:
+  - `deploy-prod.yml`: migrations, the 3 Edge Functions, `CRON_SECRET`, and auth/Vault settings via `scripts/configure-supabase.mjs`.
+  - `onboard-org.yml` → `scripts/onboard-org.mjs`: a new organisation plus its first admin.
+  - `android-release.yml`: on a `v*.*.*` tag, a release-key-signed APK as a draft release.
+- **Guides:**
+  - `docs/deploy/GO_LIVE.md`: the step-by-step order.
+  - `docs/deploy/CLOUDFLARE.md`: hosting at `attendance.asejik.com` with `wrangler.jsonc` (static assets + SPA fallback).
+  - `docs/deploy/RUNBOOK.md`: operations, breach response, data requests.
+- **Security headers** live in `public/_headers` (CSP etc.). `vite preview` applies the same headers, and `tests/e2e/fixtures.ts` fails any E2E test that logs a CSP violation. Use `dataUrlToBlob`, never `fetch(data:...)`. Adding an external host means updating the CSP.
+- **Photo retention:**
+  - The `purge-expired-photos` Edge Function is called daily at 02:15 UTC by pg_cron, using `x-cron-secret` (Vault `project_url`/`cron_secret`, plus function secret `CRON_SECRET`, also in local `.env` for tests).
+  - Service-role-only SQL helpers are in migration `20261015090000`.
+  - Tested by `tests/rls/retention.test.ts`.
+- **Build flags:**
+  - `VITE_ENABLE_DIAGNOSTICS=1` (test APK only): shows `/diagnostics`.
+  - `VITE_SENTRY_DSN`: enables Sentry (`src/lib/monitoring.ts`, PII stripped).
+  - `VITE_MAP_TILE_URL` / `VITE_MAP_ATTRIBUTION`: the map tile provider.
+- **Lazy chunks:** the face camera (face-api), diagnostics, the site map (Leaflet) and Excel export (SheetJS) are loaded on demand. Keep heavy libraries out of the main bundle.
+- **Android signing:**
+  - Debug/test APK: the shared debug key (`ANDROID_DEBUG_KEYSTORE_B64`).
+  - Release: the release key, kept in the private repo (`docs/private/android-release/`) plus offline. Gradle reads `RELEASE_KEYSTORE*`, `VERSION_CODE` and `VERSION_NAME` from the environment.
+  - Launcher icons are generated from `assets/` with `npx @capacitor/assets generate --android`.
+
 ## Conventions (from .cursorrules)
 
 - Offline-first: attendance writes go to IndexedDB first, then sync.

@@ -27,6 +27,7 @@ Repo → **Settings → Environments → New environment** → `production`.
 | `PROD_CRON_SECRET` | a new random string, 40+ letters/digits (password manager → generate) |
 | `PROD_VITE_SUPABASE_URL` | Project URL |
 | `PROD_VITE_SUPABASE_ANON_KEY` | anon / publishable key |
+| `PROD_SUPABASE_SECRET_KEY` | the **secret** key (Project Settings → API). Used only by the onboarding workflow. |
 | `ANDROID_RELEASE_KEYSTORE_B64` | from the private repo, `docs/private/android-release/` |
 | `ANDROID_RELEASE_KEYSTORE_PASSWORD` | from the same folder |
 
@@ -48,9 +49,10 @@ Supabase's built-in mailer is limited (~2 emails/hour) and not for production.
 
 ## 5. Web app on Cloudflare: see [CLOUDFLARE.md](CLOUDFLARE.md) (owner, ~20 min)
 
-## 6. First client organisation and admin (developer runs a script; owner supplies details)
+## 6. First client organisation and admin (owner, ~3 min)
 
-With the client's agreed details (organisation name, short code such as `abc`, admin's name and email), the developer prepares a one-off SQL/script **reviewed by the owner** and run by the owner in the production SQL editor (or via a reviewed workflow). The admin then uses **Forgot password?** on the login page to set their own password, so no password is ever sent by chat or email.
+Actions → **Onboard organisation (production)** → Run workflow → enter the organisation name, short code (what workers type at login, e.g. `abc`), the admin's name and email, and the settings → approve. Running it twice is harmless.
+The admin then opens the app → **Organisation admin? Log in here** → **Forgot password?** to set their own password, so no password is ever sent by chat or email (needs step 4's email setup).
 
 ## 7. Android release (developer tags; owner publishes)
 

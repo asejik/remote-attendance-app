@@ -1,0 +1,43 @@
+name: Onboard organisation (production)
+
+# Creates a client organisation and its first admin in PRODUCTION. Run by hand;
+# needs the production environment's approval. The admin then sets their own
+# password with "Forgot password?"; no password is ever shared.
+on:
+  workflow_dispatch:
+    inputs:
+      org_name: { description: 'Organisation name (e.g. ABC Construction Ltd)', required: true }
+      org_slug: { description: 'Short code workers type at login (lowercase, e.g. abc)', required: true }
+      admin_name: { description: "Admin's full name", required: true }
+      admin_email: { description: "Admin's email", required: true }
+      site_photo_required: { description: 'Require a site photo', type: boolean, default: true }
+      geofence_mode: { description: 'Clock-ins away from the site', type: choice, options: [flag, block], default: flag }
+      photo_retention_days: { description: 'Keep photos for (days, 7-365)', default: '60' }
+
+permissions:
+  contents: read
+
+jobs:
+  onboard:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Create organisation and admin
+        env:
+          SUPABASE_URL: ${{ secrets.PROD_VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.PROD_SUPABASE_SECRET_KEY }}
+          ORG_NAME: ${{ inputs.org_name }}
+          ORG_SLUG: ${{ inputs.org_slug }}
+          ADMIN_NAME: ${{ inputs.admin_name }}
+          ADMIN_EMAIL: ${{ inputs.admin_email }}
+          SITE_PHOTO_REQUIRED: ${{ inputs.site_photo_required }}
+          GEOFENCE_MODE: ${{ inputs.geofence_mode }}
+          PHOTO_RETENTION_DAYS: ${{ inputs.photo_retention_days }}
+        run: node scripts/onboard-org.mjs
