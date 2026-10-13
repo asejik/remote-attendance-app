@@ -16,9 +16,17 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Pixel 7'] } }],
+  projects: [{
+    name: 'chromium',
+    use: {
+      ...devices['Pixel 7'],
+      permissions: ['camera', 'geolocation'],
+      launchOptions: { args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] },
+    },
+  }],
   webServer: {
-    command: 'npx vite build && npx vite preview --host ::1 --port 4173 --strictPort', // typecheck runs separately
+    // Test build (VITE_E2E=1 enables the liveness bypass) goes to dist-e2e, never dist.
+    command: 'VITE_E2E=1 npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --host ::1 --port 4173 --strictPort',
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
   },

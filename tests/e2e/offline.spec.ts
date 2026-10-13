@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 
 test('app opens and face models load with no network after the first visit', async ({ page, context }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Staff Access' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Worker login' })).toBeVisible()
 
   // Wait until the service worker has installed and controls the page.
   await page.evaluate(async () => {
@@ -14,7 +14,7 @@ test('app opens and face models load with no network after the first visit', asy
 
   await context.setOffline(true)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Staff Access' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Worker login' })).toBeVisible()
 
   const modelsOk = await page.evaluate(async () => {
     const files = [

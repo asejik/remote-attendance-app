@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import type { StaffContext } from '../../context/useStaff';
+import { supabase } from '../lib/supabase';
+import type { StaffContext } from '../context/useStaff';
 
 // First-login privacy notice for workers and supervisors (Nigeria Data
 // Protection Act 2023: tell people what is collected, why, who sees it and for
@@ -21,12 +21,12 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
       return setError(navigator.onLine ? 'Could not save. Please try again.' : "You're offline. Connect to the internet to continue.");
     }
     await reload();
-    navigate('/v2/home', { replace: true });
+    navigate('/home', { replace: true });
   };
 
   const decline = async () => {
     await supabase.auth.signOut();
-    navigate('/v2/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   return (

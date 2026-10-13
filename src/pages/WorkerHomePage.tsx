@@ -1,0 +1,334 @@
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Geolocation } from '@capacitor/geolocation';
+import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, History, Loader2, LogOut, MapPin, RefreshCw } from 'lucide-react';
+import { LivenessCamera } from '../components/LivenessCamera';
+import { supabase } from '../lib/supabase';
+import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/queue';
+import { startAutoSync, syncPendingRecords } from '../lib/sync';
+import { shrinkPhoto } from '../lib/image';
+import { distanceM, outsideSite, type Fix } from '../lib/geo';
+import type { StaffContext } from '../context/useStaff';
+
+interface Site { id: string; name: string; latitude: number; longitude: number; radius_m: number }
+interface OrgSettings { site_photo_required: boolean; geofence_mode: 'flag' | 'block' }
+interface ServerEvent { id: string; type: EventType; captured_at: string; site_name_snapshot: string | null; flags: string[] }
+
+const FLAG_LABELS: Record<string, string> = {
+  outside_radius: 'Outside site', low_accuracy: 'Weak GPS', time_skew: 'Phone time wrong', no_location: 'No location',
+  liveness_failed: 'No smile check', no_site_photo: 'No site photo', no_face_photo: 'No face photo', no_site: 'No site',
+};
+
+// Small per-organisation cache so the screen works offline after one online visit.
+const cacheKey = (orgId: string, what: string) => `v2:${orgId}:${what}`;
+const readCache = <T,>(key: string): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+};
+const writeCache = (key: string, value: unknown) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Cache is a convenience.
+  }
+};
+
+const getFix = async (): Promise<Fix | null> => {
+  try {
+    const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 20_000, maximumAge: 30_000 });
+    return { latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracyM: pos.coords.accuracy };
+  } catch (err) {
+    console.error('GPS failed', err);
+    return null;
+  }
+};
+
+type Step = 'idle' | 'locating' | 'face' | 'site-instruction' | 'saving';
+
+export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
+  const navigate = useNavigate();
+  const { staff, organization } = context;
+  const userId = staff.user_id!;
+
+  const [sites, setSites] = useState<Site[]>(() => readCache<Site[]>(cacheKey(organization.id, 'sites')) ?? []);
+  const [settings, setSettings] = useState<OrgSettings>(
+    () => readCache<OrgSettings>(cacheKey(organization.id, 'settings')) ?? { site_photo_required: true, geofence_mode: 'flag' },
+  );
+  const [serverEvents, setServerEvents] = useState<ServerEvent[]>(() => readCache<ServerEvent[]>(cacheKey(staff.id, 'recent')) ?? []);
+  const [local, setLocal] = useState<QueuedEvent[]>([]);
+  const [siteId, setSiteId] = useState(() => readCache<string>(cacheKey(staff.id, 'site')) ?? '');
+  const [step, setStep] = useState<Step>('idle');
+  const [online, setOnline] = useState(navigator.onLine);
+  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [pending, setPending] = useState<{ fix: Fix | null; face: Blob; livenessPassed: boolean } | null>(null);
+  const [fixForCapture, setFixForCapture] = useState<Fix | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  // Organisation settings, sites and the server's recent events (cached for offline).
+  const refreshFromServer = useCallback(async () => {
+    const [orgRes, sitesRes, eventsRes] = await Promise.all([
+      supabase.from('organizations').select('site_photo_required, geofence_mode').eq('id', organization.id).maybeSingle(),
+      supabase.from('work_sites').select('id, name, latitude, longitude, radius_m').order('name'),
+      supabase.from('attendance_events').select('id, type, captured_at, site_name_snapshot, flags')
+        .eq('staff_id', staff.id).order('captured_at', { ascending: false }).limit(5),
+    ]);
+    if (orgRes.data) {
+      setSettings(orgRes.data);
+      writeCache(cacheKey(organization.id, 'settings'), orgRes.data);
+    }
+    if (sitesRes.data) {
+      setSites(sitesRes.data);
+      writeCache(cacheKey(organization.id, 'sites'), sitesRes.data);
+    }
+    if (eventsRes.data) {
+      setServerEvents(eventsRes.data);
+      writeCache(cacheKey(staff.id, 'recent'), eventsRes.data);
+    }
+  }, [organization.id, staff.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const readQueue = () => queue.forUser(userId).then((events) => {
+      if (!cancelled) setLocal(events);
+    });
+    readQueue();
+    const unsubscribe = subscribeQueue(readQueue);
+    const stopSync = startAutoSync();
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    refreshFromServer();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      stopSync();
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, [userId, refreshFromServer]);
+
+  // History: this device's records plus the server's, newest first, no duplicates.
+  const localIds = new Set(local.map((e) => e.id));
+  const history = [
+    ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], waiting: e.status === 'pending' })),
+    ...serverEvents.filter((e) => !localIds.has(e.id))
+      .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, waiting: false })),
+  ].sort((a, b) => b.at.localeCompare(a.at));
+  const last = history[0];
+  const clockedIn = last?.type === 'CLOCK_IN';
+  const waiting = local.filter((e) => e.status === 'pending');
+  const site = sites.find((s) => s.id === siteId);
+
+  const start = async () => {
+    setMessage(null);
+    if (!site) return setMessage({ kind: 'error', text: 'Choose the site you are at first.' });
+    setStep('locating');
+    const fix = await getFix();
+    if (settings.geofence_mode === 'block' && fix && outsideSite(fix, site)) {
+      setStep('idle');
+      const metres = Math.round(distanceM(fix.latitude, fix.longitude, site.latitude, site.longitude));
+      return setMessage({ kind: 'error', text: `You are about ${metres} m from ${site.name}. Clock-in is only allowed at the site.` });
+    }
+    setFixForCapture(fix);
+    setStep('face');
+  };
+
+  const onFace = async (imageSrc: string, livenessPassed: boolean) => {
+    const face = await (await fetch(imageSrc)).blob();
+    if (settings.site_photo_required) {
+      setPending({ fix: fixForCapture, face, livenessPassed });
+      setStep('site-instruction');
+    } else {
+      await save(fixForCapture, face, null, livenessPassed);
+    }
+  };
+
+  const takeSitePhoto = async () => {
+    if (!pending) return;
+    try {
+      const image = await CapacitorCamera.getPhoto({
+        quality: 70, width: 1280, allowEditing: false, resultType: CameraResultType.Uri, source: CameraSource.Camera,
+      });
+      if (!image.webPath) throw new Error('No photo taken');
+      const sitePhoto = await shrinkPhoto(await (await fetch(image.webPath)).blob());
+      await save(pending.fix, pending.face, sitePhoto, pending.livenessPassed);
+    } catch (err) {
+      console.error(err);
+      setStep('idle');
+      setPending(null);
+      setMessage({ kind: 'error', text: 'Site photo cancelled. Nothing was saved.' });
+    }
+  };
+
+  const save = async (fix: Fix | null, face: Blob, sitePhoto: Blob | null, livenessPassed: boolean) => {
+    setStep('saving');
+    const type: EventType = clockedIn ? 'CLOCK_OUT' : 'CLOCK_IN';
+    const id = crypto.randomUUID();
+    try {
+      await queue.add({
+        id, userId, organizationId: organization.id, staffId: staff.id,
+        siteId: site?.id ?? null, siteName: site?.name ?? null, type, capturedAt: new Date().toISOString(),
+        latitude: fix?.latitude ?? null, longitude: fix?.longitude ?? null, accuracyM: fix ? Math.round(fix.accuracyM) : null,
+        livenessPassed, hasFacePhoto: true, hasSitePhoto: sitePhoto !== null, status: 'pending', attempts: 0,
+      }, { face, site: sitePhoto });
+      writeCache(cacheKey(staff.id, 'site'), site?.id);
+      setMessage({
+        kind: 'ok',
+        text: `${type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out'}${fix ? '' : ' (no GPS location)'}. ${navigator.onLine ? 'Uploading…' : 'Saved on this phone; it will upload when you are online.'}`,
+      });
+      if (navigator.onLine) {
+        syncPendingRecords()
+          .then(refreshFromServer)
+          .then(async () => {
+            const saved = (await queue.forUser(userId)).find((e) => e.id === id);
+            const label = type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out';
+            setMessage(saved?.status === 'synced'
+              ? { kind: 'ok', text: `${label}. Uploaded.` }
+              : { kind: 'ok', text: `${label}. Saved on this phone; the upload will be retried automatically.` });
+          })
+          .catch(() => undefined);
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ kind: 'error', text: 'Could not save on this phone. Free some storage and try again.' });
+    } finally {
+      setStep('idle');
+      setPending(null);
+    }
+  };
+
+  const syncNow = async () => {
+    setSyncing(true);
+    await syncPendingRecords().catch(() => undefined);
+    await refreshFromServer();
+    setSyncing(false);
+  };
+
+  const logOut = async () => {
+    if (waiting.length && !window.confirm(`${waiting.length} record(s) haven't uploaded yet. They will upload next time you log in on this phone. Log out?`)) return;
+    await supabase.auth.signOut();
+    navigate('/', { replace: true });
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {step === 'face' && <LivenessCamera onCapture={onFace} onCancel={() => setStep('idle')} />}
+      {step === 'site-instruction' && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" role="dialog" aria-modal="true" aria-labelledby="site-photo-title">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
+            <Camera className="mx-auto text-blue-600" size={36} aria-hidden />
+            <h2 id="site-photo-title" className="text-xl font-bold text-gray-900">Now a photo of the site</h2>
+            <p className="text-gray-600">Take a clear picture of where you are working, so your admin can see the site.</p>
+            <button onClick={takeSitePhoto} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+              Open camera <ArrowRight size={20} aria-hidden />
+            </button>
+            <button onClick={() => { setStep('idle'); setPending(null); }} className="text-gray-500 text-sm underline">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <header className="bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">{staff.full_name}</h1>
+          <p className="text-xs text-gray-500">{organization.name} · {staff.staff_code}</p>
+        </div>
+        <button onClick={logOut} aria-label="Log out" className="p-2 text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+      </header>
+
+      <main className="p-4 max-w-md mx-auto flex flex-col items-center gap-5">
+        {!online && (
+          <p className="w-full text-sm bg-gray-800 text-white rounded-lg px-3 py-2 flex items-center gap-2" role="status">
+            <CloudOff size={16} aria-hidden /> Offline. Clock-ins are saved on this phone.
+          </p>
+        )}
+
+        <label className="w-full text-sm font-medium text-gray-700">
+          Your site
+          <div className="relative mt-1">
+            <select value={siteId} onChange={(e) => setSiteId(e.target.value)}
+              className="block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-3 pr-10 text-gray-900">
+              <option value="">Choose site…</option>
+              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <MapPin className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={16} aria-hidden />
+          </div>
+          {!sites.length && <span className="block mt-1 text-xs text-amber-700">No sites yet. Connect to the internet, or ask your admin to add your site.</span>}
+        </label>
+
+        {waiting.length > 0 ? (
+          <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between" role="status">
+            <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
+              <CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload
+            </span>
+            <button onClick={syncNow} disabled={syncing || !online} className="text-xs bg-orange-100 text-orange-900 px-3 py-1.5 rounded-full flex items-center gap-1 disabled:opacity-50">
+              {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Upload now
+            </button>
+          </div>
+        ) : (
+          <p className="w-full bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-center gap-2 text-green-800 text-sm font-semibold" role="status">
+            <Cloud size={16} aria-hidden /> All records uploaded
+          </p>
+        )}
+
+        <div className={`w-full rounded-xl border p-5 text-center ${clockedIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
+          <p className="text-sm text-gray-500">Current status</p>
+          <p className={`text-3xl font-bold ${clockedIn ? 'text-green-700' : 'text-gray-800'}`}>{clockedIn ? 'CLOCKED IN' : 'CLOCKED OUT'}</p>
+          {last && (
+            <p className="mt-1 text-xs text-gray-500 flex items-center justify-center gap-1">
+              <Clock size={12} aria-hidden /> {last.site ?? 'No site'} · {new Date(last.at).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+            </p>
+          )}
+        </div>
+
+        {message && (
+          <p role={message.kind === 'error' ? 'alert' : 'status'}
+            className={`w-full text-sm rounded-lg p-3 ${message.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
+            {message.text}
+          </p>
+        )}
+
+        <button onClick={start} disabled={step !== 'idle'}
+          className={`flex flex-col items-center justify-center w-48 h-48 border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-blue-100'}`}>
+          <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-blue-600'}`}>
+            {step === 'idle' ? <Camera size={40} aria-hidden /> : <Loader2 className="animate-spin" size={40} aria-hidden />}
+          </span>
+          <span className={`font-bold ${clockedIn ? 'text-red-700' : 'text-gray-800'}`}>
+            {step === 'locating' ? 'Getting location…' : step === 'saving' ? 'Saving…' : clockedIn ? 'Tap to clock OUT' : 'Tap to clock IN'}
+          </span>
+        </button>
+
+        <section className="w-full bg-white rounded-xl border border-gray-200 overflow-hidden" aria-labelledby="history-title">
+          <h2 id="history-title" className="bg-gray-50 px-4 py-3 border-b text-sm font-bold text-gray-700 flex items-center gap-2">
+            <History size={16} aria-hidden /> Recent activity
+          </h2>
+          {history.length === 0 && <p className="px-4 py-6 text-sm text-gray-500 text-center">No clock-ins yet.</p>}
+          <ul className="divide-y divide-gray-100">
+            {history.slice(0, 5).map((h) => (
+              <li key={h.id} className="px-4 py-3 flex justify-between items-start gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-800">{h.type === 'CLOCK_IN' ? 'Clock in' : 'Clock out'} · {h.site ?? 'No site'}</p>
+                  <p className="text-xs text-gray-500">{new Date(h.at).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
+                  {h.flags.length > 0 && (
+                    <p className="mt-1 text-xs text-amber-800 flex items-center gap-1">
+                      <AlertTriangle size={12} aria-hidden /> {h.flags.map((f) => FLAG_LABELS[f] ?? f).join(', ')}
+                    </p>
+                  )}
+                </div>
+                <span className={`text-xs font-medium whitespace-nowrap flex items-center gap-1 ${h.waiting ? 'text-orange-700' : 'text-green-700'}`}>
+                  {h.waiting ? <><CloudOff size={12} aria-hidden /> Waiting</> : <><CheckCircle size={12} aria-hidden /> Uploaded</>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <Link to="/diagnostics" className="text-xs text-gray-400 underline pb-6">Device diagnostics</Link>
+      </main>
+    </div>
+  );
+};

@@ -8,13 +8,34 @@ export interface StaffContext {
   organization: { id: string; name: string; slug: string };
 }
 
+const cacheKey = (userId: string) => `staffContext:${userId}`;
+
+// Online: the server's answer (cached for offline use; a definite "no active
+// record" clears the cache). Offline / network error: the last cached answer,
+// so a signed-in worker can still open the app and clock in. The server still
+// enforces access on upload.
 const fetchStaffContext = async (userId: string): Promise<StaffContext | null> => {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('staff')
     .select('*, organizations(id, name, slug)')
     .eq('user_id', userId)
     .maybeSingle();
-  return data?.organizations ? { staff: data, organization: data.organizations } : null;
+  if (error) {
+    try {
+      const cached = localStorage.getItem(cacheKey(userId));
+      return cached ? (JSON.parse(cached) as StaffContext) : null;
+    } catch {
+      return null;
+    }
+  }
+  const context = data?.organizations ? { staff: data, organization: data.organizations } : null;
+  try {
+    if (context) localStorage.setItem(cacheKey(userId), JSON.stringify(context));
+    else localStorage.removeItem(cacheKey(userId));
+  } catch {
+    // Cache is a convenience.
+  }
+  return context;
 };
 
 // The signed-in user's own active staff record (new schema) and organisation.

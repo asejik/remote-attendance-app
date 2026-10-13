@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { HardHat, Loader2, Shield } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { getLastOrgSlug, staffLogin } from '../../lib/staffAuth';
-import { useStaff } from '../../context/useStaff';
+import { supabase } from '../lib/supabase';
+import { getLastOrgSlug, staffLogin } from '../lib/staffAuth';
+import { useStaff } from '../context/useStaff';
 
 const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500';
 
@@ -25,7 +25,7 @@ export const StaffLoginPage = () => {
 
   // Already signed in as staff: go straight in.
   useEffect(() => {
-    if (context) navigate(context.staff.role === 'admin' ? '/v2/admin/staff' : '/v2/home', { replace: true });
+    if (context) navigate(context.staff.role === 'admin' ? '/admin/staff' : '/home', { replace: true });
   }, [context, navigate]);
 
   const workerLogin = async (e: FormEvent) => {
@@ -62,7 +62,7 @@ export const StaffLoginPage = () => {
     if (!email.trim()) return setError('Enter your email address first.');
     setError('');
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/v2/reset-password`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     setInfo(resetError ? '' : 'If that email belongs to an admin, a reset link is on its way.');
     if (resetError) setError('Could not send the reset email. Please try again later.');

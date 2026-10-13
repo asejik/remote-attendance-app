@@ -46,3 +46,6 @@ docs/CLIENT_QUESTIONS.md
 docs/client
 docs/private
 supabase/legacy
+
+# Playwright test build (contains test-only code)
+/dist-e2e/

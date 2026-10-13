@@ -77,19 +77,29 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable, so `db dump`, `db pull` and `test db` don't work.
 - **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 
-## Prototype architecture (as found, being replaced)
+## App architecture (M4 onwards)
 
-Stack: React 19 + TypeScript + Tailwind v4, Dexie (IndexedDB), Supabase (auth, Postgres, storage), Capacitor 7 dependencies (the `android/` platform is not generated yet), deployed on Vercel with an SPA rewrite.
+- **Routes** (`src/App.tsx`): `/` login (worker PIN / admin email), `/consent`, `/home` (worker clock-in), `/admin/staff`, `/reset-password`, `/diagnostics`.
+  - `StaffRoute` gates each route by role and consent.
+  - `useStaff` loads the user's staff record and organisation, cached in localStorage so offline reopen works. A network error falls back to the cache; a definite "no record" clears it.
+- **Clock-in** (`src/pages/WorkerHomePage.tsx`), in order:
+  1. Site, org settings and recent server events are read from cache, then refreshed.
+  2. GPS fix (Capacitor Geolocation).
+  3. Block-mode geofence check (`src/lib/geo.ts`, same formula as the server).
+  4. `LivenessCamera`: a smile auto-captures; after 20 s "take photo without smile check" → `liveness_passed=false`.
+  5. Optional site photo (`site_photo_required`), shrunk by `shrinkPhoto`.
+  6. `queue.add`.
 
-**Clock-in flow:** `DashboardPage` → site picked from Supabase `sites` → `LivenessCamera` (face-api.js models in `public/models/`, auto-captures when `expressions.happy > 0.7`) → site photo via Capacitor Camera → `navigator.geolocation` → `saveOfflineAttendance` (`src/lib/db.ts`) writes to Dexie with `syncStatus: 'PENDING'` → manual "Sync Now" runs `syncPendingRecords` (`src/lib/sync.ts`), which uploads photos to the `attendance-photos` bucket and inserts into `attendance_logs`.
-
-- Clock-in vs clock-out is derived from the user's last **local** Dexie record. Dexie queries must be scoped to `user.id`.
-- Fields added to local records must also be mapped in the `attendance_logs` insert in `sync.ts`. Unmapped fields are silently dropped (this caused a past bug with `type`).
-- Bump the Dexie schema version in `RemoteAttendanceDB` when changing indexes.
-
-**Auth:** `AuthContext` wraps Supabase auth. Roles live in `profiles.role`. `LoginPage` serves both portals and signs out admins on the staff login and vice versa. `AdminRoute` re-checks the role client-side only.
-
-**Known prototype issues** (fixed by the rebuild) are listed in `supabase/legacy/README.md` (private) and the plan. A summary of the non-security ones: the web build has no service worker, sync is manual and can duplicate records, `sites.radius_meters` is unused, and the database schema lives only in the Supabase dashboard. `.cursorrules` mentions Zustand and `src/features/`, but neither is used.
+  Clock in vs out comes from the newest of the local queue and the server's recent events.
+- **Offline queue** (`src/lib/queue/`): one `QueueStore` interface.
+  - Web: IndexedDB (`AttendanceQueue`).
+  - Native: `@capacitor/filesystem` in `Directory.Data`, as `queue/{id}/face.jpg|site.jpg|event.json`. event.json is written last, so partial writes are ignored.
+  - Event ids are generated on the device. Synced records keep their metadata (photos deleted) and are pruned after 30 days.
+- **Sync** (`src/lib/sync.ts`): uploads only the signed-in user's pending records.
+  - Photos go to `event-photos/{org}/{event}/face|site.jpg` (a 409 "already exists" counts as success), then `attendance_events` upsert with `ignoreDuplicates`, then the server flags are read back.
+  - Triggers: app start, `online` (+3 s) / Capacitor Network, app reopened, a 30 s check while anything is pending, and backoff retries (30 s → 5 min).
+- **Test-only liveness bypass:** `import.meta.env.VITE_E2E === '1'` auto-captures in `LivenessCamera`. Playwright builds with it into `dist-e2e/`. `check:secrets` fails if the marker `E2E_LIVENESS_BYPASS` appears in `dist/`.
+- **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at M6.
 
 ## Conventions (from .cursorrules)
 

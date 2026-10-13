@@ -17,7 +17,7 @@ const JPEG = Buffer.from(
 const workerName = `E2E Worker ${Date.now()}`
 
 const adminLogin = async (page: Page) => {
-  await page.goto('/v2/login')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Organisation admin? Log in here' }).click()
   await page.getByLabel('Email').fill(adminEmail!)
   await page.getByLabel('Password').fill(adminPassword!)
@@ -26,7 +26,7 @@ const adminLogin = async (page: Page) => {
 }
 
 const workerLogin = async (page: Page, code: string, pin: string) => {
-  await page.goto('/v2/login')
+  await page.goto('/')
   await page.getByLabel('Organisation').fill(org)
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
@@ -35,7 +35,7 @@ const workerLogin = async (page: Page, code: string, pin: string) => {
 
 const logOut = async (page: Page) => {
   await page.getByRole('button', { name: 'Log out' }).click()
-  await expect(page).toHaveURL(/\/v2\/login/)
+  await expect(page).toHaveURL(/\/$/)
 }
 
 test.afterAll(async () => {
@@ -78,7 +78,7 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
   await expect(page.getByRole('heading', { name: workerName })).toBeVisible()
 
   // Reopening goes straight back in (no second consent).
-  await page.goto('/v2/login')
+  await page.goto('/')
   await expect(page.getByRole('heading', { name: workerName })).toBeVisible()
   await logOut(page)
 

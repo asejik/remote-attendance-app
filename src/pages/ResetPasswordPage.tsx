@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../context/useAuth';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/useAuth';
 
 // Landing page for the admin password-reset email link. Supabase signs the user
 // in from the link; they then choose a new password.
@@ -22,7 +22,7 @@ export const ResetPasswordPage = () => {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (updateError) return setError('Could not change the password. The link may have expired; request a new one.');
-    navigate('/v2/admin/staff', { replace: true });
+    navigate('/admin/staff', { replace: true });
   };
 
   return (

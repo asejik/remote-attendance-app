@@ -21,8 +21,12 @@ const playShutterSound = () => {
   osc.stop(ctx.currentTime + 0.1);
 };
 
+// After this long without a detected smile, offer "take photo anyway". The
+// event is then flagged liveness_failed for review; a real clock-in is never blocked.
+const FALLBACK_AFTER_MS = 20_000;
+
 interface LivenessCameraProps {
-  onCapture: (imageSrc: string) => void;
+  onCapture: (imageSrc: string, livenessPassed: boolean) => void;
   onCancel: () => void;
 }
 
@@ -32,6 +36,7 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('Loading AI Models...');
   const [faceDetected, setFaceDetected] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
 
   useEffect(() => {
     onCaptureRef.current = onCapture;
@@ -48,12 +53,24 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
     const capture = () => {
       if (cancelled) return;
       const imageSrc = webcamRef.current?.getScreenshot();
-      if (imageSrc) onCaptureRef.current(imageSrc);
+      if (imageSrc) onCaptureRef.current(imageSrc, true);
     };
+    const fallbackTimer = setTimeout(() => {
+      if (!cancelled) setShowFallback(true);
+    }, FALLBACK_AFTER_MS);
 
     const detect = async () => {
       const video = webcamRef.current?.video;
       if (detecting || !video || video.readyState !== 4) return;
+      // Test builds only (VITE_E2E=1): skip smile detection so browser tests can
+      // clock in with a fake camera. Production builds must not contain this;
+      // scripts/check-secrets.mjs fails the build if the marker string appears.
+      if (import.meta.env.VITE_E2E === '1') {
+        console.warn('E2E_LIVENESS_BYPASS active');
+        clearInterval(interval);
+        capture();
+        return;
+      }
       detecting = true;
       try {
         const detections = await faceapi
@@ -95,7 +112,10 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
         interval = setInterval(detect, 500);
       } catch (e) {
         console.error(e);
-        if (!cancelled) setMessage('Error loading AI. Check connection.');
+        if (!cancelled) {
+          setMessage('Face check unavailable on this device.');
+          setShowFallback(true);
+        }
       }
     };
 
@@ -104,14 +124,21 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
       cancelled = true;
       clearInterval(interval);
       clearTimeout(captureTimeout);
+      clearTimeout(fallbackTimer);
     };
   }, []);
+
+  const captureWithoutSmile = () => {
+    const imageSrc = webcamRef.current?.getScreenshot();
+    if (imageSrc) onCaptureRef.current(imageSrc, false);
+  };
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center">
       {/* Cancel Button (Top Right) */}
       <button
         onClick={onCancel}
+        aria-label="Close camera"
         className="absolute top-4 right-4 text-white bg-black/40 p-2 rounded-full z-50"
       >
         <X size={24} />
@@ -154,6 +181,11 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
           )}
           <span className="font-medium">{message}</span>
         </div>
+        {showFallback && (
+          <button onClick={captureWithoutSmile} className="block mx-auto px-5 py-3 rounded-full bg-white text-gray-900 font-semibold">
+            Take photo without smile check
+          </button>
+        )}
       </div>
     </div>
   );

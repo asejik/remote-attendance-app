@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Camera, KeyRound, Loader2, LogOut, UserPlus, UserX, UserCheck, X } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
-import { createStaff, resetPin, setStaffStatus, uploadReferencePhoto } from '../../lib/adminStaff';
-import type { Staff } from '../../lib/staffAuth';
-import type { StaffContext } from '../../context/useStaff';
+import { supabase } from '../lib/supabase';
+import { createStaff, resetPin, setStaffStatus, uploadReferencePhoto } from '../lib/adminStaff';
+import type { Staff } from '../lib/staffAuth';
+import type { StaffContext } from '../context/useStaff';
 
 const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
 
@@ -55,7 +55,7 @@ export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
 
   const logOut = async () => {
     await supabase.auth.signOut();
-    navigate('/v2/login', { replace: true });
+    navigate('/', { replace: true });
   };
 
   const onReset = async (s: Staff) => {
@@ -106,6 +106,8 @@ export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
         <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium">
           <UserPlus size={18} aria-hidden /> Add worker
         </button>
+
+        <p className="text-sm text-gray-600 bg-blue-50 rounded-lg p-3">Reviewing clock-ins (photos, locations, flags) arrives in the next update.</p>
 
         {rowError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{rowError}</p>}
         {loadError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{loadError}</p>}

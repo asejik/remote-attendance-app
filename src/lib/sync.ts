@@ -1,7 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { supabase } from './supabase';
-import { db } from './db';
+import { queue, type QueuedEvent } from './queue';
 
 export interface SyncReport {
   synced: number;
@@ -32,65 +32,61 @@ export const syncPendingRecords = () => {
   return inFlight;
 };
 
-const runSync = async () => {
-  const pendingRecords = await db.attendance.where('syncStatus').equals('PENDING').toArray();
-  if (pendingRecords.length === 0) {
-    saveSyncReport(0, 0);
-    return { synced: 0, errors: 0 };
-  }
+const isDuplicate = (error: unknown) => {
+  const e = error as { statusCode?: string | number; message?: string };
+  return String(e?.statusCode) === '409' || /already exists|duplicate/i.test(e?.message ?? '');
+};
 
+// Uploads one photo to event-photos/{org}/{event}/{kind}.jpg. "Already exists"
+// means an earlier attempt got this far, which counts as success. A photo
+// missing from the device is skipped; the server then flags the event.
+const uploadPhoto = async (event: QueuedEvent, kind: 'face' | 'site') => {
+  const blob = await queue.getPhoto(event.id, kind);
+  if (!blob) return null;
+  const path = `${event.organizationId}/${event.id}/${kind}.jpg`;
+  const { error } = await supabase.storage.from('event-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
+  if (error && !isDuplicate(error)) throw error;
+  return path;
+};
+
+const uploadEvent = async (event: QueuedEvent) => {
+  const facePath = event.hasFacePhoto ? await uploadPhoto(event, 'face') : null;
+  const sitePath = event.hasSitePhoto ? await uploadPhoto(event, 'site') : null;
+  const { error } = await supabase.from('attendance_events').upsert({
+    id: event.id,
+    organization_id: event.organizationId,
+    staff_id: event.staffId,
+    site_id: event.siteId,
+    type: event.type,
+    captured_at: event.capturedAt,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    accuracy_m: event.accuracyM,
+    liveness_passed: event.livenessPassed,
+    face_photo_path: facePath,
+    site_photo_path: sitePath,
+    device_info: { app_version: __APP_VERSION__, platform: Capacitor.getPlatform() },
+  }, { onConflict: 'id', ignoreDuplicates: true });
+  if (error) throw error;
+  const { data } = await supabase.from('attendance_events').select('flags').eq('id', event.id).maybeSingle();
+  await queue.markSynced(event.id, data?.flags ?? []);
+};
+
+// Uploads the signed-in user's waiting records, oldest first. Records of other
+// users on a shared device wait until that user signs in.
+const runSync = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  const pending = session ? await queue.pendingForUser(session.user.id) : [];
   let syncedCount = 0;
   let errorCount = 0;
 
-  for (const record of pendingRecords) {
+  for (const event of pending) {
     try {
-      const timestamp = record.timestamp.replace(/[:.]/g, '-');
-
-      // 1. Upload FACE Photo
-      const facePath = `${record.userId}/face_${timestamp}.jpg`;
-      const { error: faceErr } = await supabase.storage
-        .from('attendance-photos')
-        .upload(facePath, record.photoBlob, { upsert: true });
-      if (faceErr) throw faceErr;
-
-      // 2. Upload SITE Photo
-      const sitePath = `${record.userId}/site_${timestamp}.jpg`;
-      const { error: siteErr } = await supabase.storage
-        .from('attendance-photos')
-        .upload(sitePath, record.sitePhotoBlob, { upsert: true });
-      if (siteErr) throw siteErr;
-
-      const { data: { publicUrl: faceUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(facePath);
-      const { data: { publicUrl: siteUrl } } = supabase.storage.from('attendance-photos').getPublicUrl(sitePath);
-
-      // 3. Insert Record
-      const { error: insertError } = await supabase.from('attendance_logs').insert({
-        user_id: record.userId,
-        site_id: record.siteId,
-        site_name_snapshot: record.siteName,
-
-        // --- THE FIX IS HERE ---
-        type: record.type, // We must explicitly send the type (CLOCK_IN / CLOCK_OUT)
-        // -----------------------
-
-        timestamp: record.timestamp,
-        latitude: record.latitude,
-        longitude: record.longitude,
-        photo_path: faceUrl,
-        site_photo_path: siteUrl,
-        device_info: { source: 'pwa', version: '2.2' },
-        sync_status: 'synced'
-      });
-
-      if (insertError) throw insertError;
-
-      // 4. Update Local DB status
-      await db.attendance.update(record.id!, { syncStatus: 'SYNCED', lastError: undefined });
+      await uploadEvent(event);
       syncedCount++;
-
     } catch (err) {
-      console.error('Sync failed for record:', record.id, err);
-      await db.attendance.update(record.id!, { attempts: (record.attempts ?? 0) + 1, lastError: errorMessage(err) });
+      console.error('Sync failed for record:', event.id, err);
+      await queue.update(event.id, { attempts: event.attempts + 1, lastError: errorMessage(err) });
       errorCount++;
     }
   }
@@ -151,7 +147,7 @@ const saveSyncTrigger = (reason: SyncTriggerReason) => {
 export const retryDelayMs = (failedRuns: number) =>
   RETRY_DELAYS_MS[Math.min(Math.max(failedRuns, 1), RETRY_DELAYS_MS.length) - 1];
 
-const hasPending = async () => (await db.attendance.where('syncStatus').equals('PENDING').count()) > 0;
+const hasPending = async () => (await queue.allPending()).length > 0;
 
 // Upload queued records on app start, when the network returns, when the app
 // comes back to the foreground, and every 30 s while anything is waiting; after

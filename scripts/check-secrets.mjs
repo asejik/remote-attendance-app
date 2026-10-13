@@ -5,6 +5,8 @@ import { join } from 'node:path'
 
 const dirs = process.argv.slice(2).length ? process.argv.slice(2) : ['src', 'dist']
 const SECRET_PATTERNS = [/sb_secret_[A-Za-z0-9_-]+/, /SUPABASE_SECRET_KEY/, /SERVICE_ROLE_KEY/]
+// Test-only code that must never ship in a production build (dist/).
+const DIST_ONLY_PATTERNS = [/E2E_LIVENESS_BYPASS/]
 const JWT = /eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g
 
 const files = (dir) =>
@@ -20,6 +22,11 @@ for (const dir of dirs.filter(existsSync)) {
     const text = readFileSync(file, 'utf8')
     for (const pattern of SECRET_PATTERNS) {
       if (pattern.test(text)) findings.push(`${file}: matches ${pattern}`)
+    }
+    if (file.split(/[\\/]/)[0] === 'dist') {
+      for (const pattern of DIST_ONLY_PATTERNS) {
+        if (pattern.test(text)) findings.push(`${file}: test-only code in a production build (${pattern})`)
+      }
     }
     for (const [token] of text.matchAll(JWT)) {
       try {

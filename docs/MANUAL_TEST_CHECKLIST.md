@@ -6,7 +6,16 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
-## M3 Accounts (2026-10-14). Open `/v2/login` (the old `/` login is unchanged until M4)
+## M4 Clock-in on the new system (2026-10-14). The app now opens at `/` with the new login
+- ☐ Android: install the new APK over the old one. Log in with a worker code + PIN (create one as the demo admin first).
+- ☐ Choose a site, then tap clock IN: "Getting location…" → face camera (smile) → site photo (if your organisation requires it) → "Clocked in. Uploaded."
+- ☐ In airplane mode: clock out → "Saved on this phone…", plus the waiting count. Close the app fully and restart the phone: still waiting. Airplane mode off: it uploads within about a minute without tapping anything.
+- ☐ Recent activity shows "Uploaded" or "Waiting", and flags such as "Outside site" (try clocking in far from the site).
+- ☐ Face camera in poor light: after about 20 seconds, "Take photo without smile check" appears and works. The record shows "No smile check".
+- ☐ Admin: in Supabase, set the demo organisation's `geofence_mode` to `block`. A clock-in far from the site is refused with the distance shown.
+- ☐ Logging out with waiting records asks for confirmation first.
+
+## M3 Accounts (2026-10-14). Since M4 these screens are at `/`
 - ☐ Admin: "Organisation admin? Log in here" → log in with the demo admin from `docs/private/TEST_ACCOUNTS.md` → the Staff list shows.
 - ☐ Add worker on the phone: the reference photo field opens the camera. After saving, the organisation, staff code and PIN are shown once.
 - ☐ Worker login with organisation `demo`, staff code and PIN → privacy notice → "I understand and agree" → worker home with name.

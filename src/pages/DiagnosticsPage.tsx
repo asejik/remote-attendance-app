@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
-import { useLiveQuery } from 'dexie-react-hooks';
 import * as faceapi from 'face-api.js';
 import { ArrowLeft } from 'lucide-react';
-import { db } from '../lib/db';
+import { queue, subscribeQueue, type QueuedEvent } from '../lib/queue';
 import { getStorageInfo, requestPersistentStorage, type StorageInfo } from '../lib/storage';
 import { getLastSyncReport, getLastSyncTrigger } from '../lib/sync';
 
@@ -34,8 +33,28 @@ export const DiagnosticsPage = () => {
   const lastSync = getLastSyncReport();
   const lastTrigger = getLastSyncTrigger();
 
-  const pending = useLiveQuery(() => db.attendance.where('syncStatus').equals('PENDING').sortBy('timestamp'), []);
-  const latest = useLiveQuery(() => db.attendance.orderBy('timestamp').last(), []);
+  // Every user's waiting records on this device (oldest first), and the photo
+  // sizes of the newest one that still has photos.
+  const [pending, setPending] = useState<QueuedEvent[]>([]);
+  const [photoSizes, setPhotoSizes] = useState<{ face?: number; site?: number }>({});
+  useEffect(() => {
+    let cancelled = false;
+    const read = async () => {
+      const waiting = await queue.allPending();
+      const newest = waiting.at(-1);
+      const [face, site] = newest ? await Promise.all([queue.getPhoto(newest.id, 'face'), queue.getPhoto(newest.id, 'site')]) : [null, null];
+      if (!cancelled) {
+        setPending(waiting);
+        setPhotoSizes({ face: face?.size, site: site?.size });
+      }
+    };
+    read();
+    const unsubscribe = subscribeQueue(read);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const update = () => setOnline(navigator.onLine);
@@ -82,7 +101,7 @@ export const DiagnosticsPage = () => {
     <div className="h-full overflow-y-auto bg-gray-50 p-4">
       <div className="max-w-md mx-auto space-y-4">
         <div className="flex items-center gap-3">
-          <Link to="/dashboard" aria-label="Back to dashboard" className="p-2 -ml-2 text-gray-600"><ArrowLeft size={20} /></Link>
+          <Link to="/home" aria-label="Back to home" className="p-2 -ml-2 text-gray-600"><ArrowLeft size={20} /></Link>
           <h1 className="text-lg font-bold text-gray-800">Device diagnostics</h1>
         </div>
 
@@ -102,10 +121,10 @@ export const DiagnosticsPage = () => {
         </section>
 
         <section className="bg-white rounded-xl border border-gray-200 p-4">
-          <Row label="Waiting to upload" value={String(pending?.length ?? 0)} />
-          <Row label="Oldest waiting" value={formatAge(pending?.[0]?.timestamp)} />
+          <Row label="Waiting to upload" value={String(pending.length)} />
+          <Row label="Oldest waiting" value={formatAge(pending[0]?.capturedAt)} />
           <Row label="Last upload run" value={lastSync ? `${formatAge(lastSync.finishedAt)} ago: ${lastSync.synced} sent, ${lastSync.errors} failed` : 'never'} />
-          {pending?.some((r) => r.lastError) && (
+          {pending.some((r) => r.lastError) && (
             <Row
               label="Last upload error"
               value={(() => {
@@ -115,8 +134,8 @@ export const DiagnosticsPage = () => {
             />
           )}
           <Row label="Last upload trigger" value={lastTrigger ? `${lastTrigger.reason}, ${formatAge(lastTrigger.at)} ago` : 'none'} />
-          <Row label="Last face photo" value={formatBytes(latest?.photoBlob?.size)} />
-          <Row label="Last site photo" value={formatBytes(latest?.sitePhotoBlob?.size)} />
+          <Row label="Newest waiting face photo" value={formatBytes(photoSizes.face)} />
+          <Row label="Newest waiting site photo" value={formatBytes(photoSizes.site)} />
         </section>
 
         <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
