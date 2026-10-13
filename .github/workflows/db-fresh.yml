@@ -3,7 +3,8 @@ name: Fresh database
 # Proves production can be built from nothing: starts an EMPTY local Supabase
 # stack (Docker on the runner), applies every migration in order, serves the
 # Edge Functions and runs the full access/functions/retention suite against it.
-# No cloud project or credentials involved.
+# No cloud project or credentials involved. On failure, the end of each step's
+# output is published as an annotation (readable without opening the logs).
 on:
   push:
     paths:
@@ -30,34 +31,48 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Helper to report failures as annotations
+        run: |
+          cat > "$RUNNER_TEMP/run.sh" <<'SH'
+          #!/usr/bin/env bash
+          # run.sh <label> <command...>: runs the command, and on failure publishes
+          # the last 60 lines of its output as an error annotation.
+          label="$1"; shift
+          log="$RUNNER_TEMP/$(echo "$label" | tr ' ' '_').log"
+          if "$@" > >(tee "$log") 2>&1; then exit 0; fi
+          status=$?
+          msg=$(tail -n 60 "$log" | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=${label} failed::${msg}"
+          exit $status
+          SH
+          chmod +x "$RUNNER_TEMP/run.sh"
       - name: Start an empty Supabase and apply all migrations
-        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit,postgres-meta
+        run: $RUNNER_TEMP/run.sh "supabase start" npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit
       - name: Re-apply every migration from scratch
-        run: npx supabase db reset --local
+        run: $RUNNER_TEMP/run.sh "db reset" npx supabase db reset --local
       - name: Serve Edge Functions
         run: |
           printf 'CRON_SECRET=%s\n' "$CRON_SECRET" > "$RUNNER_TEMP/functions.env"
           nohup npx supabase functions serve --no-verify-jwt --env-file "$RUNNER_TEMP/functions.env" > "$RUNNER_TEMP/functions.log" 2>&1 &
           eval "$(npx supabase status -o env)"
-          for i in $(seq 1 60); do
+          for i in $(seq 1 90); do
             code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$API_URL/functions/v1/purge-expired-photos" || true)
             [ "$code" = "401" ] && echo "functions ready" && exit 0
             sleep 2
           done
-          cat "$RUNNER_TEMP/functions.log"; exit 1
+          msg=$(tail -n 60 "$RUNNER_TEMP/functions.log" | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=functions serve failed::${msg}"
+          exit 1
       - name: Access, functions and retention tests against the fresh database
         run: |
           eval "$(npx supabase status -o env)"
           export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" REQUIRE_RLS_TESTS=1
-          npm run test:rls 2>&1 | tee "$RUNNER_TEMP/rls.out"
+          $RUNNER_TEMP/run.sh "rls tests" npm run test:rls
           # Fail if anything was skipped or nothing ran.
-          grep -Eq 'Tests +[0-9]+ passed' "$RUNNER_TEMP/rls.out"
-          ! grep -Eq 'skipped|failed' "$RUNNER_TEMP/rls.out"
+          grep -Eq 'Tests +[0-9]+ passed' "$RUNNER_TEMP/rls_tests.log"
+          ! grep -Eq 'skipped|failed' "$RUNNER_TEMP/rls_tests.log"
       - name: Onboarding script against the fresh database
         run: |
           eval "$(npx supabase status -o env)"
           SUPABASE_URL="$API_URL" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" ORG_NAME="CI Org" ORG_SLUG="ci-org" \
-            ADMIN_NAME="CI Admin" ADMIN_EMAIL="ci-admin@example.test" node scripts/onboard-org.mjs
-      - name: Functions log (on failure)
-        if: failure()
-        run: cat "$RUNNER_TEMP/functions.log" || true
+            ADMIN_NAME="CI Admin" ADMIN_EMAIL="ci-admin@example.test" $RUNNER_TEMP/run.sh "onboarding" node scripts/onboard-org.mjs
