@@ -32,10 +32,10 @@ jobs:
       - run: npm ci
       # A brand-new local stack applies every migration in order to an empty database.
       - name: Start an empty Supabase and apply all migrations
-        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit 2>&1 | tee "$RUNNER_TEMP/start.log"
       - name: Confirm every migration was applied
         run: |
-          applied=$(npx supabase migration list --local | grep -cE '^\s*[0-9]{14}')
+          applied=$(grep -c 'Applying migration' "$RUNNER_TEMP/start.log" || true)
           files=$(ls supabase/migrations/*.sql | wc -l)
           echo "applied=$applied files=$files"
           [ "$applied" -eq "$files" ]
