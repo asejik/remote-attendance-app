@@ -421,3 +421,7 @@ verify_jwt = false
 
 [functions.admin-staff]
 verify_jwt = false
+
+# Called by pg_cron with the x-cron-secret header (no user JWT).
+[functions.purge-expired-photos]
+verify_jwt = false
