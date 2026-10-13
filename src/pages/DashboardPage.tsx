@@ -7,6 +7,7 @@ import { startAutoSync, syncPendingRecords } from '../lib/sync';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { LivenessCamera } from '../components/LivenessCamera';
 import { supabase } from '../lib/supabase';
+import { shrinkPhoto } from '../lib/image';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 
 interface Site {
@@ -120,7 +121,7 @@ export const DashboardPage = () => {
 
       if (!image.webPath) throw new Error('No photo taken');
       const response = await fetch(image.webPath);
-      const siteBlob = await response.blob();
+      const siteBlob = await shrinkPhoto(await response.blob());
       saveCompleteRecord(faceBlob, siteBlob);
 
     } catch (e) {

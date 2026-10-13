@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // Supabase is mocked: uploads/inserts succeed unless a test makes them fail.
 const upload = vi.fn();
 const insert = vi.fn();
+vi.mock('@capacitor/network', () => ({ Network: { addListener: vi.fn() } }));
 vi.mock('./supabase', () => ({
   supabase: {
     storage: {
@@ -17,7 +18,7 @@ vi.mock('./supabase', () => ({
 }));
 
 const { db, saveOfflineAttendance } = await import('./db');
-const { syncPendingRecords, startAutoSync, retryDelayMs } = await import('./sync');
+const { syncPendingRecords, startAutoSync, retryDelayMs, getLastSyncTrigger } = await import('./sync');
 
 const queueOne = () =>
   saveOfflineAttendance(
@@ -87,6 +88,11 @@ describe('auto-sync retry', () => {
     vi.stubGlobal('navigator', { onLine: true });
     vi.stubGlobal('window', new EventTarget());
     vi.stubGlobal('document', Object.assign(new EventTarget(), { visibilityState: 'visible' }));
+    const store = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+    });
   });
 
   afterEach(() => {
@@ -104,6 +110,18 @@ describe('auto-sync retry', () => {
 
     await vi.advanceTimersByTimeAsync(31_000); // retry succeeds
     expect((await db.attendance.toArray())[0].syncStatus).toBe('SYNCED');
+    stop();
+  });
+
+  it('uploads waiting records within ~30 s even if no "online" signal ever arrives', async () => {
+    const stop = startAutoSync();
+    await vi.advanceTimersByTimeAsync(1_000);
+    await queueOne(); // queued after start; no online/visibility event follows
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    // The check does a few IndexedDB round-trips; let them settle (no further timers fire).
+    await vi.waitFor(async () => expect((await db.attendance.toArray())[0].syncStatus).toBe('SYNCED'), { interval: 1 });
+    expect(getLastSyncTrigger()?.reason).toBe('pending check');
     stop();
   });
 

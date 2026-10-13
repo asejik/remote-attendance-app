@@ -21,6 +21,7 @@
     "@capacitor/core": "^8.5.3",
     "@capacitor/geolocation": "^8.2.3",
     "@capacitor/ios": "^8.5.3",
+    "@capacitor/network": "^8.0.1",
     "@ionic/pwa-elements": "^3.3.0",
     "@supabase/supabase-js": "^2.86.2",
     "@tailwindcss/vite": "^4.1.17",

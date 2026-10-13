@@ -6,6 +6,11 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## Final spike fixes: photo size, mirrored preview, Android upload timing (2026-10-13)
+- ☐ Web app: take a clock-in. Diagnostics shows the site photo at about 150–300 KB (was 3.9 MB).
+- ☐ Face camera: moving your head left moves the preview left, like a mirror. On the admin page, the saved face photo is the normal (non-mirrored) way round.
+- ☐ Android: after offline clock-ins, turn airplane mode off and keep the app open. Uploads finish within about 1 minute without tapping Sync. Diagnostics "Last upload trigger" shows what started it.
+
 ## Re-test fixes: signing, upload retry, photo size (2026-10-13)
 - ☐ Android: a new APK installs over the previous one (after the one-time uninstall), and queued records survive the update.
 - ☐ Reconnect after offline clock-ins: everything uploads within about 1 minute, with no Sync tap needed.

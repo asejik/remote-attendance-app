@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { Network } from '@capacitor/network';
 import { supabase } from './supabase';
 import { db } from './db';
 
@@ -112,26 +114,58 @@ const saveSyncReport = (synced: number, errors: number) => {
   }
 };
 
-const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
 // Android reports "online" a moment before requests actually get through.
 const ONLINE_SETTLE_MS = 3_000;
+// Safety net: while records are waiting, check this often regardless of events
+// (the Android WebView does not reliably fire "online").
+const PENDING_CHECK_MS = 30_000;
 const RETRY_DELAYS_MS = [30_000, 60_000, 120_000, 300_000];
+
+export type SyncTriggerReason = 'app start' | 'back online' | 'app reopened' | 'pending check' | 'retry';
+
+export interface SyncTrigger {
+  reason: SyncTriggerReason;
+  at: string;
+}
+
+const LAST_TRIGGER_KEY = 'lastSyncTrigger';
+
+export const getLastSyncTrigger = (): SyncTrigger | null => {
+  try {
+    const raw = localStorage.getItem(LAST_TRIGGER_KEY);
+    return raw ? (JSON.parse(raw) as SyncTrigger) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveSyncTrigger = (reason: SyncTriggerReason) => {
+  try {
+    localStorage.setItem(LAST_TRIGGER_KEY, JSON.stringify({ reason, at: new Date().toISOString() }));
+  } catch {
+    // Diagnostics only; ignore storage failures.
+  }
+};
 
 // Delay before the next try after `failedRuns` consecutive runs with failures.
 export const retryDelayMs = (failedRuns: number) =>
   RETRY_DELAYS_MS[Math.min(Math.max(failedRuns, 1), RETRY_DELAYS_MS.length) - 1];
 
-// Upload queued records when the network returns, when the app comes back to the
-// foreground, and every 5 minutes; after a failure, retry with backoff.
-// Returns a cleanup function.
+const hasPending = async () => (await db.attendance.where('syncStatus').equals('PENDING').count()) > 0;
+
+// Upload queued records on app start, when the network returns, when the app
+// comes back to the foreground, and every 30 s while anything is waiting; after
+// a failure, retry with backoff. Returns a cleanup function.
 export const startAutoSync = () => {
   let failedRuns = 0;
+  let stopped = false;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let onlineTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const trigger = async () => {
-    if (!navigator.onLine) return;
+  const trigger = async (reason: SyncTriggerReason) => {
+    if (stopped || !navigator.onLine) return;
     clearTimeout(retryTimer);
+    saveSyncTrigger(reason);
     try {
       const { errors } = await syncPendingRecords();
       failedRuns = errors > 0 ? failedRuns + 1 : 0;
@@ -139,24 +173,35 @@ export const startAutoSync = () => {
       console.error('Auto-sync failed', err);
       failedRuns++;
     }
-    if (failedRuns > 0) retryTimer = setTimeout(trigger, retryDelayMs(failedRuns));
+    if (failedRuns > 0 && !stopped) retryTimer = setTimeout(() => trigger('retry'), retryDelayMs(failedRuns));
   };
   const onOnline = () => {
     clearTimeout(onlineTimer);
-    onlineTimer = setTimeout(trigger, ONLINE_SETTLE_MS);
+    onlineTimer = setTimeout(() => trigger('back online'), ONLINE_SETTLE_MS);
   };
   const onVisible = () => {
-    if (document.visibilityState === 'visible') trigger();
+    if (document.visibilityState === 'visible') trigger('app reopened');
+  };
+  // Backoff owns the schedule after a failure; otherwise only act if something waits.
+  const pendingCheck = async () => {
+    if (failedRuns === 0 && (await hasPending())) trigger('pending check');
   };
 
   window.addEventListener('online', onOnline);
   document.addEventListener('visibilitychange', onVisible);
-  const interval = setInterval(trigger, AUTO_SYNC_INTERVAL_MS);
-  trigger();
+  const networkListener = Capacitor.isNativePlatform()
+    ? Network.addListener('networkStatusChange', (status) => {
+        if (status.connected) onOnline();
+      })
+    : undefined;
+  const interval = setInterval(pendingCheck, PENDING_CHECK_MS);
+  trigger('app start');
 
   return () => {
+    stopped = true;
     window.removeEventListener('online', onOnline);
     document.removeEventListener('visibilitychange', onVisible);
+    networkListener?.then((listener) => listener.remove());
     clearInterval(interval);
     clearTimeout(retryTimer);
     clearTimeout(onlineTimer);

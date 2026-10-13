@@ -6,7 +6,7 @@ import * as faceapi from 'face-api.js';
 import { ArrowLeft } from 'lucide-react';
 import { db } from '../lib/db';
 import { getStorageInfo, requestPersistentStorage, type StorageInfo } from '../lib/storage';
-import { getLastSyncReport } from '../lib/sync';
+import { getLastSyncReport, getLastSyncTrigger } from '../lib/sync';
 
 // M1 spike screen: shows the numbers we need from a real phone. Not for launch.
 
@@ -32,6 +32,7 @@ export const DiagnosticsPage = () => {
   const [modelResult, setModelResult] = useState('not tested');
   const [gpsResult, setGpsResult] = useState('not tested');
   const lastSync = getLastSyncReport();
+  const lastTrigger = getLastSyncTrigger();
 
   const pending = useLiveQuery(() => db.attendance.where('syncStatus').equals('PENDING').sortBy('timestamp'), []);
   const latest = useLiveQuery(() => db.attendance.orderBy('timestamp').last(), []);
@@ -113,6 +114,7 @@ export const DiagnosticsPage = () => {
               })()}
             />
           )}
+          <Row label="Last upload trigger" value={lastTrigger ? `${lastTrigger.reason}, ${formatAge(lastTrigger.at)} ago` : 'none'} />
           <Row label="Last face photo" value={formatBytes(latest?.photoBlob?.size)} />
           <Row label="Last site photo" value={formatBytes(latest?.sitePhotoBlob?.size)} />
         </section>

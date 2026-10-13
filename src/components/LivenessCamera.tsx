@@ -123,7 +123,9 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
           audio={false}
           screenshotFormat="image/jpeg"
           videoConstraints={{ facingMode: 'user' }}
-          className="w-full h-full object-cover"
+          // Mirror only the preview (like a selfie camera); the saved photo keeps
+          // its true orientation for comparison with the registered photo.
+          className="w-full h-full object-cover -scale-x-100"
         />
 
         {/* FACE OUTLINE OVERLAY (SVG) */}
