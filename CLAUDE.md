@@ -39,7 +39,10 @@ npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a prod
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
 npm run knip           # unused files/deps/exports
-npx supabase ...       # Supabase CLI (migrations in supabase/migrations, from M2)
+npm run test:rls       # access-rule (RLS) suite against the dev project: builds 2 test orgs + 6 users, checks every role, cleans up
+npx supabase db push --linked --dry-run   # then without --dry-run: apply new migrations to dev
+npx supabase gen types typescript --linked > src/lib/database.types.ts   # after every schema change
+SEED_ALLOW=dev node scripts/seed-dev.mjs  # demo org "Demo Construction Ltd" (idempotent; resets demo passwords)
 npx cap sync android   # copy dist/ into the Android project after a build
 ```
 
@@ -51,6 +54,18 @@ npx cap sync android   # copy dist/ into the Android project after a build
 - The legacy prototype schema, policies and security findings are recorded in `supabase/legacy/README.md` (private).
 - `vite` is aliased to `rolldown-vite` via `overrides` in package.json. Keep that override.
 - `.env` holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. `src/lib/supabase.ts` throws at import time if either is missing. The current Supabase project is the **dev** environment (test data only).
+
+## Database (new schema, M2 onwards)
+
+The new tables live **in the same Supabase project as the legacy prototype tables** (decision: option B). Legacy `profiles`, `sites`, `attendance_logs` and the public `attendance-photos` bucket still serve the prototype on `main`. Don't touch them; they're retired after M4.
+
+- **Tables:** `organizations` → `staff` (role `admin|supervisor|worker`, optional `user_id`), `work_sites` (named so because `sites` is legacy), `attendance_events` (id generated on the device, so uploads are idempotent), `audit_log`. Every tenant table has `organization_id`. Composite FKs keep staff and sites in the same organisation as the event.
+- **RLS is deny-by-default.** anon has no privileges on the new tables. Helpers in the unexposed `private` schema (`current_staff()`, `current_org_id()`, `current_staff_role()`, `is_org_admin()`) are SECURITY DEFINER with an empty search_path. A deactivated staff member resolves to no staff record, so they see nothing.
+- **The server computes evidence:** `private.attendance_event_before_insert()` overwrites distance, `within_radius`, `flags` (`outside_radius`, `low_accuracy`, `time_skew`, `no_face_photo`, `no_site_photo`, `no_location`, `no_site`, `liveness_failed`) and all review columns. Flags never reject an insert.
+- **Admin writes go through RPCs:** `review_event()` and `update_org_settings()` (both audited). Clients have no UPDATE/DELETE on events. Staff rows are written only by the service role (Edge Functions, from M3).
+- **Photos:** private buckets `event-photos` (`{org}/{event}/face|site.jpg`, write-once, read by admin/supervisor via signed URLs) and `reference-photos` (`{org}/{staff}.jpg`, admin only). JPEG only, 2 MB max.
+- **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable, so `db dump`, `db pull` and `test db` don't work.
+- **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 
 ## Prototype architecture (as found, being replaced)
 

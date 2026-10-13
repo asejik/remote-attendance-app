@@ -6,6 +6,10 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## M2 Secure database foundation (2026-10-13)
+- No manual steps. The new tables aren't used by the app until M3/M4. They are covered by `npm run test:rls` (30 automated access checks).
+- ☐ (Optional) Supabase dashboard → Table Editor: the new tables `organizations`, `staff`, `work_sites`, `attendance_events` and `audit_log` exist. The demo organisation "Demo Construction Ltd" has 3 sites and 4 staff.
+
 ## Final spike fixes: photo size, mirrored preview, Android upload timing (2026-10-13)
 - ☐ Web app: take a clock-in. Diagnostics shows the site photo at about 150–300 KB (was 3.9 MB).
 - ☐ Face camera: moving your head left moves the preview left, like a mirror. On the admin page, the saved face photo is the normal (non-mirrored) way round.

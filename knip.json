@@ -3,5 +3,11 @@
   "ignoreDependencies": [
     "@capacitor/ios",
     "supabase"
+  ],
+  "entry": [
+    "scripts/*.mjs"
+  ],
+  "ignore": [
+    "src/lib/database.types.ts"
   ]
 }
