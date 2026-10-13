@@ -11,6 +11,11 @@ interface SiteMapProps {
 
 const NIGERIA_CENTRE: [number, number] = [9.08, 8.68];
 
+// Configurable so the tile provider can change without an app update (OSM's
+// tile policy requires this). Defaults to OpenStreetMap's servers (light use only).
+const TILE_URL = import.meta.env.VITE_MAP_TILE_URL || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const TILE_ATTRIBUTION = import.meta.env.VITE_MAP_ATTRIBUTION || '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
 const ClickToPick = ({ onPick }: { onPick: SiteMapProps['onPick'] }) => {
   useMapEvents({ click: (e) => onPick(Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6))) });
   return null;
@@ -33,7 +38,7 @@ const SiteMap = ({ latitude, longitude, radiusM, onPick }: SiteMapProps) => {
   const position: [number, number] | null = latitude !== null && longitude !== null ? [latitude, longitude] : null;
   return (
     <MapContainer center={position ?? NIGERIA_CENTRE} zoom={position ? 16 : 6} className="h-72 w-full rounded-lg z-0" aria-label="Map: tap to place the site">
-      <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' maxZoom={19} />
+      <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
       <ClickToPick onPick={onPick} />
       <FollowPin position={position} />
       {position && (

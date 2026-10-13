@@ -1,10 +1,23 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { readFileSync } from 'node:fs'
 import { VitePWA } from 'vite-plugin-pwa'
+
+// Headers from public/_headers (the "/*" block), reused by `vite preview` so
+// local and E2E runs enforce the same Content-Security-Policy as production.
+const securityHeaders = Object.fromEntries(
+  readFileSync('public/_headers', 'utf8').split('\n')
+    .filter((line) => /^\s+[A-Za-z-]+:/.test(line))
+    .map((line) => {
+      const [name, ...value] = line.trim().split(':')
+      return [name, value.join(':').trim()]
+    }),
+)
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  preview: { headers: securityHeaders },
   define: {
     // Shown on the diagnostics screen and (later) sent with each event.
     __APP_VERSION__: JSON.stringify(

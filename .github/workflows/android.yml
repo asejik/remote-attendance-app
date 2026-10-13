@@ -50,6 +50,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_ENABLE_DIAGNOSTICS: '1' # test builds keep the device diagnostics screen
         run: npx vite build
       - run: npm run check:secrets
       - run: npx cap sync android

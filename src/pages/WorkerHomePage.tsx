@@ -1,16 +1,20 @@
-import { useCallback, useEffect, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
 import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, History, Loader2, LogOut, MapPin, RefreshCw } from 'lucide-react';
-import { LivenessCamera } from '../components/LivenessCamera';
 import { supabase } from '../lib/supabase';
 import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/queue';
 import { startAutoSync, syncPendingRecords } from '../lib/sync';
-import { shrinkPhoto } from '../lib/image';
+import { dataUrlToBlob, shrinkPhoto } from '../lib/image';
 import { distanceM, outsideSite, type Fix } from '../lib/geo';
 import { flagLabel } from '../lib/reports';
+import { DIAGNOSTICS } from '../lib/buildFlags';
 import type { StaffContext } from '../context/useStaff';
+
+// The face camera (face-api.js + TensorFlow) is the largest part of the app;
+// load it only when a clock-in starts. It is precached for offline use.
+const LivenessCamera = lazy(() => import('../components/LivenessCamera').then((m) => ({ default: m.LivenessCamera })));
 
 interface Site { id: string; name: string; latitude: number; longitude: number; radius_m: number }
 interface OrgSettings { site_photo_required: boolean; geofence_mode: 'flag' | 'block' }
@@ -136,7 +140,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   };
 
   const onFace = async (imageSrc: string, livenessPassed: boolean) => {
-    const face = await (await fetch(imageSrc)).blob();
+    const face = dataUrlToBlob(imageSrc);
     if (settings.site_photo_required) {
       setPending({ fix: fixForCapture, face, livenessPassed });
       setStep('site-instruction');
@@ -214,7 +218,11 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {step === 'face' && <LivenessCamera onCapture={onFace} onCancel={() => setStep('idle')} />}
+      {step === 'face' && (
+        <Suspense fallback={<div className="fixed inset-0 z-50 bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white" size={32} aria-label="Opening camera" /></div>}>
+          <LivenessCamera onCapture={onFace} onCancel={() => setStep('idle')} />
+        </Suspense>
+      )}
       {step === 'site-instruction' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" role="dialog" aria-modal="true" aria-labelledby="site-photo-title">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
@@ -324,7 +332,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           </ul>
         </section>
 
-        <Link to="/diagnostics" className="text-xs text-gray-400 underline pb-6">Device diagnostics</Link>
+        {DIAGNOSTICS && <Link to="/diagnostics" className="text-xs text-gray-400 underline pb-6">Device diagnostics</Link>}
       </main>
     </div>
   );

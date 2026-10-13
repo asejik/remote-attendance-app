@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fitWithin } from './image';
+import { dataUrlToBlob, fitWithin } from './image';
 
 describe('fitWithin', () => {
   it('scales a large landscape photo so its long side is 1280', () => {
@@ -12,5 +12,13 @@ describe('fitWithin', () => {
 
   it('never upscales a small photo', () => {
     expect(fitWithin(800, 600, 1280)).toEqual({ width: 800, height: 600 });
+  });
+});
+
+describe('dataUrlToBlob', () => {
+  it('decodes a base64 JPEG data URL with its type', async () => {
+    const blob = dataUrlToBlob(`data:image/jpeg;base64,${btoa('jpeg-bytes')}`);
+    expect(blob.type).toBe('image/jpeg');
+    expect(await blob.text()).toBe('jpeg-bytes');
   });
 });

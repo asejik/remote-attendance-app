@@ -11,6 +11,9 @@ import { registerSW } from 'virtual:pwa-register';
 import { requestPersistentStorage } from './lib/storage';
 import { removeLegacyDeviceData } from './lib/legacyCleanup';
 import { queue } from './lib/queue';
+import { initMonitoring } from './lib/monitoring';
+
+initMonitoring();
 
 // Call the loader
 defineCustomElements(window);

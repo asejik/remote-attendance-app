@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from './fixtures'
+import type { Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 
 // M3 flow on the dev project: admin adds a worker (with reference photo), the

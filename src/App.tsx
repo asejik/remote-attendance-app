@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { MobileLayout } from './components/MobileLayout';
 import { AuthProvider } from './context/AuthContext';
@@ -8,7 +8,10 @@ import { StaffLoginPage } from './pages/StaffLoginPage';
 import { ConsentPage } from './pages/ConsentPage';
 import { WorkerHomePage } from './pages/WorkerHomePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { DiagnosticsPage } from './pages/DiagnosticsPage';
+import { DIAGNOSTICS } from './lib/buildFlags';
+
+// Test builds only; it imports face-api, so keep it out of the main bundle.
+const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage').then((m) => ({ default: m.DiagnosticsPage })));
 import { AdminLayout } from './pages/admin/AdminLayout';
 import { ReviewPage } from './pages/admin/ReviewPage';
 import { AbsentPage } from './pages/admin/AbsentPage';
@@ -31,7 +34,7 @@ function App() {
           <Route path="/reset-password" element={mobile(<ResetPasswordPage />)} />
           <Route path="/consent" element={mobile(<StaffRoute require="member">{(c, reload) => <ConsentPage context={c} reload={reload} />}</StaffRoute>)} />
           <Route path="/home" element={mobile(<StaffRoute require="member">{(c) => <WorkerHomePage context={c} />}</StaffRoute>)} />
-          <Route path="/diagnostics" element={mobile(<StaffRoute require="member">{() => <DiagnosticsPage />}</StaffRoute>)} />
+          {DIAGNOSTICS && <Route path="/diagnostics" element={mobile(<StaffRoute require="member">{() => <Suspense fallback={null}><DiagnosticsPage /></Suspense>}</StaffRoute>)} />}
 
           <Route path="/admin/review" element={admin((c) => <ReviewPage context={c} />)} />
           <Route path="/admin/absent" element={admin((c) => <AbsentPage context={c} />)} />

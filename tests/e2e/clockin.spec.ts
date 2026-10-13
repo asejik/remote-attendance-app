@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { expect, test } from '@playwright/test'
+import { expect, test } from './fixtures'
 import { createClient } from '@supabase/supabase-js'
 
 // M4 clock-in on the new system, end to end against the dev project:
