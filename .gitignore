@@ -43,6 +43,6 @@ docs/PROJECT_PLAN.md
 docs/PROGRESS.md
 docs/IDEA_BRIEF.md
 docs/CLIENT_QUESTIONS.md
-docs/client/
-docs/private/
-supabase/legacy/
+docs/client
+docs/private
+supabase/legacy
