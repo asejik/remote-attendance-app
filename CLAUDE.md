@@ -73,7 +73,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Deactivation sets `staff.status` and bans the Auth user.
   - Workers accept the privacy notice via the `accept_consent()` RPC.
   - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.
-  - New screens are under `/v2/*` (`src/pages/v2/`) until M4 makes them the default.
+  - These screens became the default app in M4 (paths `/`, `/consent`, `/home`; admin under `/admin/*`).
 - **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable, so `db dump`, `db pull` and `test db` don't work.
 - **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 
