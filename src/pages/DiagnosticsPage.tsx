@@ -104,6 +104,15 @@ export const DiagnosticsPage = () => {
           <Row label="Waiting to upload" value={String(pending?.length ?? 0)} />
           <Row label="Oldest waiting" value={formatAge(pending?.[0]?.timestamp)} />
           <Row label="Last upload run" value={lastSync ? `${formatAge(lastSync.finishedAt)} ago: ${lastSync.synced} sent, ${lastSync.errors} failed` : 'never'} />
+          {pending?.some((r) => r.lastError) && (
+            <Row
+              label="Last upload error"
+              value={(() => {
+                const failed = pending.filter((r) => r.lastError).at(-1)!;
+                return `${failed.lastError} (${failed.attempts ?? 0} tries)`;
+              })()}
+            />
+          )}
           <Row label="Last face photo" value={formatBytes(latest?.photoBlob?.size)} />
           <Row label="Last site photo" value={formatBytes(latest?.sitePhotoBlob?.size)} />
         </section>

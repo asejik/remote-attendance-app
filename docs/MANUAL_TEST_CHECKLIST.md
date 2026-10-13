@@ -6,6 +6,11 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## Re-test fixes: signing, upload retry, photo size (2026-10-13)
+- ☐ Android: a new APK installs over the previous one (after the one-time uninstall), and queued records survive the update.
+- ☐ Reconnect after offline clock-ins: everything uploads within about 1 minute, with no Sync tap needed.
+- ☐ Site photo size on Device diagnostics is about 150–300 KB, and the photo is still clear on the admin page.
+
 ## Bug fixes from the first phone run (2026-10-13)
 - ☐ Android app: Device diagnostics → Test face model load shows "loaded in … ms" (not FAILED).
 - ☐ Log in, close the app completely, then reopen it. You go straight to the dashboard, with no login screen.

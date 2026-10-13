@@ -83,11 +83,12 @@ const runSync = async () => {
       if (insertError) throw insertError;
 
       // 4. Update Local DB status
-      await db.attendance.update(record.id!, { syncStatus: 'SYNCED' });
+      await db.attendance.update(record.id!, { syncStatus: 'SYNCED', lastError: undefined });
       syncedCount++;
 
     } catch (err) {
       console.error('Sync failed for record:', record.id, err);
+      await db.attendance.update(record.id!, { attempts: (record.attempts ?? 0) + 1, lastError: errorMessage(err) });
       errorCount++;
     }
   }
@@ -95,6 +96,12 @@ const runSync = async () => {
   saveSyncReport(syncedCount, errorCount);
   return { synced: syncedCount, errors: errorCount };
 };
+
+// Supabase returns plain { message } objects as well as Error instances.
+const errorMessage = (err: unknown) =>
+  err instanceof Error ? err.message
+    : typeof err === 'object' && err !== null && 'message' in err ? String(err.message)
+    : String(err);
 
 const saveSyncReport = (synced: number, errors: number) => {
   try {
@@ -106,25 +113,52 @@ const saveSyncReport = (synced: number, errors: number) => {
 };
 
 const AUTO_SYNC_INTERVAL_MS = 5 * 60 * 1000;
+// Android reports "online" a moment before requests actually get through.
+const ONLINE_SETTLE_MS = 3_000;
+const RETRY_DELAYS_MS = [30_000, 60_000, 120_000, 300_000];
+
+// Delay before the next try after `failedRuns` consecutive runs with failures.
+export const retryDelayMs = (failedRuns: number) =>
+  RETRY_DELAYS_MS[Math.min(Math.max(failedRuns, 1), RETRY_DELAYS_MS.length) - 1];
 
 // Upload queued records when the network returns, when the app comes back to the
-// foreground, and every 5 minutes. Returns a cleanup function.
+// foreground, and every 5 minutes; after a failure, retry with backoff.
+// Returns a cleanup function.
 export const startAutoSync = () => {
-  const trigger = () => {
-    if (navigator.onLine) syncPendingRecords().catch((err) => console.error('Auto-sync failed', err));
+  let failedRuns = 0;
+  let retryTimer: ReturnType<typeof setTimeout> | undefined;
+  let onlineTimer: ReturnType<typeof setTimeout> | undefined;
+
+  const trigger = async () => {
+    if (!navigator.onLine) return;
+    clearTimeout(retryTimer);
+    try {
+      const { errors } = await syncPendingRecords();
+      failedRuns = errors > 0 ? failedRuns + 1 : 0;
+    } catch (err) {
+      console.error('Auto-sync failed', err);
+      failedRuns++;
+    }
+    if (failedRuns > 0) retryTimer = setTimeout(trigger, retryDelayMs(failedRuns));
+  };
+  const onOnline = () => {
+    clearTimeout(onlineTimer);
+    onlineTimer = setTimeout(trigger, ONLINE_SETTLE_MS);
   };
   const onVisible = () => {
     if (document.visibilityState === 'visible') trigger();
   };
 
-  window.addEventListener('online', trigger);
+  window.addEventListener('online', onOnline);
   document.addEventListener('visibilitychange', onVisible);
   const interval = setInterval(trigger, AUTO_SYNC_INTERVAL_MS);
   trigger();
 
   return () => {
-    window.removeEventListener('online', trigger);
+    window.removeEventListener('online', onOnline);
     document.removeEventListener('visibilitychange', onVisible);
     clearInterval(interval);
+    clearTimeout(retryTimer);
+    clearTimeout(onlineTimer);
   };
 };

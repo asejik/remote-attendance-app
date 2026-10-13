@@ -112,6 +112,7 @@ export const DashboardPage = () => {
     try {
       const image = await CapacitorCamera.getPhoto({
         quality: 70,
+        width: 1280, // full-resolution photos were ~3.6 MB; this keeps them ~150-300 KB
         allowEditing: false,
         resultType: CameraResultType.Uri,
         source: CameraSource.Camera

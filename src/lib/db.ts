@@ -13,6 +13,8 @@ export interface LocalAttendanceRecord {
   photoBlob: Blob;       // Face Photo
   sitePhotoBlob: Blob;   // NEW: Background Photo
   syncStatus: 'PENDING' | 'SYNCED';
+  attempts?: number;     // failed upload attempts (not indexed, no schema bump needed)
+  lastError?: string;    // last upload error, shown on the diagnostics screen
 }
 
 class RemoteAttendanceDB extends Dexie {
