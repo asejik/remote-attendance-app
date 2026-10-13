@@ -3,8 +3,7 @@ name: Fresh database
 # Proves production can be built from nothing: starts an EMPTY local Supabase
 # stack (Docker on the runner), applies every migration in order, serves the
 # Edge Functions and runs the full access/functions/retention suite against it.
-# No cloud project or credentials involved. On failure, the end of each step's
-# output is published as an annotation (readable without opening the logs).
+# No cloud project or credentials involved.
 on:
   push:
     paths:
@@ -31,25 +30,15 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Helper to report failures as annotations
-        run: |
-          cat > "$RUNNER_TEMP/run.sh" <<'SH'
-          #!/usr/bin/env bash
-          # run.sh <label> <command...>: runs the command, and on failure publishes
-          # the last 60 lines of its output as an error annotation.
-          label="$1"; shift
-          log="$RUNNER_TEMP/$(echo "$label" | tr ' ' '_').log"
-          if "$@" > >(tee "$log") 2>&1; then exit 0; fi
-          status=$?
-          msg=$(tail -n 60 "$log" | sed -e 's/%/%25/g' -e 's/\r//g' | awk '{printf "%s%%0A", $0}')
-          echo "::error title=${label} failed::${msg}"
-          exit $status
-          SH
-          chmod +x "$RUNNER_TEMP/run.sh"
+      # A brand-new local stack applies every migration in order to an empty database.
       - name: Start an empty Supabase and apply all migrations
-        run: $RUNNER_TEMP/run.sh "supabase start" npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit
-      - name: Re-apply every migration from scratch
-        run: $RUNNER_TEMP/run.sh "db reset" npx supabase db reset --local
+        run: npx supabase start -x studio,imgproxy,logflare,vector,supavisor,mailpit
+      - name: Confirm every migration was applied
+        run: |
+          applied=$(npx supabase migration list --local | grep -cE '^\s*[0-9]{14}')
+          files=$(ls supabase/migrations/*.sql | wc -l)
+          echo "applied=$applied files=$files"
+          [ "$applied" -eq "$files" ]
       - name: Serve Edge Functions
         run: |
           printf 'CRON_SECRET=%s\n' "$CRON_SECRET" > "$RUNNER_TEMP/functions.env"
@@ -67,12 +56,12 @@ jobs:
         run: |
           eval "$(npx supabase status -o env)"
           export VITE_SUPABASE_URL="$API_URL" VITE_SUPABASE_ANON_KEY="$ANON_KEY" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" REQUIRE_RLS_TESTS=1
-          $RUNNER_TEMP/run.sh "rls tests" npm run test:rls
+          npm run test:rls 2>&1 | tee "$RUNNER_TEMP/rls.log"
           # Fail if anything was skipped or nothing ran.
-          grep -Eq 'Tests +[0-9]+ passed' "$RUNNER_TEMP/rls_tests.log"
-          ! grep -Eq 'skipped|failed' "$RUNNER_TEMP/rls_tests.log"
+          grep -Eq 'Tests +[0-9]+ passed' "$RUNNER_TEMP/rls.log"
+          ! grep -Eq 'skipped|failed' "$RUNNER_TEMP/rls.log"
       - name: Onboarding script against the fresh database
         run: |
           eval "$(npx supabase status -o env)"
           SUPABASE_URL="$API_URL" SUPABASE_SECRET_KEY="$SERVICE_ROLE_KEY" ORG_NAME="CI Org" ORG_SLUG="ci-org" \
-            ADMIN_NAME="CI Admin" ADMIN_EMAIL="ci-admin@example.test" $RUNNER_TEMP/run.sh "onboarding" node scripts/onboard-org.mjs
+            ADMIN_NAME="CI Admin" ADMIN_EMAIL="ci-admin@example.test" node scripts/onboard-org.mjs
