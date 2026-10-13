@@ -22,7 +22,9 @@ const adminLogin = async (page: Page) => {
   await page.getByLabel('Email').fill(adminEmail!)
   await page.getByLabel('Password').fill(adminPassword!)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Staff' })).toBeVisible()
+  await expect(page).toHaveURL(/\/admin\/review/)
+  await page.getByRole('link', { name: 'Staff' }).click()
+  await expect(page.getByRole('button', { name: 'Add worker' })).toBeVisible()
 }
 
 const workerLogin = async (page: Page, code: string, pin: string) => {

@@ -28,7 +28,7 @@ export const StaffRoute = ({ require, children }: StaffRouteProps) => {
 
   const isAdmin = context.staff.role === 'admin';
   if (require === 'admin' && !isAdmin) return <Navigate to="/home" replace />;
-  if (require === 'member' && isAdmin) return <Navigate to="/admin/staff" replace />;
+  if (require === 'member' && isAdmin) return <Navigate to="/admin/review" replace />;
   if (require === 'member' && !context.staff.consent_accepted_at && location.pathname !== '/consent') {
     return <Navigate to="/consent" replace />;
   }

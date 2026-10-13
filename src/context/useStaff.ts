@@ -5,7 +5,7 @@ import { useAuth } from './useAuth';
 
 export interface StaffContext {
   staff: Staff;
-  organization: { id: string; name: string; slug: string };
+  organization: { id: string; name: string; slug: string; timezone: string };
 }
 
 const cacheKey = (userId: string) => `staffContext:${userId}`;
@@ -17,7 +17,7 @@ const cacheKey = (userId: string) => `staffContext:${userId}`;
 const fetchStaffContext = async (userId: string): Promise<StaffContext | null> => {
   const { data, error } = await supabase
     .from('staff')
-    .select('*, organizations(id, name, slug)')
+    .select('*, organizations(id, name, slug, timezone)')
     .eq('user_id', userId)
     .maybeSingle();
   if (error) {

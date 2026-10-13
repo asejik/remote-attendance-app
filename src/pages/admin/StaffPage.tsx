@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Camera, KeyRound, Loader2, LogOut, UserPlus, UserX, UserCheck, X } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { createStaff, resetPin, setStaffStatus, uploadReferencePhoto } from '../lib/adminStaff';
-import type { Staff } from '../lib/staffAuth';
-import type { StaffContext } from '../context/useStaff';
+import { Camera, KeyRound, Loader2, UserPlus, UserX, UserCheck, X } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { createStaff, resetPin, setStaffStatus, uploadReferencePhoto } from '../../lib/adminStaff';
+import type { Staff } from '../../lib/staffAuth';
+import type { StaffContext } from '../../context/useStaff';
+import { useEscape } from '../../hooks/useEscape';
 
 const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
 
@@ -25,8 +25,7 @@ const fetchStaffList = async (): Promise<StaffList | null> => {
 
 // Organisation admins: list staff, add workers (with reference photo), reset
 // PINs, deactivate/reactivate. PINs are shown once and never stored readable.
-export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
-  const navigate = useNavigate();
+export const StaffPage = ({ context }: { context: StaffContext }) => {
   const [staff, setStaff] = useState<Staff[] | null>(null);
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
@@ -53,10 +52,6 @@ export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
     };
   }, [apply]);
 
-  const logOut = async () => {
-    await supabase.auth.signOut();
-    navigate('/', { replace: true });
-  };
 
   const onReset = async (s: Staff) => {
     if (!window.confirm(`Give ${s.full_name} a new PIN? Their old PIN will stop working.`)) return;
@@ -93,21 +88,12 @@ export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Staff</h1>
-          <p className="text-xs text-gray-500">{context.organization.name}</p>
-        </div>
-        <button onClick={logOut} aria-label="Log out" className="p-2 text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
-      </header>
+    <div>
 
-      <main className="p-4 max-w-2xl mx-auto space-y-4">
+      <div className="space-y-4">
         <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium">
           <UserPlus size={18} aria-hidden /> Add worker
         </button>
-
-        <p className="text-sm text-gray-600 bg-blue-50 rounded-lg p-3">Reviewing clock-ins (photos, locations, flags) arrives in the next update.</p>
 
         {rowError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{rowError}</p>}
         {loadError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{loadError}</p>}
@@ -153,7 +139,7 @@ export const AdminStaffPage = ({ context }: { context: StaffContext }) => {
             </li>
           ))}
         </ul>
-      </main>
+      </div>
 
       {showAdd && (
         <AddStaffDialog
@@ -178,6 +164,7 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
   const [photo, setPhoto] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  useEscape(onClose);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

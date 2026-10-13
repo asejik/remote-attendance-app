@@ -22,7 +22,7 @@ export const ResetPasswordPage = () => {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (updateError) return setError('Could not change the password. The link may have expired; request a new one.');
-    navigate('/admin/staff', { replace: true });
+    navigate('/admin/review', { replace: true });
   };
 
   return (

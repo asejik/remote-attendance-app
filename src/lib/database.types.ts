@@ -48,6 +48,7 @@ export type Database = {
           device_info: Json
           distance_m: number | null
           face_photo_path: string | null
+          flag_count: number | null
           flags: string[]
           id: string
           latitude: number | null
@@ -76,6 +77,7 @@ export type Database = {
           device_info?: Json
           distance_m?: number | null
           face_photo_path?: string | null
+          flag_count?: number | null
           flags?: string[]
           id: string
           latitude?: number | null
@@ -104,6 +106,7 @@ export type Database = {
           device_info?: Json
           distance_m?: number | null
           face_photo_path?: string | null
+          flag_count?: number | null
           flags?: string[]
           id?: string
           latitude?: number | null
@@ -459,6 +462,7 @@ export type Database = {
           device_info: Json
           distance_m: number | null
           face_photo_path: string | null
+          flag_count: number | null
           flags: string[]
           id: string
           latitude: number | null

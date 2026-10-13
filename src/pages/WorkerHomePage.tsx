@@ -9,16 +9,13 @@ import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/
 import { startAutoSync, syncPendingRecords } from '../lib/sync';
 import { shrinkPhoto } from '../lib/image';
 import { distanceM, outsideSite, type Fix } from '../lib/geo';
+import { flagLabel } from '../lib/reports';
 import type { StaffContext } from '../context/useStaff';
 
 interface Site { id: string; name: string; latitude: number; longitude: number; radius_m: number }
 interface OrgSettings { site_photo_required: boolean; geofence_mode: 'flag' | 'block' }
 interface ServerEvent { id: string; type: EventType; captured_at: string; site_name_snapshot: string | null; flags: string[] }
 
-const FLAG_LABELS: Record<string, string> = {
-  outside_radius: 'Outside site', low_accuracy: 'Weak GPS', time_skew: 'Phone time wrong', no_location: 'No location',
-  liveness_failed: 'No smile check', no_site_photo: 'No site photo', no_face_photo: 'No face photo', no_site: 'No site',
-};
 
 // Small per-organisation cache so the screen works offline after one online visit.
 const cacheKey = (orgId: string, what: string) => `v2:${orgId}:${what}`;
@@ -315,7 +312,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
                   <p className="text-xs text-gray-500">{new Date(h.at).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
                   {h.flags.length > 0 && (
                     <p className="mt-1 text-xs text-amber-800 flex items-center gap-1">
-                      <AlertTriangle size={12} aria-hidden /> {h.flags.map((f) => FLAG_LABELS[f] ?? f).join(', ')}
+                      <AlertTriangle size={12} aria-hidden /> {h.flags.map(flagLabel).join(', ')}
                     </p>
                   )}
                 </div>

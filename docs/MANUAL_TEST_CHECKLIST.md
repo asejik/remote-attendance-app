@@ -6,6 +6,15 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## M5 Admin review and reporting (2026-10-14). Log in as the demo admin; you land on Review
+- ☐ Review: today's clock-ins appear, unreviewed and flagged ones first. Each card shows the clock-in photo next to the reference photo, plus the site photo. Tap a photo to enlarge it; Escape or a tap closes it.
+- ☐ Reject without a reason is refused. With a reason, the card leaves "Needs review". The Status filter "Rejected" shows it with the note. Approve works the same way.
+- ☐ Filters: date range, worker, site, flagged only. "Map" opens OpenStreetMap at the clock-in location.
+- ☐ Absent: pick today. Workers who didn't clock in, and those who never clocked out, are listed separately.
+- ☐ Sites → Add site: try all three ways (tap the map, "Use my current location" on a phone at the site, typed coordinates). The radius slider changes the blue circle. Edit a site. Deactivate it, and it disappears from the workers' site list.
+- ☐ Reports: download Excel and CSV for this month. Both open in Excel or Google Sheets, with times in Nigerian time and a per-worker summary.
+- ☐ Settings: turn "Require a site photo" off, and the worker's next clock-in skips the site photo. Switch to "Block", and a worker far from the site is refused.
+
 ## M4 Clock-in on the new system (2026-10-14). The app now opens at `/` with the new login
 - ☐ Android: install the new APK over the old one. Log in with a worker code + PIN (create one as the demo admin first).
 - ☐ Choose a site, then tap clock IN: "Getting location…" → face camera (smile) → site photo (if your organisation requires it) → "Clocked in. Uploaded."

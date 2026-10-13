@@ -79,7 +79,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
 
 ## App architecture (M4 onwards)
 
-- **Routes** (`src/App.tsx`): `/` login (worker PIN / admin email), `/consent`, `/home` (worker clock-in), `/admin/staff`, `/reset-password`, `/diagnostics`.
+- **Routes** (`src/App.tsx`): `/` login (worker PIN / admin email), `/consent`, `/home` (worker clock-in), `/reset-password`, `/diagnostics`, all inside `MobileLayout`. Admin routes `/admin/review|absent|sites|staff|reports|settings` use the wider `AdminLayout` (`src/pages/admin/`). Admins land on Review.
   - `StaffRoute` gates each route by role and consent.
   - `useStaff` loads the user's staff record and organisation, cached in localStorage so offline reopen works. A network error falls back to the cache; a definite "no record" clears it.
 - **Clock-in** (`src/pages/WorkerHomePage.tsx`), in order:
@@ -98,6 +98,12 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **Sync** (`src/lib/sync.ts`): uploads only the signed-in user's pending records.
   - Photos go to `event-photos/{org}/{event}/face|site.jpg` (a 409 "already exists" counts as success), then `attendance_events` upsert with `ignoreDuplicates`, then the server flags are read back.
   - Triggers: app start, `online` (+3 s) / Capacitor Network, app reopened, a 30 s check while anything is pending, and backoff retries (30 s → 5 min).
+- **Admin (M5):**
+  - Review queue (`src/lib/adminEvents.ts`) is ordered by `review_status`, then `flag_count` (a generated column), then newest. It embeds staff via the composite FK `staff!attendance_events_organization_id_staff_id_fkey`. Photos come from batched 10-minute signed URLs. Reject requires a note. Review goes through the `review_event` RPC.
+  - Report logic is pure and unit-tested in `src/lib/reports.ts`: organisation-time-zone days, summary, absent list. **CSV cells are escaped against formula injection** (`= + - @` prefix → `'`). Excel export uses SheetJS (installed from the official CDN tarball `cdn.sheetjs.com`, because the npm `xlsx` is stale and vulnerable) and writes text cells, never formulas.
+  - Leaflet (`react-leaflet`, OSM tiles, attribution kept) and SheetJS are lazy-loaded, so they never reach the worker bundle.
+  - Sites can be placed by map tap, current location, or typed coordinates.
+  - Dialogs close on Escape (`src/hooks/useEscape.ts`).
 - **Test-only liveness bypass:** `import.meta.env.VITE_E2E === '1'` auto-captures in `LivenessCamera`. Playwright builds with it into `dist-e2e/`. `check:secrets` fails if the marker `E2E_LIVENESS_BYPASS` appears in `dist/`.
 - **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at M6.
 

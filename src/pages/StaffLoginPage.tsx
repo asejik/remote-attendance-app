@@ -25,7 +25,7 @@ export const StaffLoginPage = () => {
 
   // Already signed in as staff: go straight in.
   useEffect(() => {
-    if (context) navigate(context.staff.role === 'admin' ? '/admin/staff' : '/home', { replace: true });
+    if (context) navigate(context.staff.role === 'admin' ? '/admin/review' : '/home', { replace: true });
   }, [context, navigate]);
 
   const workerLogin = async (e: FormEvent) => {
