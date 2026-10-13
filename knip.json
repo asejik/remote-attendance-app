@@ -2,10 +2,12 @@
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "ignoreDependencies": [
     "@capacitor/ios",
-    "supabase"
+    "supabase",
+    "npm"
   ],
   "entry": [
-    "scripts/*.mjs"
+    "scripts/*.mjs",
+    "supabase/functions/*/index.ts"
   ],
   "ignore": [
     "src/lib/database.types.ts"

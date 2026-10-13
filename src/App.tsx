@@ -4,6 +4,12 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { AdminPage } from './pages/AdminPage'; // Ensure this is imported
 import { DiagnosticsPage } from './pages/DiagnosticsPage';
+import { StaffRoute } from './pages/v2/StaffRoute';
+import { StaffLoginPage } from './pages/v2/StaffLoginPage';
+import { ConsentPage } from './pages/v2/ConsentPage';
+import { WorkerHomePage } from './pages/v2/WorkerHomePage';
+import { AdminStaffPage } from './pages/v2/AdminStaffPage';
+import { ResetPasswordPage } from './pages/v2/ResetPasswordPage';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
 import { useEffect, useState } from 'react';
@@ -57,6 +63,13 @@ function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* New organisation-based accounts (M3); legacy routes above stay until M4 */}
+            <Route path="/v2/login" element={<StaffLoginPage />} />
+            <Route path="/v2/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/v2/consent" element={<StaffRoute require="member">{(c, reload) => <ConsentPage context={c} reload={reload} />}</StaffRoute>} />
+            <Route path="/v2/home" element={<StaffRoute require="member">{(c) => <WorkerHomePage context={c} />}</StaffRoute>} />
+            <Route path="/v2/admin/staff" element={<StaffRoute require="admin">{(c) => <AdminStaffPage context={c} />}</StaffRoute>} />
 
             {/* M1 spike: device diagnostics */}
             <Route

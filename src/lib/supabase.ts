@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Database } from './database.types';
 
 // Access environment variables using Vite's syntax
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -8,4 +9,4 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase Environment Variables');
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);

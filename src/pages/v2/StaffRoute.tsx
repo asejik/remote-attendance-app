@@ -1,0 +1,36 @@
+import type { ReactNode } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '../../context/useAuth';
+import { useStaff, type StaffContext } from '../../context/useStaff';
+
+interface StaffRouteProps {
+  // 'admin': organisation admins only. 'member': workers and supervisors, who
+  // must accept the privacy notice first.
+  require: 'admin' | 'member';
+  children: (context: StaffContext, reload: () => Promise<void>) => ReactNode;
+}
+
+export const StaffRoute = ({ require, children }: StaffRouteProps) => {
+  const { user } = useAuth();
+  const { context, loading, reload } = useStaff();
+  const location = useLocation();
+
+  if (!user) return <Navigate to="/v2/login" replace />;
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center" role="status" aria-label="Loading">
+        <Loader2 className="animate-spin text-gray-400" />
+      </div>
+    );
+  }
+  if (!context) return <Navigate to="/v2/login" replace state={{ notice: 'no_staff' }} />;
+
+  const isAdmin = context.staff.role === 'admin';
+  if (require === 'admin' && !isAdmin) return <Navigate to="/v2/home" replace />;
+  if (require === 'member' && isAdmin) return <Navigate to="/v2/admin/staff" replace />;
+  if (require === 'member' && !context.staff.consent_accepted_at && location.pathname !== '/v2/consent') {
+    return <Navigate to="/v2/consent" replace />;
+  }
+  return <>{children(context, reload)}</>;
+};

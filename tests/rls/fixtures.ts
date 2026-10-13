@@ -9,6 +9,32 @@ const anonKey = process.env.VITE_SUPABASE_ANON_KEY!
 const secretKey = process.env.SUPABASE_SECRET_KEY!
 export const hasCredentials = Boolean(url && anonKey && secretKey)
 
+// Calls a deployed Edge Function, optionally as a signed-in user.
+export const callFunction = async (name: string, body: unknown, client?: Client) => {
+  const token = client ? (await client.auth.getSession()).data.session?.access_token : undefined
+  const res = await fetch(`${url}/functions/v1/${name}`, {
+    method: 'POST',
+    headers: { apikey: anonKey, 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body),
+  })
+  return { status: res.status, body: await res.json().catch(() => null) }
+}
+
+// Signs a fresh client in with a session returned by staff-login.
+export const clientFromSession = async (tokens: { access_token: string; refresh_token: string }) => {
+  const client = anon()
+  const { error } = await client.auth.setSession(tokens)
+  if (error) throw new Error(`setSession: ${error.message}`)
+  return client
+}
+
+export const authPasswordGrant = async (email: string, password: string) => {
+  const res = await fetch(`${url}/auth/v1/token?grant_type=password`, {
+    method: 'POST', headers: { apikey: anonKey, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
+  })
+  return res.status
+}
+
 const options = { auth: { persistSession: false, autoRefreshToken: false } }
 export const service = () => createClient<Database>(url, secretKey, options)
 export const anon = () => createClient<Database>(url, anonKey, options)
@@ -24,6 +50,8 @@ interface Person {
 }
 
 export interface World {
+  slugA: string
+  slugB: string
   run: string
   orgA: string
   orgB: string
@@ -91,7 +119,7 @@ export const buildWorld = async (): Promise<World> => {
   }
 
   return {
-    run, orgA, orgB,
+    run, orgA, orgB, slugA: `rls-a-${run}`, slugB: `rls-b-${run}`,
     siteA: siteId('Site A'), siteAInactive: siteId('Old Site A'), siteB: siteId('Site B'),
     workerA1: await person(orgA, 'A1', 'worker'),
     workerA2: await person(orgA, 'A2', 'worker'),
@@ -112,12 +140,17 @@ export const purgeStaleWorlds = async () => {
   const svc = service()
   const { data: orgs } = await svc.from('organizations').select('id').like('slug', 'rls-%')
   const { data: users } = await svc.auth.admin.listUsers({ perPage: 1000 })
-  const stale = (users?.users ?? []).filter((u) => /^rls-.*@attendance-dev\.test$/.test(u.email ?? '')).map((u) => u.id)
+  const stale = (users?.users ?? [])
+    .filter((u) => /^rls-.*@attendance-dev\.test$/.test(u.email ?? '') || /@rls-[ab]-[0-9a-f]{8}\.staff\.invalid$/.test(u.email ?? ''))
+    .map((u) => u.id)
   if (orgs?.length || stale.length) await destroyOrgs((orgs ?? []).map((o) => o.id), stale)
 }
 
-const destroyOrgs = async (orgs: string[], userIds: string[]) => {
+const destroyOrgs = async (orgs: string[], knownUserIds: string[]) => {
   const svc = service()
+  // Include Auth users created by the admin-staff function for these orgs.
+  const { data: staffUsers } = await svc.from('staff').select('user_id').in('organization_id', orgs)
+  const userIds = [...new Set([...knownUserIds, ...(staffUsers ?? []).map((s) => s.user_id).filter((id): id is string => !!id)])]
   for (const org of orgs) {
     for (const bucket of ['event-photos', 'reference-photos']) {
       const { data: folders } = await svc.storage.from(bucket).list(org, { limit: 1000 })

@@ -15,11 +15,6 @@ interface Log {
   longitude: number;
 }
 
-interface Profile {
-  id: string;
-  full_name: string;
-}
-
 export const AdminPage = () => {
   const { signOut } = useAuth();
   const [logs, setLogs] = useState<Log[]>([]);
@@ -41,11 +36,17 @@ export const AdminPage = () => {
       const { data: logsData } = await supabase.from('attendance_logs').select('*').order('timestamp', { ascending: false });
       const { data: profilesData } = await supabase.from('profiles').select('id, full_name');
 
-      if (logsData) setLogs(logsData);
+      // Legacy columns are nullable; skip rows without a timestamp.
+      if (logsData) {
+        setLogs(logsData.flatMap((l) => (l.timestamp ? [{
+          ...l, timestamp: l.timestamp, type: l.type ?? undefined,
+          site_photo_path: l.site_photo_path ?? undefined, site_name_snapshot: l.site_name_snapshot ?? undefined,
+        }] : [])));
+      }
 
       if (profilesData) {
         const profileMap: Record<string, string> = {};
-        profilesData.forEach((p: Profile) => { profileMap[p.id] = p.full_name; });
+        profilesData.forEach((p) => { profileMap[p.id] = p.full_name ?? 'Unknown'; });
         setProfiles(profileMap);
       }
     } catch (e) { console.error(e); }

@@ -35,7 +35,7 @@ npm run typecheck      # tsc -b (noUnusedLocals/Parameters on)
 npm run lint           # ESLint
 npm test               # Vitest unit tests (src/**/*.test.ts, node env + fake-indexeddb)
 npx vitest run src/lib/db.test.ts -t "PENDING"   # single test file / name
-npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env. Session tests need `E2E_STAFF_EMAIL`/`E2E_STAFF_PASSWORD` in `.env` and skip without them (as in CI)
+npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env. Session tests need `E2E_STAFF_EMAIL`/`E2E_STAFF_PASSWORD` and the accounts test needs `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`/`E2E_ORG_SLUG` plus `SUPABASE_SECRET_KEY` in `.env`. They skip without them (as in CI)
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
 npm run knip           # unused files/deps/exports
@@ -43,6 +43,7 @@ npm run test:rls       # access-rule (RLS) suite against the dev project: builds
 npx supabase db push --linked --dry-run   # then without --dry-run: apply new migrations to dev
 npx supabase gen types typescript --linked > src/lib/database.types.ts   # after every schema change
 SEED_ALLOW=dev node scripts/seed-dev.mjs  # demo org "Demo Construction Ltd" (idempotent; resets demo passwords)
+npx supabase functions deploy <name> --use-api --no-verify-jwt   # deploy an Edge Function to dev (no Docker)
 npx cap sync android   # copy dist/ into the Android project after a build
 ```
 
@@ -64,6 +65,15 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **The server computes evidence:** `private.attendance_event_before_insert()` overwrites distance, `within_radius`, `flags` (`outside_radius`, `low_accuracy`, `time_skew`, `no_face_photo`, `no_site_photo`, `no_location`, `no_site`, `liveness_failed`) and all review columns. Flags never reject an insert.
 - **Admin writes go through RPCs:** `review_event()` and `update_org_settings()` (both audited). Clients have no UPDATE/DELETE on events. Staff rows are written only by the service role (Edge Functions, from M3).
 - **Photos:** private buckets `event-photos` (`{org}/{event}/face|site.jpg`, write-once, read by admin/supervisor via signed URLs) and `reference-photos` (`{org}/{staff}.jpg`, admin only). JPEG only, 2 MB max.
+- **Staff accounts (M3):**
+  - Workers sign in with org slug + staff code + 6-digit PIN through the `staff-login` Edge Function. It calls `staff_pin_verify()`: bcrypt hashes in `private.staff_pins`, 5 wrong tries → 15 min lock, the same `invalid_credentials` answer for unknown org/code. It then mints a session via `generateLink` + `verifyOtp`.
+  - Each worker's Auth email is `{code}@{slug}.staff.invalid`, with a random password nobody knows, so PINs can't be guessed against Auth directly.
+  - `admin-staff` (actions `create`, `reset_pin`, `set_status`, `set_reference_photo`) checks that the caller is an active admin and scopes everything to their org.
+  - Admins themselves use email + password and are created by the platform owner (seed/script), never through `admin-staff`.
+  - Deactivation sets `staff.status` and bans the Auth user.
+  - Workers accept the privacy notice via the `accept_consent()` RPC.
+  - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.
+  - New screens are under `/v2/*` (`src/pages/v2/`) until M4 makes them the default.
 - **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable, so `db dump`, `db pull` and `test db` don't work.
 - **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 

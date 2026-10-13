@@ -6,6 +6,16 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## M3 Accounts (2026-10-14). Open `/v2/login` (the old `/` login is unchanged until M4)
+- ☐ Admin: "Organisation admin? Log in here" → log in with the demo admin from `docs/private/TEST_ACCOUNTS.md` → the Staff list shows.
+- ☐ Add worker on the phone: the reference photo field opens the camera. After saving, the organisation, staff code and PIN are shown once.
+- ☐ Worker login with organisation `demo`, staff code and PIN → privacy notice → "I understand and agree" → worker home with name.
+- ☐ Close and reopen the app: you go straight back to the worker home, with no second notice.
+- ☐ Enter the wrong PIN 5 times: the account locks ("Too many wrong PINs"). The admin taps the key icon (Reset PIN) and the new PIN works.
+- ☐ Admin deactivates the worker (person-x icon): their next login says the account is deactivated. Reactivate restores it.
+- ☐ Admin "Forgot password?" sends an email whose link opens "Choose a new password". (The built-in mailer allows about 2 emails per hour.)
+- ☐ Tap a staff member's photo circle to add or replace their reference photo.
+
 ## M2 Secure database foundation (2026-10-13)
 - No manual steps. The new tables aren't used by the app until M3/M4. They are covered by `npm run test:rls` (30 automated access checks).
 - ☐ (Optional) Supabase dashboard → Table Editor: the new tables `organizations`, `staff`, `work_sites`, `attendance_events` and `audit_log` exist. The demo organisation "Demo Construction Ltd" has 3 sites and 4 staff.

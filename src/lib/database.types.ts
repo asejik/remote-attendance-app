@@ -443,6 +443,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_consent: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       review_event: {
         Args: {
@@ -484,6 +485,19 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      staff_pin_set: {
+        Args: { p_pin: string; p_staff_id: string }
+        Returns: undefined
+      }
+      staff_pin_verify: {
+        Args: { p_org_slug: string; p_pin: string; p_staff_code: string }
+        Returns: {
+          locked_until: string
+          result: string
+          staff_id: string
+          user_id: string
+        }[]
       }
       update_org_settings: {
         Args: {
