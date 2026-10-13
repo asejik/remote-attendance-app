@@ -1,0 +1,60 @@
+name: Deploy production backend
+
+# Applies database migrations, deploys Edge Functions and configures the
+# PRODUCTION Supabase project. Run it by hand (Actions -> this workflow -> Run
+# workflow, branch main, type DEPLOY). Production credentials live only in the
+# "production" GitHub environment; no developer tool holds them. Add yourself
+# as a required reviewer on that environment for a second confirmation.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type DEPLOY to apply migrations and functions to production
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main' && inputs.confirm == 'DEPLOY'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.PROD_SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
+      PROJECT_REF: ${{ secrets.PROD_PROJECT_REF }}
+      CRON_SECRET: ${{ secrets.PROD_CRON_SECRET }}
+      SITE_URL: ${{ vars.PROD_SITE_URL }}
+      REDIRECT_URLS: ${{ vars.PROD_REDIRECT_URLS }}
+      DISABLE_SIGNUP: 'true'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Check required secrets and variables
+        run: |
+          for v in SUPABASE_ACCESS_TOKEN SUPABASE_DB_PASSWORD PROJECT_REF CRON_SECRET SITE_URL; do
+            if [ -z "${!v}" ]; then echo "::error::$v is not set in the production environment"; exit 1; fi
+          done
+      - run: npm ci
+      - name: Link production project
+        run: npx supabase link --project-ref "$PROJECT_REF" -p "$SUPABASE_DB_PASSWORD"
+      - name: Migrations (preview)
+        run: npx supabase db push --linked --dry-run
+      - name: Migrations (apply)
+        run: yes | npx supabase db push --linked
+      - name: Edge Functions
+        run: |
+          for f in staff-login admin-staff purge-expired-photos; do
+            npx supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
+          done
+          npx supabase secrets set CRON_SECRET="$CRON_SECRET" --project-ref "$PROJECT_REF"
+      - name: Auth settings and Vault secrets
+        run: node scripts/configure-supabase.mjs

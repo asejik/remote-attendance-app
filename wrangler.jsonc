@@ -1,0 +1,12 @@
+// Cloudflare Workers static assets: serves the built app (dist/) with SPA
+// fallback; dist/_headers (from public/_headers) adds the security headers.
+// Build: `npm run build`   Deploy: `npx wrangler@4 deploy`   (see docs/deploy/CLOUDFLARE.md)
+{
+  "$schema": "https://unpkg.com/wrangler@4/config-schema.json",
+  "name": "attendance",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  }
+}
