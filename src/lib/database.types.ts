@@ -257,6 +257,7 @@ export type Database = {
           site_photo_required: boolean
           slug: string
           status: string
+          suspended_at: string | null
           timezone: string
           updated_at: string
         }
@@ -271,6 +272,7 @@ export type Database = {
           site_photo_required?: boolean
           slug: string
           status?: string
+          suspended_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -285,6 +287,7 @@ export type Database = {
           site_photo_required?: boolean
           slug?: string
           status?: string
+          suspended_at?: string | null
           timezone?: string
           updated_at?: string
         }
@@ -546,6 +549,7 @@ export type Database = {
           site_photo_required: boolean
           slug: string
           status: string
+          suspended_at: string | null
           timezone: string
           updated_at: string
         }

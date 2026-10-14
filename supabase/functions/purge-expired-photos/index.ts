@@ -4,6 +4,7 @@
 //   3. orphan event photos (uploaded, but the event record never arrived)
 // Attendance records themselves are kept; only photos are deleted.
 import { corsHeaders, json, serviceClient } from '../_shared/http.ts'
+import { cronCheckIn, reportError } from '../_shared/sentry.ts'
 
 const BATCH = 200
 const MAX_BATCHES = 25 // up to 5,000 items per kind per run
@@ -75,5 +76,8 @@ Deno.serve(async (req) => {
   }
 
   console.log('purge-expired-photos', JSON.stringify(result))
+  // Sentry alerts when a nightly run fails or never arrives (schedule as in migration 20261015090000).
+  if (result.errors.length) await reportError('purge-expired-photos', 'purge finished with errors', { message: result.errors.join('; ') })
+  await cronCheckIn('purge-expired-photos', result.errors.length ? 'error' : 'ok', '15 2 * * *')
   return json(result, result.errors.length ? 500 : 200)
 })

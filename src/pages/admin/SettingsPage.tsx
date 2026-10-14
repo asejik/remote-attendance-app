@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { StaffContext } from '../../context/useStaff';
+import { orSuspended } from '../../lib/support';
 
 interface Settings {
   site_photo_required: boolean;
@@ -34,7 +35,7 @@ export const SettingsPage = ({ context }: { context: StaffContext }) => {
     const { error } = await supabase.rpc('update_org_settings', settings);
     setBusy(false);
     setMessage(error
-      ? { kind: 'error', text: 'Could not save. Retention must be between 7 and 365 days.' }
+      ? { kind: 'error', text: orSuspended(error, 'Could not save. Retention must be between 7 and 365 days.') }
       : { kind: 'ok', text: 'Saved. Workers’ phones pick up the change next time they connect.' });
   };
 

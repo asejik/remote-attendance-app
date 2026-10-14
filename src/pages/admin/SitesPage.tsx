@@ -6,6 +6,7 @@ import { mapLink } from '../../lib/adminEvents';
 import type { StaffContext } from '../../context/useStaff';
 import type { Database } from '../../lib/database.types';
 import { useEscape } from '../../hooks/useEscape';
+import { orSuspended } from '../../lib/support';
 
 const SiteMap = lazy(() => import('../../components/SiteMap'));
 
@@ -45,7 +46,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
   const setActive = async (site: Site, active: boolean) => {
     if (!active && !window.confirm(`Deactivate ${site.name}? Workers will no longer see it. Past clock-ins keep the site name.`)) return;
     const { error: updateError } = await supabase.from('work_sites').update({ active }).eq('id', site.id);
-    if (updateError) setError('Could not update the site. Please try again.');
+    if (updateError) setError(orSuspended(updateError, 'Could not update the site. Please try again.'));
     apply(await fetchSites());
   };
 
@@ -137,7 +138,7 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
       ? await supabase.from('work_sites').update(fields).eq('id', draft.id)
       : await supabase.from('work_sites').insert({ ...fields, organization_id: orgId, active: true, created_by: userId });
     setBusy(false);
-    if (saveError) return setError('Could not save the site. Please try again.');
+    if (saveError) return setError(orSuspended(saveError, 'Could not save the site. Please try again.'));
     await onSaved();
   };
 

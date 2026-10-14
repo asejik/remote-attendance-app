@@ -7,6 +7,7 @@ import {
 import { dayRangeUtc, flagLabel, localDay, localTime } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
+import { orSuspended } from '../../lib/support';
 
 interface Option { id: string; label: string }
 type StatusFilter = ReviewStatus | 'all';
@@ -193,8 +194,8 @@ const EventCard = ({ event: e, tz, photos, onOpen, onReviewed }: {
       await reviewEvent(e.id, decision, decision === 'rejected' ? note.trim() : null);
       setRejecting(false);
       await onReviewed();
-    } catch {
-      setError('Could not save the review. Please try again.');
+    } catch (err) {
+      setError(orSuspended(err, 'Could not save the review. Please try again.'));
     } finally {
       setBusy(false);
     }

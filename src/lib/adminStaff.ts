@@ -10,7 +10,7 @@ const MESSAGES: Record<string, string> = {
   invalid_staff_code: 'Staff codes use letters, numbers and dashes (2 to 20 characters).',
   staff_code_taken: 'That staff code is already used.',
   cannot_change_self: "You can't deactivate your own account.",
-  forbidden: 'Only organisation admins can do this.',
+  forbidden: 'Not allowed. Only organisation admins can do this, and not while the subscription is suspended.',
   network: "Can't reach the server. Check your internet connection.",
 };
 

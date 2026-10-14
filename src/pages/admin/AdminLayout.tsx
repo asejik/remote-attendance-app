@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { ClipboardCheck, FileSpreadsheet, LogOut, MapPin, Settings, UserMinus, Users } from 'lucide-react';
+import { ClipboardCheck, FileSpreadsheet, Lock, LogOut, MapPin, Settings, UserMinus, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { StaffContext } from '../../context/useStaff';
+import { SUPPORT_EMAIL, suspensionOf } from '../../lib/support';
 
 const TABS = [
   { to: '/admin/review', label: 'Review', icon: ClipboardCheck },
@@ -16,6 +17,7 @@ const TABS = [
 // Wider, laptop-friendly frame for admin screens (still usable on a phone).
 export const AdminLayout = ({ context, children }: { context: StaffContext; children: ReactNode }) => {
   const navigate = useNavigate();
+  const suspension = suspensionOf(context.organization);
   const logOut = async () => {
     await supabase.auth.signOut();
     navigate('/', { replace: true });
@@ -41,6 +43,20 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
           ))}
         </nav>
       </header>
+      {suspension && (
+        <div role="alert" className="bg-red-50 border-b border-red-200">
+          <p className="max-w-5xl mx-auto px-4 py-3 text-sm text-red-900 flex items-start gap-2">
+            <Lock size={16} className="mt-0.5 shrink-0" aria-hidden />
+            <span>
+              <strong>This organisation's subscription is suspended.</strong> You can still view and export records, but changes are turned off.{' '}
+              {suspension.clockInsBlocked
+                ? 'Clock-ins are no longer accepted.'
+                : `Workers can clock in until ${suspension.graceEnds.toLocaleDateString('en-NG', { day: 'numeric', month: 'long' })}.`}{' '}
+              Contact <a className="underline font-medium" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+            </span>
+          </p>
+        </div>
+      )}
       <main className="max-w-5xl mx-auto p-4">{children}</main>
     </div>
   );

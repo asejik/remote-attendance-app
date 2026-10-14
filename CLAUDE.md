@@ -121,13 +121,17 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - `docs/deploy/CLOUDFLARE.md`: hosting at `attendance.asejik.com` with `wrangler.jsonc` (static assets + SPA fallback).
   - `docs/deploy/RUNBOOK.md`: operations, breach response, data requests.
 - **Security headers** live in `public/_headers` (CSP etc.). `vite preview` applies the same headers, and `tests/e2e/fixtures.ts` fails any E2E test that logs a CSP violation. Use `dataUrlToBlob`, never `fetch(data:...)`. Adding an external host means updating the CSP.
+- **Organisation suspension** (migration `20261015100000`): the owner sets `organizations.status = 'suspended'` (stamped `suspended_at`, audited). Admins become read-only (sites, reviews, settings, admin-staff refused; reads and exports work). Workers can sign in and clock in for 7 days, then are refused (`private.org_accepts_clockins`). The UI mirrors it in `src/lib/support.ts` (also `SUPPORT_EMAIL`).
+- **Audit:** `work_sites` inserts/updates are audited by trigger with before/after values; organisation status changes too.
 - **Photo retention:**
   - The `purge-expired-photos` Edge Function is called daily at 02:15 UTC by pg_cron, using `x-cron-secret` (Vault `project_url`/`cron_secret`, plus function secret `CRON_SECRET`, also in local `.env` for tests).
   - Service-role-only SQL helpers are in migration `20261015090000`.
   - Tested by `tests/rls/retention.test.ts`.
 - **Build flags:**
   - `VITE_ENABLE_DIAGNOSTICS=1` (test APK only): shows `/diagnostics`.
-  - `VITE_SENTRY_DSN`: enables Sentry (`src/lib/monitoring.ts`, PII stripped).
+  - `VITE_SENTRY_DSN`: enables Sentry (`src/lib/monitoring.ts`, PII stripped). Upload refusals are reported by `sync.ts` (code/status only).
+  - Edge Functions: secrets `SENTRY_DSN` + `SENTRY_ENVIRONMENT` enable `_shared/sentry.ts` (errors via `logError`, and the purge job's Sentry Cron check-in). Dev uses `development`.
+  - Release APK only: `VITE_APP_VERSION` (tag) + `VITE_UPDATE_URL` (`{site}/version.json`) turn on the update notice (`src/lib/appUpdate.ts`).
   - `VITE_MAP_TILE_URL` / `VITE_MAP_ATTRIBUTION`: the map tile provider.
 - **Lazy chunks:** the face camera (face-api), diagnostics, the site map (Leaflet) and Excel export (SheetJS) are loaded on demand. Keep heavy libraries out of the main bundle.
 - **Android signing:**

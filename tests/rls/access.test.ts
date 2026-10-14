@@ -228,7 +228,8 @@ describe.skipIf(!hasCredentials)('access rules (RLS) on the new schema', () => {
       expect((await c.from('staff').select('organization_id')).data!.every((s) => s.organization_id === w.orgB)).toBe(true)
       expect((await c.from('work_sites').select('id')).data!.map((s) => s.id)).toEqual([w.siteB])
       expect((await c.from('attendance_events').select('id')).data).toEqual([])
-      expect((await c.from('audit_log').select('id')).data).toEqual([])
+      // B's own audit rows only (creating B's site is audited since 20261015100000).
+      expect((await c.from('audit_log').select('organization_id')).data!.every((r) => r.organization_id === w.orgB)).toBe(true)
     })
 
     it("cannot review A's events or open A's photos", async () => {

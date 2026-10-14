@@ -3,8 +3,8 @@
 For the owner (platform operator). Organisation-specific details (client names, contacts, contracts) live in the private repo.
 
 ## Daily / weekly
-- **Errors:** check Sentry (if enabled) once a day during the pilot; weekly after.
-- **Photo retention job:** Supabase (production) → *Integrations → Cron → Jobs* → `purge-expired-photos` should show a successful run each night (02:15 UTC). *Edge Functions → purge-expired-photos → Logs* shows the counts (`event_photos`, `reference_photos`, `orphans`, `errors`). Investigate any non-empty `errors`.
+- **Errors:** check Sentry (if enabled) once a day during the pilot; weekly after. Server-side failures (sign-in, staff admin, the photo purge) appear there too, tagged `function`; uploads the server refused appear as *Upload refused by the server*.
+- **Photo retention job:** Sentry → *Crons* → `purge-expired-photos` (environment *production*) alerts by email when a nightly run fails or doesn't arrive. Set this up once: open the monitor → *Alerts* → notify on failed/missed check-ins, filtered to `production`. To look deeper: Supabase (production) → *Integrations → Cron → Jobs* → `purge-expired-photos` should show a successful run each night (02:15 UTC). *Edge Functions → purge-expired-photos → Logs* shows the counts (`event_photos`, `reference_photos`, `orphans`, `errors`). Investigate any non-empty `errors`.
 - **Storage use:** *Project Settings → Usage*. Pro includes 100 GB; at ~13 MB per worker per month with 60-day retention, that's thousands of workers.
 
 ## Backups and restore
@@ -18,6 +18,11 @@ For the owner (platform operator). Organisation-specific details (client names, 
 2. GitHub → Actions → **Onboard organisation (production)** → Run workflow with those details → approve. It creates the organisation, the admin's login (random password nobody sees) and their staff record (`scripts/onboard-org.mjs`).
 3. Tell the admin to open the app and use **Forgot password?** to set their password.
 4. The admin adds sites and workers in the app.
+
+## Suspending an organisation (for example, unpaid invoice)
+1. Supabase (production) → *Table editor* → `organizations` → set `status` to `suspended` (`suspended_at` is filled in and the change is audited).
+2. Effect: admins see a red banner and can still view and export, but can't change sites, workers, reviews or settings. Workers keep clocking in for **7 days**, then their clock-ins are refused and they see a notice.
+3. To restore, set `status` back to `active`. Clock-ins refused after the grace period stay on workers' phones as *not accepted*; they tap **Try again**.
 
 ## A worker can't log in
 - "not correct": check organisation code and staff code (admin → Staff); reset the PIN.

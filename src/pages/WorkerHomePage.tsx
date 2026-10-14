@@ -12,6 +12,7 @@ import { distanceM, outsideSite, type Fix } from '../lib/geo';
 import { flagLabel } from '../lib/reports';
 import { DIAGNOSTICS } from '../lib/buildFlags';
 import { getStorageInfo } from '../lib/storage';
+import { suspensionOf } from '../lib/support';
 import type { StaffContext } from '../context/useStaff';
 
 // The face camera (face-api.js + TensorFlow) is the largest part of the app;
@@ -141,6 +142,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const clockedIn = last?.type === 'CLOCK_IN';
   const waiting = local.filter((e) => e.status === 'pending');
   const failed = local.filter((e) => e.status === 'failed');
+  const clockInsBlocked = suspensionOf(organization)?.clockInsBlocked ?? false;
   const site = sites.find((s) => s.id === siteId);
 
   const start = async () => {
@@ -288,6 +290,12 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           </div>
           {!sites.length && <span className="block mt-1 text-xs text-amber-700">No sites yet. Connect to the internet, or ask your admin to add your site.</span>}
         </label>
+
+        {clockInsBlocked && (
+          <p role="alert" className="w-full text-sm bg-red-50 border border-red-200 text-red-900 rounded-xl p-3">
+            {organization.name}&apos;s account is suspended, so clock-ins are not being accepted. Please tell your admin.
+          </p>
+        )}
 
         {failed.length > 0 && (
           <div className="w-full bg-red-50 border border-red-200 rounded-xl p-3 space-y-2" role="alert">

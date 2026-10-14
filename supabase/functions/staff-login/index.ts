@@ -3,6 +3,7 @@
 // function mints a normal Supabase session for the worker's Auth user, whose
 // password is a random secret, so PINs cannot be guessed against Auth directly.
 import { corsHeaders, json, publicClient, serviceClient } from '../_shared/http.ts'
+import { logError } from '../_shared/sentry.ts'
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     .rpc('staff_pin_verify', { p_org_slug: org.trim(), p_staff_code: code.trim(), p_pin: pin })
     .single<{ result: string; user_id: string | null; locked_until: string | null }>()
   if (error || !data) {
-    console.error('staff_pin_verify failed', error)
+    await logError('staff-login', 'staff_pin_verify failed', error)
     return json({ error: 'server_error' }, 500)
   }
   if (data.result === 'locked') return json({ error: 'locked', locked_until: data.locked_until }, 423)
@@ -37,12 +38,12 @@ Deno.serve(async (req) => {
   const { data: userData, error: userError } = await svc.auth.admin.getUserById(data.user_id)
   const email = userData?.user?.email
   if (userError || !email) {
-    console.error('getUserById failed', userError)
+    await logError('staff-login', 'getUserById failed', userError)
     return json({ error: 'server_error' }, 500)
   }
   const { data: link, error: linkError } = await svc.auth.admin.generateLink({ type: 'magiclink', email })
   if (linkError) {
-    console.error('generateLink failed', linkError)
+    await logError('staff-login', 'generateLink failed', linkError)
     return json({ error: 'server_error' }, 500)
   }
   const { data: verified, error: verifyError } = await publicClient().auth.verifyOtp({
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
     type: 'magiclink',
   })
   if (verifyError || !verified.session) {
-    console.error('verifyOtp failed', verifyError)
+    await logError('staff-login', 'verifyOtp failed', verifyError)
     return json({ error: 'server_error' }, 500)
   }
   return json({ access_token: verified.session.access_token, refresh_token: verified.session.refresh_token })

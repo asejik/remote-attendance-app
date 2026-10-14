@@ -206,3 +206,20 @@ test('settings: switch to block mode (audited)', async ({ page }) => {
   const { data } = await svc().from('organizations').select('geofence_mode').eq('id', orgId).single()
   expect(data!.geofence_mode).toBe('block')
 })
+
+test('suspended organisation: banner, records still readable, changes refused with a clear message', async ({ page }) => {
+  await svc().from('organizations').update({ status: 'suspended' }).eq('id', orgId)
+  try {
+    await login(page)
+    await expect(page.getByRole('alert').filter({ hasText: 'subscription is suspended' })).toContainText('Workers can clock in until')
+    await expect(page.getByRole('option', { name: `${EVIL} (W-1)` })).toBeAttached() // organisation records still load
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.getByLabel(/Allow and flag/).check()
+    await page.getByRole('button', { name: 'Save settings' }).click()
+    await expect(page.getByRole('alert').filter({ hasText: 'Changes are turned off' })).toBeVisible()
+    const { data } = await svc().from('organizations').select('geofence_mode').eq('id', orgId).single()
+    expect(data!.geofence_mode).toBe('block') // unchanged
+  } finally {
+    await svc().from('organizations').update({ status: 'active' }).eq('id', orgId)
+  }
+})

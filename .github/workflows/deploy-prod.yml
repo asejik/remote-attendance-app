@@ -29,6 +29,7 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.PROD_SUPABASE_DB_PASSWORD }}
       PROJECT_REF: ${{ secrets.PROD_PROJECT_REF }}
       CRON_SECRET: ${{ secrets.PROD_CRON_SECRET }}
+      SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
       SITE_URL: ${{ vars.PROD_SITE_URL }}
       REDIRECT_URLS: ${{ vars.PROD_REDIRECT_URLS }}
       DISABLE_SIGNUP: 'true'
@@ -56,5 +57,9 @@ jobs:
             npx supabase functions deploy "$f" --project-ref "$PROJECT_REF" --use-api --no-verify-jwt
           done
           npx supabase secrets set CRON_SECRET="$CRON_SECRET" --project-ref "$PROJECT_REF"
+          # Function errors and the nightly purge check-in go to Sentry (optional).
+          if [ -n "$SENTRY_DSN" ]; then
+            npx supabase secrets set SENTRY_DSN="$SENTRY_DSN" SENTRY_ENVIRONMENT=production --project-ref "$PROJECT_REF"
+          fi
       - name: Auth settings and Vault secrets
         run: node scripts/configure-supabase.mjs

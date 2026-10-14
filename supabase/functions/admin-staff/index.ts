@@ -3,14 +3,17 @@
 // The caller must be an active admin; every target must be in the caller's
 // organisation. Each action is written to the audit log.
 import { corsHeaders, json, randomDigits, randomPin, randomSecret, serviceClient } from '../_shared/http.ts'
+import { logError } from '../_shared/sentry.ts'
 
 type Svc = ReturnType<typeof serviceClient>
 interface Admin { userId: string; staffId: string; orgId: string; orgSlug: string }
 
-const audit = (svc: Svc, admin: Admin, action: string, targetId: string, details: Record<string, unknown> = {}) =>
-  svc.from('audit_log').insert({
+const audit = async (svc: Svc, admin: Admin, action: string, targetId: string, details: Record<string, unknown> = {}) => {
+  const { error } = await svc.from('audit_log').insert({
     organization_id: admin.orgId, actor_user_id: admin.userId, action, target_table: 'staff', target_id: targetId, details,
   })
+  if (error) await logError('admin-staff', `audit ${action} failed`, error)
+}
 
 const findStaff = async (svc: Svc, admin: Admin, staffId: unknown) => {
   if (typeof staffId !== 'string' || !/^[0-9a-f-]{36}$/.test(staffId)) return null
@@ -42,7 +45,7 @@ const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => 
       app_metadata: { organization_id: admin.orgId, kind: 'staff' }, user_metadata: { full_name: fullName },
     })
     if (userError || !created.user) {
-      console.error('createUser failed', userError)
+      await logError('admin-staff', 'createUser failed', userError)
       return json({ error: 'server_error' }, 500)
     }
 
@@ -53,19 +56,20 @@ const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => 
     if (staffError || !staff) {
       await svc.auth.admin.deleteUser(created.user.id)
       if (staffError?.code === '23505' && !requested) continue
-      console.error('insert staff failed', staffError)
+      await logError('admin-staff', 'insert staff failed', staffError)
       return json({ error: staffError?.code === '23505' ? 'staff_code_taken' : 'server_error' }, staffError?.code === '23505' ? 409 : 500)
     }
 
     const pin = randomPin()
     const { error: pinError } = await svc.rpc('staff_pin_set', { p_staff_id: staff.id, p_pin: pin })
     if (pinError) {
-      console.error('staff_pin_set failed', pinError)
+      await logError('admin-staff', 'staff_pin_set failed', pinError)
       return json({ error: 'server_error' }, 500)
     }
     await audit(svc, admin, 'create_staff', staff.id, { role, staff_code: code })
     return json({ staff, pin }, 201)
   }
+  await logError('admin-staff', 'create: no free staff code after 5 tries')
   return json({ error: 'server_error' }, 500)
 }
 
@@ -74,7 +78,10 @@ const resetPin = async (svc: Svc, admin: Admin, body: Record<string, unknown>) =
   if (!staff || staff.role === 'admin') return json({ error: 'not_found' }, 404)
   const pin = randomPin()
   const { error } = await svc.rpc('staff_pin_set', { p_staff_id: staff.id, p_pin: pin })
-  if (error) return json({ error: 'server_error' }, 500)
+  if (error) {
+    await logError('admin-staff', 'reset_pin failed', error)
+    return json({ error: 'server_error' }, 500)
+  }
   await audit(svc, admin, 'reset_pin', staff.id)
   return json({ pin })
 }
@@ -89,13 +96,16 @@ const setStatus = async (svc: Svc, admin: Admin, body: Record<string, unknown>) 
   const { data: updated, error } = await svc.from('staff').update({
     status, deactivated_at: status === 'deactivated' ? new Date().toISOString() : null,
   }).eq('id', staff.id).select('*').single()
-  if (error) return json({ error: 'server_error' }, 500)
+  if (error) {
+    await logError('admin-staff', 'set_status update failed', error)
+    return json({ error: 'server_error' }, 500)
+  }
   // Banning stops new sessions and token refresh; RLS already ignores deactivated staff.
   if (staff.user_id) {
     const { error: banError } = await svc.auth.admin.updateUserById(staff.user_id, {
       ban_duration: status === 'deactivated' ? '876000h' : 'none',
     })
-    if (banError) console.error('ban update failed', banError)
+    if (banError) await logError('admin-staff', 'ban update failed', banError)
   }
   await audit(svc, admin, status === 'deactivated' ? 'deactivate_staff' : 'reactivate_staff', staff.id)
   return json({ staff: updated })
@@ -109,7 +119,10 @@ const setReferencePhoto = async (svc: Svc, admin: Admin, body: Record<string, un
   const { data: files } = await svc.storage.from('reference-photos').list(admin.orgId, { search: `${staff.id}.jpg` })
   if (!files?.some((f) => f.name === `${staff.id}.jpg`)) return json({ error: 'photo_not_uploaded' }, 400)
   const { data: updated, error } = await svc.from('staff').update({ reference_photo_path: path }).eq('id', staff.id).select('*').single()
-  if (error) return json({ error: 'server_error' }, 500)
+  if (error) {
+    await logError('admin-staff', 'set_reference_photo update failed', error)
+    return json({ error: 'server_error' }, 500)
+  }
   await audit(svc, admin, 'set_reference_photo', staff.id)
   return json({ staff: updated })
 }
