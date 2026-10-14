@@ -28,17 +28,20 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [people, setPeople] = useState<Option[]>([]);
+  // Login → name, to show who recorded a clock-in for someone else.
+  const [recorders, setRecorders] = useState<Record<string, string>>({});
   const [sites, setSites] = useState<Option[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     Promise.all([
-      supabase.from('staff').select('id, full_name, staff_code').neq('role', 'admin').order('full_name'),
+      supabase.from('staff').select('id, full_name, staff_code, role, user_id').order('full_name'),
       supabase.from('work_sites').select('id, name').order('name'),
     ]).then(([s, w]) => {
       if (cancelled) return;
-      setPeople((s.data ?? []).map((p) => ({ id: p.id, label: `${p.full_name} (${p.staff_code})` })));
+      setPeople((s.data ?? []).filter((p) => p.role !== 'admin').map((p) => ({ id: p.id, label: `${p.full_name} (${p.staff_code})` })));
+      setRecorders(Object.fromEntries((s.data ?? []).filter((p) => p.user_id).map((p) => [p.user_id!, `${p.full_name} (${p.staff_code})`])));
       setSites((w.data ?? []).map((x) => ({ id: x.id, label: x.name })));
     });
     return () => {
@@ -136,7 +139,7 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
       <ul className="space-y-3">
         {result?.events.map((e) => (
-          <EventCard key={e.id} event={e} tz={tz} photos={photos} onOpen={setLightbox} onReviewed={refresh} />
+          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox} onReviewed={refresh} />
         ))}
       </ul>
 
@@ -176,8 +179,8 @@ const Photo = ({ src, alt, label, onOpen }: { src?: string; alt: string; label: 
   </figure>
 );
 
-const EventCard = ({ event: e, tz, photos, onOpen, onReviewed }: {
-  event: ReviewEvent; tz: string; photos: Record<string, string>;
+const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
+  event: ReviewEvent; tz: string; photos: Record<string, string>; recordedBy?: string;
   onOpen: (p: { src: string; alt: string }) => void; onReviewed: () => Promise<void>;
 }) => {
   const [rejecting, setRejecting] = useState(false);
@@ -202,7 +205,9 @@ const EventCard = ({ event: e, tz, photos, onOpen, onReviewed }: {
   };
 
   const flagText = (flag: string) =>
-    flag === 'outside_radius' && e.distance_m !== null ? `Outside site (${e.distance_m >= 1000 ? `${(e.distance_m / 1000).toFixed(1)} km` : `${Math.round(e.distance_m)} m`})` : flagLabel(flag);
+    flag === 'outside_radius' && e.distance_m !== null ? `Outside site (${e.distance_m >= 1000 ? `${(e.distance_m / 1000).toFixed(1)} km` : `${Math.round(e.distance_m)} m`})`
+      : flag === 'recorded_by_other' ? `Recorded by ${recordedBy ?? 'another login'}`
+      : flagLabel(flag);
 
   return (
     <li className={`bg-white rounded-xl border p-4 ${(e.flag_count ?? 0) > 0 && e.review_status === 'pending' ? 'border-amber-300' : 'border-gray-200'}`}>

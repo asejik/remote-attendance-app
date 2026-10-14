@@ -34,6 +34,7 @@ const FLAG_LABELS: Record<string, string> = {
   no_site_photo: 'No site photo',
   no_face_photo: 'No face photo',
   no_site: 'No site',
+  recorded_by_other: 'Recorded by someone else',
 };
 export const flagLabel = (flag: string) => FLAG_LABELS[flag] ?? flag;
 

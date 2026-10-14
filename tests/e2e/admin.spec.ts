@@ -22,6 +22,9 @@ const ABSENT = 'Absent Worker'
 // 1x1 JPEG
 const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
 let orgId = ''
+let adminUserId = ''
+let absentStaffId = ''
+let siteId = ''
 const userIds: string[] = []
 
 // The screens filter by "today" in the organisation's time zone (Africa/Lagos,
@@ -44,6 +47,7 @@ test.beforeAll(async () => {
   if (error) throw error
   orgId = org.id
   const { data: site } = await s.from('work_sites').insert({ organization_id: orgId, name: 'Main Site', ...SITE, radius_m: 200, active: true }).select('id').single()
+  siteId = site!.id
 
   const user = async (email: string) => {
     const { data } = await s.auth.admin.createUser({ email, password: adminPassword, email_confirm: true })
@@ -51,11 +55,13 @@ test.beforeAll(async () => {
     return data.user!.id
   }
   const adminUser = await user(adminEmail)
+  adminUserId = adminUser
   await s.from('staff').insert({ organization_id: orgId, user_id: adminUser, full_name: 'E2E Admin', staff_code: 'ADM-1', role: 'admin', status: 'active' })
   const evilUser = await user(`evil-${run}@attendance-dev.test`)
   const { data: evil } = await s.from('staff')
     .insert({ organization_id: orgId, user_id: evilUser, full_name: EVIL, staff_code: 'W-1', role: 'worker', status: 'active' }).select('id').single()
-  await s.from('staff').insert({ organization_id: orgId, full_name: ABSENT, staff_code: 'W-2', role: 'worker', status: 'active' })
+  const { data: absent } = await s.from('staff').insert({ organization_id: orgId, full_name: ABSENT, staff_code: 'W-2', role: 'worker', status: 'active' }).select('id').single()
+  absentStaffId = absent!.id
 
   const ref = `${orgId}/${evil!.id}.jpg`
   await s.storage.from('reference-photos').upload(ref, JPEG, { contentType: 'image/jpeg' })
@@ -222,4 +228,17 @@ test('suspended organisation: banner, records still readable, changes refused wi
   } finally {
     await svc().from('organizations').update({ status: 'active' }).eq('id', orgId)
   }
+})
+
+test('a clock-in recorded from someone else\'s login is flagged with who recorded it', async ({ page }) => {
+  // As a supervisor would in crew mode; here the admin's login records it for the absent worker.
+  const { error } = await svc().from('attendance_events').insert({
+    id: randomUUID(), organization_id: orgId, staff_id: absentStaffId, captured_by: adminUserId, site_id: siteId, type: 'CLOCK_IN',
+    captured_at: new Date(pageNow - 30_000).toISOString(), latitude: SITE.latitude, longitude: SITE.longitude, accuracy_m: 10,
+    face_photo_path: null, site_photo_path: null,
+  })
+  if (error) throw error
+  await login(page)
+  const card = page.getByRole('listitem').filter({ hasText: ABSENT })
+  await expect(card).toContainText('Recorded by E2E Admin (ADM-1)')
 })

@@ -147,6 +147,7 @@ describe.skipIf(!hasCredentials)('access rules (RLS) on the new schema', () => {
         .insert(newEvent(w.orgA, w.workerA2.staffId, w.siteA)).select().single()
       expect(error).toBeNull()
       expect(data!.captured_by).toBe(w.supervisorA.userId)
+      expect(data!.flags).toContain('recorded_by_other') // stands out in Review
     })
 
     it('reads organisation events but cannot review them', async () => {
