@@ -6,6 +6,11 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## P03 audit fixes (2026-10-14)
+- ☐ Demo worker PIN login: organisation `demo`, staff code `WRK-01`, PIN from `docs/private/TEST_ACCOUNTS.md`.
+- ☐ Worker: deactivate a worker (admin → Staff), then on that worker's phone clock in while still logged in. Within about a minute the screen shows **"1 record not accepted"** with a reason, the history row says *Not accepted*, and the status stays CLOCKED OUT. Reactivate the worker, tap **Try again**: *All records uploaded*. (If Sentry is on, an *Upload refused by the server* issue appears.)
+- ☐ Release APK (first production release): set `public/version.json` `latest` above the installed version; reopen the app: a blue *A new version is available* bar with **Update** opens the download. Set `minimum` above it: the bar turns red. Clock-in still works.
+
 ## M6 Production readiness (2026-10-15). Mostly checked during go-live (docs/deploy/GO_LIVE.md)
 - ☐ Android test APK: the home-screen icon is the blue pin (not the Capacitor default), and the splash screen is blue.
 - ☐ Worker clock-in still works end to end (the camera now loads on demand, so the first time may take a second).

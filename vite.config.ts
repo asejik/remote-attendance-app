@@ -6,8 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // Headers from public/_headers (the "/*" block), reused by `vite preview` so
 // local and E2E runs enforce the same Content-Security-Policy as production.
+// Only the site-wide `/*` block (other blocks apply to single paths).
 const securityHeaders = Object.fromEntries(
-  readFileSync('public/_headers', 'utf8').split('\n')
+  (readFileSync('public/_headers', 'utf8').split(/^(?=\/)/m).find((block) => block.startsWith('/*')) ?? '').split('\n')
     .filter((line) => /^\s+[A-Za-z-]+:/.test(line))
     .map((line) => {
       const [name, ...value] = line.trim().split(':')
@@ -21,7 +22,7 @@ export default defineConfig({
   define: {
     // Shown on the diagnostics screen and (later) sent with each event.
     __APP_VERSION__: JSON.stringify(
-      `${process.env.npm_package_version ?? '0.0.0'}+${(process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? 'local').slice(0, 7)}`,
+      `${(process.env.VITE_APP_VERSION ?? process.env.npm_package_version ?? '0.0.0').replace(/^v/, '')}+${(process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA ?? 'local').slice(0, 7)}`,
     ),
   },
   plugins: [

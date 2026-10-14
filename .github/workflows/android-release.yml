@@ -34,12 +34,22 @@ jobs:
           for v in URL KEY KS KSPW; do
             if [ -z "${!v}" ]; then echo "::error::A required production secret ($v) is missing"; exit 1; fi
           done
+      - name: version.json must announce this release
+        # The installed apps read public/version.json from the web host to offer
+        # updates, so the tagged commit must already list this version.
+        run: |
+          node -e '
+            const v = require("./public/version.json"), tag = process.env.GITHUB_REF_NAME.replace(/^v/, "");
+            const ok = v.latest.replace(/^v/, "") === tag && v.url.includes(process.env.GITHUB_REF_NAME);
+            if (!ok) { console.error(`::error::public/version.json must have latest "${tag}" and a url for ${process.env.GITHUB_REF_NAME} (see docs/deploy/RUNBOOK.md, Releasing the Android app)`); process.exit(1); }'
       - run: npm ci
       - name: Build web app (production)
         env:
           VITE_SUPABASE_URL: ${{ secrets.PROD_VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.PROD_VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION: ${{ github.ref_name }}
+          VITE_UPDATE_URL: ${{ vars.PROD_SITE_URL }}/version.json
         run: npx vite build
       - run: npm run check:secrets
       - run: npx cap sync android

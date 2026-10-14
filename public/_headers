@@ -7,3 +7,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(self), geolocation=(self), microphone=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
+
+# Read by the Android app to offer updates; must never be served stale.
+/version.json
+  Cache-Control: no-cache

@@ -56,7 +56,7 @@ The admin then opens the app → **Organisation admin? Log in here** → **Forgo
 
 ## 7. Android release (developer tags; owner publishes)
 
-1. Developer pushes a tag `v1.0.0` → workflow **Android release APK** builds against production, signs with the release key, verifies the signature and creates a **draft** release.
+1. Developer sets `public/version.json` to `1.0.0` with the release link (RUNBOOK → *Releasing the Android app*), then pushes a tag `v1.0.0` → workflow **Android release APK** builds against production, signs with the release key, verifies the signature and creates a **draft** release.
 2. Owner reviews and publishes the release; share the APK link with the client's workers (or via a short link).
 3. **Workers with the test APK must uninstall it first** (the test and release apps are signed with different keys). Test data does not carry over.
 

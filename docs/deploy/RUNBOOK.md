@@ -26,8 +26,15 @@ For the owner (platform operator). Organisation-specific details (client names, 
 
 ## Clock-ins not arriving
 1. Ask the worker to open the app with internet: *All records uploaded* should appear within a minute.
-2. Test builds: *Device diagnostics* shows "Last upload error".
-3. Deactivated workers' unsent records are refused by design (decision D-22).
+2. **"N record(s) not accepted"** on the worker's screen: the server refused the record twice (the reason is shown). Sentry has an *Upload refused by the server* issue with the error code. Fix the cause (for example reactivate the worker), then the worker taps **Try again**.
+3. Test builds: *Device diagnostics* shows "Last upload error".
+4. Deactivated workers' unsent records are refused by design (decision D-22).
+
+## Releasing the Android app
+Installed apps read `https://attendance.asejik.com/version.json` at start and show *A new version is available* (or *too old, please update now* below `minimum`). Clock-in is never blocked.
+1. In a commit on `main`, edit `public/version.json`: `latest` = the new version (e.g. `1.1.0`), `url` = `https://github.com/asejik/remote-attendance-app/releases/download/v1.1.0/attendance-v1.1.0.apk`. Raise `minimum` only when old apps would break (for example a database change they can't handle).
+2. Tag that commit `v1.1.0` and push the tag. **Android release APK** refuses to build if `version.json` doesn't match the tag.
+3. Publish the draft release, **then** deploy the web app so `version.json` goes live (otherwise apps would be sent to a link that doesn't exist yet).
 
 ## Suspected data breach (photos, locations or accounts exposed)
 1. **Contain:** rotate the affected keys (Supabase → API keys; GitHub production secrets), deactivate affected accounts, revoke sessions (Authentication → Users → sign out), and stop the leak (e.g. fix an access rule).
