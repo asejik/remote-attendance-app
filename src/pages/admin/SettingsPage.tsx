@@ -15,12 +15,15 @@ export const SettingsPage = ({ context }: { context: StaffContext }) => {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     supabase.from('organizations').select('site_photo_required, geofence_mode, photo_retention_days').eq('id', context.organization.id).maybeSingle()
       .then(({ data }) => {
-        if (!cancelled && data) setSettings(data);
+        if (cancelled) return;
+        if (data) setSettings(data);
+        else setLoadError(true);
       });
     return () => {
       cancelled = true;
@@ -39,6 +42,7 @@ export const SettingsPage = ({ context }: { context: StaffContext }) => {
       : { kind: 'ok', text: 'Saved. Workers’ phones pick up the change next time they connect.' });
   };
 
+  if (loadError) return <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">Couldn&apos;t load settings. Check your connection and reload the page.</p>;
   if (!settings) return <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading settings" /></div>;
 
   return (

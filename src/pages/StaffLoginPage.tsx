@@ -83,7 +83,7 @@ export const StaffLoginPage = () => {
         {mode === 'worker' ? (
           <form onSubmit={workerLogin} className="space-y-4">
             <label className="block text-sm font-medium text-gray-700">
-              Organisation
+              Organisation code
               <input required value={org} onChange={(e) => setOrg(e.target.value)} autoCapitalize="none" autoComplete="organization" className={inputClass} />
             </label>
             <label className="block text-sm font-medium text-gray-700">

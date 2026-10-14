@@ -116,7 +116,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                   onChange={(e) => onPhoto(s, e.target.files?.[0])} />
               </label>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{s.full_name}</p>
+                <p className="font-semibold text-gray-900 break-words">{s.full_name}</p>
                 <p className="text-xs text-gray-500">
                   {s.staff_code} · {s.role}
                   {s.status !== 'active' && <span className="ml-1 font-semibold text-red-700">· deactivated</span>}
@@ -302,7 +302,7 @@ const PinDialog = ({ org, notice, onClose }: { org: string; notice: { name: stri
     <div className="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 text-center">
       <h2 id="pin-title" className="text-lg font-bold text-gray-900">Login details for {notice.name}</h2>
       <dl className="bg-gray-50 rounded-xl p-4 space-y-2 text-left">
-        <div className="flex justify-between"><dt className="text-gray-500">Organisation</dt><dd className="font-mono font-semibold">{org}</dd></div>
+        <div className="flex justify-between"><dt className="text-gray-500">Organisation code</dt><dd className="font-mono font-semibold">{org}</dd></div>
         <div className="flex justify-between"><dt className="text-gray-500">Staff code</dt><dd className="font-mono font-semibold" data-testid="new-staff-code">{notice.code}</dd></div>
         <div className="flex justify-between"><dt className="text-gray-500">PIN</dt><dd className="font-mono font-semibold text-2xl tracking-widest" data-testid="new-pin">{notice.pin}</dd></div>
       </dl>

@@ -6,6 +6,16 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## P05 quality fixes (2026-10-14)
+- ☐ **Review:** approve one clock-in. The card disappears at once and the other photos don't reload. With several clock-ins without flags, tap **Approve N without flags**, confirm, and check they all leave "Needs review" while flagged ones stay.
+- ☐ **Review on a slow connection:** leave the Review page open for more than 10 minutes, then scroll and open a photo. It still loads.
+- ☐ **Admin on a phone:** all six tabs (Review, Absent, Sites, Staff, Reports, Settings) are visible as two rows, with no sideways scrolling.
+- ☐ **Staff:** tap the pencil next to a worker, fix the name, switch to Supervisor and add a phone number, then save. The list shows the new name. The staff code is unchanged and the worker can still log in with it.
+- ☐ **Staff photo on a phone:** tapping a worker's photo circle (or the photo field in Add worker) opens the back camera.
+- ☐ **Worker home:** clock out in airplane mode. The orange box shows "Oldest: … ago". Turn the network back on: the message changes by itself to "Clocked out. Uploaded."
+- ☐ **Large text:** set the phone's font size to the largest setting. The worker home still fits the screen (no sideways scrolling), and "CLOCKED IN/OUT" is not split mid-word.
+- ☐ **Two-step login:** log in as admin several times in a row (also on mobile data). The code is accepted each time, with no "Could not check the code".
+
 ## P03 audit fixes (2026-10-14)
 - ☐ Demo worker PIN login: organisation `demo`, staff code `WRK-01`, PIN from `docs/private/TEST_ACCOUNTS.md`.
 - ☐ Worker: deactivate a worker (admin → Staff), then on that worker's phone clock in while still logged in. Within about a minute the screen shows **"1 record not accepted"** with a reason, the history row says *Not accepted*, and the status stays CLOCKED OUT. Reactivate the worker, tap **Try again**: *All records uploaded*. (If Sentry is on, an *Upload refused by the server* issue appears.)

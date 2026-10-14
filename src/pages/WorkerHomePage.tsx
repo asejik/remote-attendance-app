@@ -5,6 +5,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, HardDrive, History, Loader2, LogOut, MapPin, RefreshCw, XCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
+import type { Database } from '../lib/database.types';
 import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/queue';
 import { startAutoSync, syncPendingRecords } from '../lib/sync';
 import { dataUrlToBlob, shrinkPhoto } from '../lib/image';
@@ -15,14 +16,16 @@ import { getStorageInfo } from '../lib/storage';
 import { SUPPORT_EMAIL, suspensionOf } from '../lib/support';
 import type { StaffContext } from '../context/useStaff';
 import { signOut } from '../lib/signOut';
+import { timeAgo } from '../lib/time';
 
 // The face camera (face-api.js + TensorFlow) is the largest part of the app;
 // load it only when a clock-in starts. It is precached for offline use.
 const LivenessCamera = lazy(() => import('../components/LivenessCamera').then((m) => ({ default: m.LivenessCamera })));
 
-interface Site { id: string; name: string; latitude: number; longitude: number; radius_m: number }
-interface OrgSettings { site_photo_required: boolean; geofence_mode: 'flag' | 'block' }
-interface ServerEvent { id: string; type: EventType; captured_at: string; site_name_snapshot: string | null; flags: string[] }
+type Tables = Database['public']['Tables'];
+type Site = Pick<Tables['work_sites']['Row'], 'id' | 'name' | 'latitude' | 'longitude' | 'radius_m'>;
+type OrgSettings = Pick<Tables['organizations']['Row'], 'site_photo_required' | 'geofence_mode'>;
+type ServerEvent = Pick<Tables['attendance_events']['Row'], 'id' | 'type' | 'captured_at' | 'site_name_snapshot' | 'flags'>;
 
 
 // Small per-organisation cache so the screen works offline after one online visit.
@@ -57,6 +60,8 @@ const getFix = async (): Promise<Fix | null> => {
 const STORAGE_LOW_RATIO = 0.8;
 
 type Step = 'idle' | 'locating' | 'face' | 'site-instruction' | 'saving';
+// Errors, or the clock-in just saved (its text follows the record's upload state).
+type Message = { kind: 'error'; text: string } | { kind: 'saved'; id: string; label: string; noGps: boolean };
 
 export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const navigate = useNavigate();
@@ -72,7 +77,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const [siteId, setSiteId] = useState(() => readCache<string>(cacheKey(staff.id, 'site')) ?? '');
   const [step, setStep] = useState<Step>('idle');
   const [online, setOnline] = useState(navigator.onLine);
-  const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
   const [pending, setPending] = useState<{ fix: Fix | null; face: Blob; livenessPassed: boolean } | null>(null);
   const [fixForCapture, setFixForCapture] = useState<Fix | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -147,6 +152,12 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const waiting = local.filter((e) => e.status === 'pending');
   const failed = local.filter((e) => e.status === 'failed');
   const clockInsBlocked = suspensionOf(organization)?.clockInsBlocked ?? false;
+  const oldestWaiting = waiting.reduce<string | null>((oldest, e) => (!oldest || e.capturedAt < oldest ? e.capturedAt : oldest), null);
+  const saved = message?.kind === 'saved' ? local.find((e) => e.id === message.id) : undefined;
+  const messageText = message?.kind === 'error' ? message.text : message && `${message.label}${message.noGps ? ' (no GPS location)' : ''}. ${
+    saved?.status === 'synced' ? 'Uploaded.'
+      : saved?.status === 'failed' ? 'It was not accepted; see above.'
+      : online ? 'Uploading…' : 'Saved on this phone; it will upload when you are online.'}`;
   const site = sites.find((s) => s.id === siteId);
 
   const start = async () => {
@@ -202,22 +213,8 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
         livenessPassed, hasFacePhoto: true, hasSitePhoto: sitePhoto !== null, status: 'pending', attempts: 0,
       }, { face, site: sitePhoto });
       writeCache(cacheKey(staff.id, 'site'), site?.id);
-      setMessage({
-        kind: 'ok',
-        text: `${type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out'}${fix ? '' : ' (no GPS location)'}. ${navigator.onLine ? 'Uploading…' : 'Saved on this phone; it will upload when you are online.'}`,
-      });
-      if (navigator.onLine) {
-        syncPendingRecords()
-          .then(refreshFromServer)
-          .then(async () => {
-            const saved = (await queue.forUser(userId)).find((e) => e.id === id);
-            const label = type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out';
-            setMessage(saved?.status === 'synced'
-              ? { kind: 'ok', text: `${label}. Uploaded.` }
-              : { kind: 'ok', text: `${label}. Saved on this phone; the upload will be retried automatically.` });
-          })
-          .catch(() => undefined);
-      }
+      setMessage({ kind: 'saved', id, label: type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out', noGps: !fix });
+      if (navigator.onLine) syncPendingRecords().then(refreshFromServer).catch(() => undefined);
     } catch (err) {
       console.error(err);
       setMessage({ kind: 'error', text: 'Could not save on this phone. Free some storage and try again.' });
@@ -320,10 +317,13 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
         )}
 
         {waiting.length > 0 ? (
-          <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between" role="status">
-            <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
-              <CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload
-            </span>
+          <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-2" role="status">
+            <div>
+              <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
+                <CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload
+              </span>
+              {oldestWaiting && <span className="block mt-0.5 text-xs text-orange-800">Oldest: {timeAgo(oldestWaiting)} ago</span>}
+            </div>
             <button onClick={syncNow} disabled={syncing || !online} className="min-h-11 text-sm bg-orange-100 text-orange-900 px-4 rounded-full flex items-center gap-1.5 disabled:opacity-50">
               {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Upload now
             </button>
@@ -346,18 +346,18 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
 
         {message && (
           <p role={message.kind === 'error' ? 'alert' : 'status'}
-            className={`w-full text-sm rounded-lg p-3 ${message.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
-            {message.text}
+            className={`w-full text-sm rounded-lg p-3 ${message.kind === 'error' || saved?.status === 'failed' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
+            {messageText}
           </p>
         )}
 
-        <button onClick={start} disabled={step !== 'idle'}
+        <button onClick={start} disabled={step !== 'idle' || clockInsBlocked}
           className={`flex flex-col items-center justify-center w-[min(12rem,75vw)] aspect-square p-2 text-center border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-blue-100'}`}>
           <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-blue-600'}`}>
             {step === 'idle' ? <Camera size={40} aria-hidden /> : <Loader2 className="animate-spin" size={40} aria-hidden />}
           </span>
           <span className={`font-bold ${clockedIn ? 'text-red-700' : 'text-gray-800'}`}>
-            {step === 'locating' ? 'Getting location…' : step === 'saving' ? 'Saving…' : clockedIn ? 'Tap to clock OUT' : 'Tap to clock IN'}
+            {clockInsBlocked ? 'Clock-ins paused' : step === 'locating' ? 'Getting location…' : step === 'saving' ? 'Saving…' : clockedIn ? 'Tap to clock OUT' : 'Tap to clock IN'}
           </span>
         </button>
 
