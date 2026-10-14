@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, ExternalLink, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCheck, ExternalLink, Loader2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   fetchReviewPage, mapLink, PAGE_SIZE, reviewEvent, signPhotoUrls, type EventFilter, type ReviewEvent, type ReviewStatus,
@@ -11,6 +11,12 @@ import { orSuspended } from '../../lib/support';
 
 interface Option { id: string; label: string }
 type StatusFilter = ReviewStatus | 'all';
+type ReviewedRow = Awaited<ReturnType<typeof reviewEvent>>;
+
+// Signed photo links last 10 minutes; renew them before that while the page stays open.
+const RESIGN_MS = 8 * 60_000;
+// Bulk approvals sent at once.
+const BULK_CHUNK = 5;
 
 const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900';
 
@@ -32,6 +38,10 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const [recorders, setRecorders] = useState<Record<string, string>>({});
   const [sites, setSites] = useState<Option[]>([]);
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
+  // Reviews made on this page, applied in place so the list doesn't reload after every tap.
+  const [reviewed, setReviewed] = useState<Record<string, ReviewedRow>>({});
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkMessage, setBulkMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -67,32 +77,79 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
     staffId: staffId || undefined, siteId: siteId || undefined, flaggedOnly, status: status === 'all' ? undefined : status,
   }), [from, to, tz, staffId, siteId, flaggedOnly, status]);
 
+  const apply = useCallback((r: Awaited<ReturnType<typeof load>>) => {
+    setResult(r.data);
+    setPhotos(r.photos);
+    setError(r.error);
+    setReviewed({});
+    setBulkMessage('');
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     load(filter(), page).then((r) => {
-      if (cancelled) return;
-      setResult(r.data);
-      setPhotos(r.photos);
-      setError(r.error);
+      if (!cancelled) apply(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [load, filter, page]);
+  }, [load, apply, filter, page]);
 
-  const refresh = async () => {
-    const r = await load(filter(), page);
-    setResult(r.data);
-    setPhotos(r.photos);
-    setError(r.error);
+  // Keep photo links valid while the admin works through a long page.
+  useEffect(() => {
+    if (!result?.events.length) return;
+    const events = result.events;
+    const timer = window.setInterval(() => {
+      Promise.all([
+        signPhotoUrls('event-photos', events.flatMap((e) => [e.face_photo_path ?? '', e.site_photo_path ?? ''])),
+        signPhotoUrls('reference-photos', events.map((e) => e.staff?.reference_photo_path ?? '')),
+      ]).then(([a, b]) => setPhotos({ ...a, ...b })).catch(() => undefined);
+    }, RESIGN_MS);
+    return () => window.clearInterval(timer);
+  }, [result]);
+
+  // The page as the admin sees it: reviews applied, and cards that no longer match the status filter gone.
+  const shown = (result?.events ?? [])
+    .map((e) => (reviewed[e.id] ? { ...e, ...reviewed[e.id] } : e))
+    .filter((e) => status === 'all' || e.review_status === status);
+  const total = result ? result.total - (result.events.length - shown.length) : 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const bulkCandidates = shown.filter((e) => e.review_status === 'pending' && e.flags.length === 0);
+
+  const onReviewed = (rows: ReviewedRow[]) => setReviewed((r) => ({ ...r, ...Object.fromEntries(rows.map((row) => [row.id, row])) }));
+
+  // After the last card on a page is reviewed, load what's left.
+  const showMore = async () => {
+    const last = pages - 1;
+    if (page > last) return setPage(last);
+    apply(await load(filter(), page));
   };
 
-  const changeFilter = (apply: () => void) => {
-    apply();
+  const approveUnflagged = async () => {
+    const n = bulkCandidates.length;
+    if (!window.confirm(`Approve ${n} clock-in${n === 1 ? '' : 's'} without flags on this page? Check their photos first: a clock-in by someone else is not flagged automatically.`)) return;
+    setBulkBusy(true);
+    setBulkMessage('');
+    let failed = 0;
+    let suspendedMessage = '';
+    for (let i = 0; i < n; i += BULK_CHUNK) {
+      const results = await Promise.allSettled(bulkCandidates.slice(i, i + BULK_CHUNK).map((e) => reviewEvent(e.id, 'approved', null)));
+      onReviewed(results.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : [])));
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          failed += 1;
+          suspendedMessage = orSuspended(r.reason, '');
+        }
+      }
+    }
+    setBulkBusy(false);
+    if (failed) setBulkMessage(suspendedMessage || `${failed} could not be approved. Please try again.`);
+  };
+
+  const changeFilter = (update: () => void) => {
+    update();
     setPage(0);
   };
-
-  const pages = result ? Math.max(1, Math.ceil(result.total / PAGE_SIZE)) : 1;
 
   return (
     <div className="space-y-4">
@@ -132,18 +189,35 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
       {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
       {!result && !error && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading clock-ins" /></div>}
       {result && (
-        <p className="text-sm text-gray-600" role="status">
-          {result.total === 0 ? 'No clock-ins match these filters.' : `${result.total} clock-in${result.total === 1 ? '' : 's'}`}
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm text-gray-600" role="status">
+            {total === 0 ? 'No clock-ins match these filters.' : `${total} clock-in${total === 1 ? '' : 's'}`}
+          </p>
+          {bulkCandidates.length > 0 && (
+            <button onClick={approveUnflagged} disabled={bulkBusy}
+              className="min-h-11 px-4 rounded-lg border border-green-700 text-green-800 bg-white text-sm font-medium flex items-center gap-1.5 disabled:opacity-60">
+              {bulkBusy ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <CheckCheck size={16} aria-hidden />}
+              Approve {bulkCandidates.length} without flags
+            </button>
+          )}
+        </div>
       )}
+      {bulkMessage && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{bulkMessage}</p>}
 
       <ul className="space-y-3">
-        {result?.events.map((e) => (
-          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox} onReviewed={refresh} />
+        {shown.map((e) => (
+          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox}
+            onReviewed={(row) => onReviewed([row])} />
         ))}
       </ul>
 
-      {result && pages > 1 && (
+      {result && shown.length === 0 && total > 0 && (
+        <div className="flex justify-center">
+          <button onClick={showMore} className="min-h-11 px-4 rounded-lg border bg-white text-sm font-medium">Show the next clock-ins</button>
+        </div>
+      )}
+
+      {result && shown.length > 0 && pages > 1 && (
         <nav aria-label="Pages" className="flex items-center justify-center gap-3 text-sm">
           <button disabled={page === 0} onClick={() => setPage(page - 1)} className="px-3 py-2 rounded-lg border bg-white disabled:opacity-40">Previous</button>
           <span>Page {page + 1} of {pages}</span>
@@ -181,7 +255,7 @@ const Photo = ({ src, alt, label, onOpen }: { src?: string; alt: string; label: 
 
 const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
   event: ReviewEvent; tz: string; photos: Record<string, string>; recordedBy?: string;
-  onOpen: (p: { src: string; alt: string }) => void; onReviewed: () => Promise<void>;
+  onOpen: (p: { src: string; alt: string }) => void; onReviewed: (row: ReviewedRow) => void;
 }) => {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
@@ -194,9 +268,9 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
     setBusy(true);
     setError('');
     try {
-      await reviewEvent(e.id, decision, decision === 'rejected' ? note.trim() : null);
+      const row = await reviewEvent(e.id, decision, decision === 'rejected' ? note.trim() : null);
       setRejecting(false);
-      await onReviewed();
+      onReviewed(row);
     } catch (err) {
       setError(orSuspended(err, 'Could not save the review. Please try again.'));
     } finally {

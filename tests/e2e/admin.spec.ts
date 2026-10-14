@@ -123,6 +123,7 @@ const imageLoaded = (page: Page, alt: string) =>
   expect.poll(() => page.getByRole('img', { name: alt }).first().evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true)
 
 test('review queue: flagged first, photos side by side, reject needs a note, approve, audited', async ({ page }) => {
+  page.on('dialog', (d) => d.accept())
   await login(page)
   await expect(page.getByRole('status')).toHaveText('2 clock-ins')
   const cards = page.locator('main ul > li')
@@ -131,6 +132,11 @@ test('review queue: flagged first, photos side by side, reject needs a note, app
   await imageLoaded(page, `Reference photo of ${EVIL}`)
   await imageLoaded(page, `Site photo from ${EVIL}`)
 
+  // Only clock-ins without flags can be approved in bulk.
+  await expect(page.getByRole('button', { name: 'Approve 1 without flags' })).toBeVisible()
+  const unflaggedPhoto = cards.filter({ hasNotText: 'Outside site' }).getByRole('img', { name: `Clock-in photo of ${EVIL}` })
+  const photoUrl = await unflaggedPhoto.getAttribute('src')
+
   const flagged = cards.filter({ hasText: 'Outside site (2.0 km)' })
   await flagged.getByRole('button', { name: /Reject clock-in/ }).click()
   await flagged.getByRole('button', { name: 'Confirm reject' }).click()
@@ -138,8 +144,10 @@ test('review queue: flagged first, photos side by side, reject needs a note, app
   await flagged.getByLabel('Reason for rejecting').fill('Not at the site')
   await flagged.getByRole('button', { name: 'Confirm reject' }).click()
   await expect(page.getByRole('status')).toHaveText('1 clock-in') // left "Needs review"
+  // Updated in place: the other card's photo link was not signed again.
+  expect(await unflaggedPhoto.getAttribute('src')).toBe(photoUrl)
 
-  await cards.first().getByRole('button', { name: /Approve clock-in/ }).click()
+  await page.getByRole('button', { name: 'Approve 1 without flags' }).click()
   await expect(page.getByText('No clock-ins match these filters.')).toBeVisible()
 
   await page.getByLabel('Status').selectOption('rejected')
