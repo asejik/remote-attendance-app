@@ -1,5 +1,5 @@
 // Organisation admins manage workers and supervisors:
-//   create | reset_pin | set_status | set_reference_photo
+//   create | update | reset_pin | set_status | set_reference_photo
 // The caller must be an active admin; every target must be in the caller's
 // organisation. Each action is written to the audit log.
 import { withCors, json, randomDigits, randomPin, randomSecret, serviceClient } from '../_shared/http.ts'
@@ -31,14 +31,22 @@ const findStaff = async (svc: Svc, admin: Admin, staffId: unknown) => {
   return data
 }
 
-const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => {
+// Name, role and phone as sent for create/update; an error code if invalid.
+const staffDetails = (body: Record<string, unknown>) => {
   const fullName = typeof body.full_name === 'string' ? body.full_name.trim() : ''
   const role = body.role === 'supervisor' ? 'supervisor' : body.role === 'worker' || body.role === undefined ? 'worker' : null
   const phone = typeof body.phone === 'string' && body.phone.trim() ? body.phone.trim() : null
+  if (fullName.length < 2 || fullName.length > 120) return { error: 'invalid_name' } as const
+  if (!role) return { error: 'invalid_role' } as const // admins are created by the platform owner
+  if (phone && !/^\+?[0-9 ]{7,20}$/.test(phone)) return { error: 'invalid_phone' } as const
+  return { fullName, role, phone } as const
+}
+
+const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => {
+  const details = staffDetails(body)
+  if ('error' in details) return json({ error: details.error }, 400)
+  const { fullName, role, phone } = details
   const requested = typeof body.staff_code === 'string' && body.staff_code.trim() ? body.staff_code.trim().toUpperCase() : null
-  if (fullName.length < 2 || fullName.length > 120) return json({ error: 'invalid_name' }, 400)
-  if (!role) return json({ error: 'invalid_role' }, 400) // admins are created by the platform owner
-  if (phone && !/^\+?[0-9 ]{7,20}$/.test(phone)) return json({ error: 'invalid_phone' }, 400)
   if (requested && !/^[A-Z0-9-]{2,20}$/.test(requested)) return json({ error: 'invalid_staff_code' }, 400)
 
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -85,6 +93,27 @@ const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => 
   }
   await logError('admin-staff', 'create: no free staff code after 5 tries')
   return json({ error: 'server_error' }, 500)
+}
+
+// Corrects a worker's or supervisor's name, phone or role. The staff code is
+// part of their login, so it can't change. Audited with old and new values.
+const update = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => {
+  const staff = await findStaff(svc, admin, body.staff_id)
+  if (!staff || staff.role === 'admin') return json({ error: 'not_found' }, 404)
+  const details = staffDetails(body)
+  if ('error' in details) return json({ error: details.error }, 400)
+  const next = { full_name: details.fullName, role: details.role, phone: details.phone }
+  const changed = (Object.keys(next) as (keyof typeof next)[]).filter((k) => staff[k] !== next[k])
+  if (!changed.length) return json({ staff })
+  const { data: updated, error } = await svc.from('staff').update(next).eq('id', staff.id).select('*').single()
+  if (error) {
+    await logError('admin-staff', 'update failed', error)
+    return json({ error: 'server_error' }, 500)
+  }
+  await audit(svc, admin, 'update_staff', staff.id, {
+    before: Object.fromEntries(changed.map((k) => [k, staff[k]])), after: Object.fromEntries(changed.map((k) => [k, next[k]])),
+  })
+  return json({ staff: updated })
 }
 
 const resetPin = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => {
@@ -168,6 +197,7 @@ Deno.serve(withCors(async (req) => {
   }
   switch (body.action) {
     case 'create': return create(svc, admin, body)
+    case 'update': return update(svc, admin, body)
     case 'reset_pin': return resetPin(svc, admin, body)
     case 'set_status': return setStatus(svc, admin, body)
     case 'set_reference_photo': return setReferencePhoto(svc, admin, body)

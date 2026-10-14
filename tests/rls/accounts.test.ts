@@ -46,6 +46,27 @@ describe.skipIf(!hasCredentials)('staff accounts (Edge Functions)', () => {
       expect((await callFunction('admin-staff', { action: 'create', full_name: 'Nope' }, w.supervisorA.client)).status).toBe(403)
     })
 
+    it('lets an admin correct name, phone and role (audited); code, admins and bad input are refused', async () => {
+      const edit = (body: Record<string, unknown>, client = w.adminA.client) =>
+        callFunction('admin-staff', { action: 'update', staff_id: worker.id, full_name: 'New Worker', role: 'worker', ...body }, client)
+      const res = await edit({ full_name: '  Renamed Worker ', phone: '+234 801 000 0000', role: 'supervisor', staff_code: 'HIJACK' })
+      expect(res.status).toBe(200)
+      expect(res.body.staff).toMatchObject({ full_name: 'Renamed Worker', phone: '+234 801 000 0000', role: 'supervisor', staff_code: worker.staff_code })
+      const { data: log } = await w.adminA.client.from('audit_log').select('details').eq('target_id', worker.id).eq('action', 'update_staff')
+      expect(log).toEqual([{ details: {
+        before: { full_name: 'New Worker', role: 'worker', phone: null },
+        after: { full_name: 'Renamed Worker', role: 'supervisor', phone: '+234 801 000 0000' },
+      } }])
+      expect((await edit({ full_name: 'X' })).status).toBe(400)
+      expect((await edit({ role: 'admin' })).status).toBe(400)
+      expect((await edit({ phone: 'call me' })).status).toBe(400)
+      expect((await edit({}, w.adminB.client)).status).toBe(404) // another organisation
+      expect((await edit({}, w.supervisorA.client)).status).toBe(403)
+      const self = await callFunction('admin-staff', { action: 'update', staff_id: w.adminA.staffId, full_name: 'Me', role: 'worker' }, w.adminA.client)
+      expect(self.status).toBe(404) // admins are managed by the platform owner
+      expect((await edit({})).status).toBe(200) // back to a worker with no phone
+    })
+
     it("refuses an admin acting on another organisation's staff", async () => {
       expect((await callFunction('admin-staff', { action: 'reset_pin', staff_id: worker.id }, w.adminB.client)).status).toBe(404)
       expect((await callFunction('admin-staff', { action: 'set_status', staff_id: worker.id, status: 'deactivated' }, w.adminB.client)).status).toBe(404)

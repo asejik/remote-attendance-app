@@ -35,8 +35,13 @@ export const startTotpEnrolment = async () => {
   return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
 };
 
-// Checks a 6-digit code; on success the session becomes AAL2.
+// Checks a 6-digit code; on success the session becomes AAL2. Supabase refuses
+// the check if its two requests (challenge, verify) arrive from different IP
+// addresses, which happens on some networks; a fresh attempt usually succeeds.
 export const verifyTotp = async (factorId: string, code: string) => {
-  const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: code.trim() });
+  let { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: code.trim() });
+  for (let retry = 0; error?.code === 'mfa_ip_address_mismatch' && retry < 2; retry++) {
+    ({ error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code: code.trim() }));
+  }
   return error ? (error.code === 'mfa_verification_failed' || /invalid/i.test(error.message) ? 'That code is not correct. Check the app and try again.' : 'Could not check the code. Please try again.') : null;
 };

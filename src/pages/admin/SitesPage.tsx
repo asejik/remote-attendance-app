@@ -6,6 +6,7 @@ import { mapLink } from '../../lib/adminEvents';
 import type { StaffContext } from '../../context/useStaff';
 import type { Database } from '../../lib/database.types';
 import { useEscape } from '../../hooks/useEscape';
+import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 import { orSuspended } from '../../lib/support';
 
 const SiteMap = lazy(() => import('../../components/SiteMap'));
@@ -107,6 +108,7 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
   useEscape(onClose);
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
 
   const lat = draft.latitude.trim() === '' ? null : Number(draft.latitude);
   const lng = draft.longitude.trim() === '' ? null : Number(draft.longitude);
@@ -146,7 +148,7 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
     <div className="fixed inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="site-dialog-title">
       <form onSubmit={save} className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h2 id="site-dialog-title" tabIndex={-1} autoFocus className="text-lg font-bold text-gray-900 outline-none">{draft.id ? 'Edit site' : 'Add site'}</h2>
+          <h2 id="site-dialog-title" ref={titleRef} tabIndex={-1} className="text-lg font-bold text-gray-900 outline-none">{draft.id ? 'Edit site' : 'Add site'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">Site name

@@ -27,6 +27,9 @@ const call = async <T>(body: Record<string, unknown>): Promise<Result<T>> => {
 export const createStaff = (input: { full_name: string; role: 'worker' | 'supervisor'; phone?: string; staff_code?: string }) =>
   call<{ staff: Staff; pin: string }>({ action: 'create', ...input });
 
+export const updateStaff = (staffId: string, input: { full_name: string; role: 'worker' | 'supervisor'; phone: string }) =>
+  call<{ staff: Staff }>({ action: 'update', staff_id: staffId, ...input });
+
 export const resetPin = (staffId: string) => call<{ pin: string }>({ action: 'reset_pin', staff_id: staffId });
 
 export const setStaffStatus = (staffId: string, status: 'active' | 'deactivated') =>

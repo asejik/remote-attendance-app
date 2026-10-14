@@ -9,7 +9,11 @@ import { totp } from './totp'
 export const enrolTotp = async (client: SupabaseClient<any, any, any>) => {
   const { data, error } = await client.auth.mfa.enroll({ factorType: 'totp', friendlyName: `test-${randomUUID().slice(0, 8)}` })
   if (error || !data) throw new Error(`mfa enroll: ${error?.message}`)
-  const verified = await client.auth.mfa.challengeAndVerify({ factorId: data.id, code: totp(data.totp.secret) })
+  let verified = await client.auth.mfa.challengeAndVerify({ factorId: data.id, code: totp(data.totp.secret) })
+  // Supabase refuses when challenge and verify arrive from different IPs (seen on dev); the app retries too.
+  for (let i = 0; verified.error?.code === 'mfa_ip_address_mismatch' && i < 2; i++) {
+    verified = await client.auth.mfa.challengeAndVerify({ factorId: data.id, code: totp(data.totp.secret) })
+  }
   if (verified.error) throw new Error(`mfa verify: ${verified.error.message}`)
   return data.totp.secret
 }

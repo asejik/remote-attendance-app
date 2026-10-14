@@ -260,3 +260,18 @@ test('a clock-in recorded from someone else\'s login is flagged with who recorde
   const card = page.getByRole('listitem').filter({ hasText: ABSENT })
   await expect(card).toContainText('Recorded by E2E Admin (ADM-1)')
 })
+
+test('staff: an admin corrects a worker’s name and role (audited)', async ({ page }) => {
+  await login(page)
+  await page.getByRole('link', { name: 'Staff' }).click()
+  await page.getByRole('button', { name: `Edit ${ABSENT}` }).click()
+  const dialog = page.getByRole('dialog')
+  await expect(dialog.getByRole('heading', { name: 'Edit W-2' })).toBeFocused()
+  await dialog.getByLabel('Full name').fill('Corrected Name')
+  await dialog.getByLabel('Supervisor').check()
+  await dialog.getByRole('button', { name: 'Save changes' }).click()
+  const row = page.getByRole('listitem').filter({ hasText: 'Corrected Name' })
+  await expect(row).toContainText('W-2 · supervisor')
+  const { data: log } = await svc().from('audit_log').select('details').eq('target_id', absentStaffId).eq('action', 'update_staff')
+  expect(log?.[0].details).toEqual({ before: { full_name: ABSENT, role: 'worker' }, after: { full_name: 'Corrected Name', role: 'supervisor' } })
+})

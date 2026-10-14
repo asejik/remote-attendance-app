@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-import { Camera, KeyRound, Loader2, UserPlus, UserX, UserCheck, X } from 'lucide-react';
+import { Camera, KeyRound, Loader2, Pencil, UserPlus, UserX, UserCheck, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { createStaff, resetPin, setStaffStatus, uploadReferencePhoto } from '../../lib/adminStaff';
+import { createStaff, resetPin, setStaffStatus, updateStaff, uploadReferencePhoto } from '../../lib/adminStaff';
 import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
+import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 
 const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
 
@@ -30,6 +31,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
   const [photos, setPhotos] = useState<Record<string, string>>({});
   const [loadError, setLoadError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
+  const [editing, setEditing] = useState<Staff | null>(null);
   const [pinNotice, setPinNotice] = useState<{ name: string; code: string; pin: string } | null>(null);
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [rowError, setRowError] = useState('');
@@ -110,7 +112,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                   <span className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><Camera size={20} aria-hidden /></span>
                 )}
                 <span className="sr-only">{s.reference_photo_path ? 'Replace' : 'Add'} reference photo for {s.full_name}</span>
-                <input type="file" accept="image/jpeg,image/*" capture="user" className="sr-only" disabled={rowBusy === s.id}
+                <input type="file" accept="image/jpeg,image/*" capture="environment" className="sr-only" disabled={rowBusy === s.id}
                   onChange={(e) => onPhoto(s, e.target.files?.[0])} />
               </label>
               <div className="flex-1 min-w-0">
@@ -125,6 +127,8 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                 <div className="flex gap-1">
                   {rowBusy === s.id ? <Loader2 className="animate-spin text-gray-400" aria-label="Working" /> : (
                     <>
+                      <button onClick={() => setEditing(s)} aria-label={`Edit ${s.full_name}`}
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"><Pencil size={18} /></button>
                       <button onClick={() => onReset(s)} disabled={s.status !== 'active'} aria-label={`Reset PIN for ${s.full_name}`}
                         className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"><KeyRound size={18} /></button>
                       <button onClick={() => onToggleStatus(s)}
@@ -147,6 +151,16 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
           onCreated={async (s, pin) => {
             setShowAdd(false);
             setPinNotice({ name: s.full_name, code: s.staff_code, pin });
+            await load();
+          }}
+        />
+      )}
+      {editing && (
+        <EditStaffDialog
+          staff={editing}
+          onClose={() => setEditing(null)}
+          onSaved={async () => {
+            setEditing(null);
             await load();
           }}
         />
@@ -200,7 +214,7 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
           <legend className="text-sm font-medium text-gray-700">Role</legend>
           <div className="mt-1 flex gap-4">
             {(['worker', 'supervisor'] as const).map((r) => (
-              <label key={r} className="flex items-center gap-2 text-gray-800">
+              <label key={r} className="min-h-11 flex items-center gap-2 text-gray-800">
                 <input type="radio" name="role" value={r} checked={role === r} onChange={() => setRole(r)} /> {r === 'worker' ? 'Worker' : 'Supervisor'}
               </label>
             ))}
@@ -216,12 +230,67 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
         </label>
         <label className="block text-sm font-medium text-gray-700">
           Reference photo (face, clear and well lit)
-          <input required type="file" accept="image/jpeg,image/*" capture="user" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          <input required type="file" accept="image/jpeg,image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
             className="mt-1 block w-full text-sm text-gray-700" />
         </label>
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
         <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center disabled:opacity-60">
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Adding worker" /> : 'Add worker'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// Correct a name, phone or role. The staff code is part of the login and stays.
+const EditStaffDialog = ({ staff, onClose, onSaved }: { staff: Staff; onClose: () => void; onSaved: () => void }) => {
+  const [fullName, setFullName] = useState(staff.full_name);
+  const [role, setRole] = useState<'worker' | 'supervisor'>(staff.role === 'supervisor' ? 'supervisor' : 'worker');
+  const [phone, setPhone] = useState(staff.phone ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEscape(onClose);
+  const titleRef = useFocusOnMount<HTMLHeadingElement>();
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    const result = await updateStaff(staff.id, { full_name: fullName, role, phone });
+    setBusy(false);
+    if (result.ok) onSaved();
+    else setError(result.message);
+  };
+
+  return (
+    <div className="fixed inset-0 z-20 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="edit-staff-title">
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
+        <div className="flex justify-between items-center">
+          <h2 id="edit-staff-title" ref={titleRef} tabIndex={-1} className="text-lg font-bold text-gray-900 outline-none">Edit {staff.staff_code}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
+        </div>
+        <label className="block text-sm font-medium text-gray-700">
+          Full name
+          <input required value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
+        </label>
+        <fieldset>
+          <legend className="text-sm font-medium text-gray-700">Role</legend>
+          <div className="mt-1 flex gap-4">
+            {(['worker', 'supervisor'] as const).map((r) => (
+              <label key={r} className="min-h-11 flex items-center gap-2 text-gray-800">
+                <input type="radio" name="edit-role" value={r} checked={role === r} onChange={() => setRole(r)} /> {r === 'worker' ? 'Worker' : 'Supervisor'}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <label className="block text-sm font-medium text-gray-700">
+          Phone (optional)
+          <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
+        </label>
+        <p className="text-xs text-gray-500">The staff code {staff.staff_code} can&apos;t change: it is part of the login. The change is recorded in the audit log.</p>
+        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
+        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center disabled:opacity-60">
+          {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'Save changes'}
         </button>
       </form>
     </div>
