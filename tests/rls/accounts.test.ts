@@ -89,12 +89,15 @@ describe.skipIf(!hasCredentials)('staff accounts (Edge Functions)', () => {
       expect(await authPasswordGrant(data.user!.email!, pin)).toBe(400)
     })
 
-    it('locks the account after 5 wrong PINs, even for the right PIN', async () => {
-      for (let i = 0; i < 4; i++) expect((await login(worker.staff_code, '111111')).status).toBe(401)
-      expect((await login(worker.staff_code, '111111')).status).toBe(423)
-      expect((await login(worker.staff_code, pin)).status).toBe(423)
-      const { data: log } = await w.adminA.client.from('audit_log').select('action').eq('target_id', worker.id).eq('action', 'pin_locked')
+    it('locks the account after 5 wrong PINs, even for the right PIN, answering exactly like an unknown code', async () => {
+      for (let i = 0; i < 5; i++) expect((await login(worker.staff_code, '111111')).status).toBe(401)
+      const locked = await login(worker.staff_code, pin)
+      const unknown = await login('W-9998X', pin)
+      expect(locked).toEqual(unknown) // same status and body: lockouts can't reveal which codes exist
+      expect(locked).toEqual({ status: 401, body: { error: 'invalid_credentials' } })
+      const { data: log } = await w.adminA.client.from('audit_log').select('action, details').eq('target_id', worker.id).eq('action', 'pin_locked')
       expect(log).toHaveLength(1)
+      expect(log![0].details).toMatchObject({ lock: 1 }) // first lock: 15 minutes
     })
 
     it('a PIN reset by the admin unlocks the account and replaces the old PIN', async () => {

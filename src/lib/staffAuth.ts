@@ -27,8 +27,11 @@ export const functionError = async (error: unknown): Promise<{ error?: string; [
 };
 
 const LOGIN_MESSAGES: Record<string, string> = {
-  invalid_credentials: 'Organisation, staff code or PIN is not correct.',
-  locked: 'Too many wrong PINs. Try again in 15 minutes, or ask your admin to reset your PIN.',
+  // The server gives the same answer for a wrong PIN and a locked account (so
+  // lockouts can't reveal staff codes); the hint covers both.
+  invalid_credentials: 'Organisation, staff code or PIN is not correct. After 5 wrong tries the account is locked for a while: wait, or ask your admin to reset your PIN.',
+  too_many_attempts: 'Too many failed logins from this network. Please wait 15 minutes and try again.',
+  locked: 'Too many wrong PINs. Try again in 15 minutes, or ask your admin to reset your PIN.', // older server versions
   deactivated: 'This account has been deactivated. Please contact your admin.',
   network: "Can't reach the server. Check your internet connection.",
 };

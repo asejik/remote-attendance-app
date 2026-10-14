@@ -456,6 +456,16 @@ export type Database = {
         | { Args: never; Returns: string }
         | { Args: { p_version: number }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
+      login_throttle_blocked: { Args: { p_key: string }; Returns: string }
+      login_throttle_record_failure: {
+        Args: {
+          p_block?: string
+          p_key: string
+          p_limit?: number
+          p_window?: string
+        }
+        Returns: boolean
+      }
       mark_photos_deleted: { Args: { p_event_ids: string[] }; Returns: number }
       mark_reference_photo_deleted: {
         Args: { p_staff_ids: string[] }

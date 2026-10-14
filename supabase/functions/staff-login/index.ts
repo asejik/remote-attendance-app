@@ -3,7 +3,21 @@
 // function mints a normal Supabase session for the worker's Auth user, whose
 // password is a random secret, so PINs cannot be guessed against Auth directly.
 import { corsHeaders, json, publicClient, serviceClient } from '../_shared/http.ts'
-import { logError } from '../_shared/sentry.ts'
+import { logError, reportError } from '../_shared/sentry.ts'
+
+// Per-address throttle (migration 20261015120000). Cloudflare sets
+// cf-connecting-ip and rejects requests that forge it; Supabase replaces any
+// client-sent X-Forwarded-For. The IP is stored only as a keyed hash.
+const THROTTLE_LIMIT = Number(Deno.env.get('LOGIN_THROTTLE_LIMIT') ?? 30) // failures per 15 min per address
+const THROTTLE_BLOCK_MINUTES = Number(Deno.env.get('LOGIN_THROTTLE_BLOCK_MINUTES') ?? 15)
+
+const addressKey = async (req: Request) => {
+  const ip = req.headers.get('cf-connecting-ip') ?? req.headers.get('x-forwarded-for')?.split(',')[0].trim() ?? 'unknown'
+  const secret = new TextEncoder().encode(Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '')
+  const key = await crypto.subtle.importKey('raw', secret, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  const mac = new Uint8Array(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(ip)))
+  return `ip:${Array.from(mac.slice(0, 20), (b) => b.toString(16).padStart(2, '0')).join('')}`
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
@@ -15,15 +29,28 @@ Deno.serve(async (req) => {
   } catch {
     return json({ error: 'bad_request' }, 400)
   }
+  const svc = serviceClient()
+  const address = await addressKey(req)
+  const { data: blockedUntil } = await svc.rpc('login_throttle_blocked', { p_key: address })
+  if (blockedUntil) return json({ error: 'too_many_attempts' }, 429)
+  // Every failed attempt counts against the address, whatever account it tried.
+  const failed = async () => {
+    const { data: justBlocked } = await svc.rpc('login_throttle_record_failure', {
+      p_key: address, p_limit: THROTTLE_LIMIT, p_block: `${THROTTLE_BLOCK_MINUTES} minutes`,
+    })
+    if (justBlocked) await reportError('staff-login', 'sign-ins blocked for an address after repeated failures')
+    // A locked account answers exactly like a wrong PIN, so lockouts can't reveal which staff codes exist.
+    return json({ error: 'invalid_credentials' }, 401)
+  }
+
   const { org, code, pin } = body
   if (
     typeof org !== 'string' || typeof code !== 'string' || typeof pin !== 'string' ||
     org.length > 40 || code.length > 20 || !/^[0-9]{6}$/.test(pin)
   ) {
-    return json({ error: 'invalid_credentials' }, 401)
+    return failed()
   }
 
-  const svc = serviceClient()
   const { data, error } = await svc
     .rpc('staff_pin_verify', { p_org_slug: org.trim(), p_staff_code: code.trim(), p_pin: pin })
     .single<{ result: string; user_id: string | null; locked_until: string | null }>()
@@ -31,9 +58,8 @@ Deno.serve(async (req) => {
     await logError('staff-login', 'staff_pin_verify failed', error)
     return json({ error: 'server_error' }, 500)
   }
-  if (data.result === 'locked') return json({ error: 'locked', locked_until: data.locked_until }, 423)
-  if (data.result === 'deactivated') return json({ error: 'deactivated' }, 403)
-  if (data.result !== 'ok' || !data.user_id) return json({ error: 'invalid_credentials' }, 401)
+  if (data.result === 'deactivated') return json({ error: 'deactivated' }, 403) // only after the right PIN
+  if (data.result !== 'ok' || !data.user_id) return failed() // invalid or locked
 
   const { data: userData, error: userError } = await svc.auth.admin.getUserById(data.user_id)
   const email = userData?.user?.email

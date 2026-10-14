@@ -74,7 +74,7 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
 
   // Worker: wrong PIN is refused, the right PIN leads to the notice, then home.
   await workerLogin(page, code, pin === '000000' ? '111111' : '000000')
-  await expect(page.getByRole('alert')).toHaveText('Organisation, staff code or PIN is not correct.')
+  await expect(page.getByRole('alert')).toContainText('Organisation, staff code or PIN is not correct.')
   await workerLogin(page, code, pin)
   await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible()
   await page.getByRole('button', { name: 'I understand and agree' }).click()
