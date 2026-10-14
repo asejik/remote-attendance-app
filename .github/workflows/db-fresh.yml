@@ -10,6 +10,7 @@ on:
       - 'supabase/**'
       - 'tests/rls/**'
       - 'scripts/onboard-org.mjs'
+      - 'scripts/data-request.mjs'
       - 'package*.json'
       - '.github/workflows/db-fresh.yml'
   workflow_dispatch:

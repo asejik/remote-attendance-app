@@ -27,7 +27,8 @@ Repo → **Settings → Environments → New environment** → `production`.
 | `PROD_CRON_SECRET` | a new random string, 40+ letters/digits (password manager → generate) |
 | `PROD_VITE_SUPABASE_URL` | Project URL |
 | `PROD_VITE_SUPABASE_ANON_KEY` | anon / publishable key |
-| `PROD_SUPABASE_SECRET_KEY` | the **secret** key (Project Settings → API). Used only by the onboarding workflow. |
+| `PROD_SUPABASE_SECRET_KEY` | the **secret** key (Project Settings → API). Used only by the onboarding and data-request workflows. |
+| `EXPORT_PASSPHRASE` | a new random passphrase, 30+ characters (password manager → generate). Encrypts data exports; keep it in your password manager. |
 | `ANDROID_RELEASE_KEYSTORE_B64` | from the private repo, `docs/private/android-release/` |
 | `ANDROID_RELEASE_KEYSTORE_PASSWORD` | from the same folder |
 

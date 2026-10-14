@@ -44,6 +44,7 @@ test.afterAll(async () => {
     const { data: files } = await s.storage.from('event-photos').list(`${orgId}/${f.name}`)
     await s.storage.from('event-photos').remove((files ?? []).map((x) => `${orgId}/${f.name}/${x.name}`))
   }
+  await s.from('audit_log').delete().eq('organization_id', orgId)
   await s.from('attendance_events').delete().eq('organization_id', orgId)
   await s.from('staff').delete().eq('organization_id', orgId)
   await s.from('work_sites').delete().eq('organization_id', orgId)
@@ -113,13 +114,22 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
 test('a clock-in the server refuses twice is shown as not accepted, and "try again" uploads it', async ({ page }) => {
   test.setTimeout(120_000)
   await svc().from('organizations').update({ geofence_mode: 'flag' }).eq('id', orgId)
+  // An earlier notice version: the worker is asked to accept the new one (audited).
+  await svc().from('staff').update({ consent_version: 1 }).eq('user_id', userId)
 
   await page.goto('/')
   await page.getByLabel('Organisation').fill(slug)
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Our privacy notice has changed' })).toBeVisible()
+  await expect(page.getByText('Photos are deleted automatically after 60 days')).toBeVisible()
+  await page.getByRole('button', { name: 'I understand and agree' }).click()
   await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
+  const { data: me } = await svc().from('staff').select('id, consent_version').eq('user_id', userId).single()
+  expect(me!.consent_version).toBe(2)
+  const { data: log } = await svc().from('audit_log').select('details').eq('target_id', me!.id).eq('action', 'accept_consent')
+  expect(log).toContainEqual({ details: { version: 2 } })
   await page.getByLabel('Your site').selectOption({ label: 'E2E Site' })
 
   // The server refuses the record as it would for a deactivated worker.
@@ -141,4 +151,23 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
   await expect(page.getByText('CLOCKED IN', { exact: true })).toBeVisible()
   const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
   expect(count).toBe(3)
+})
+
+test('logging out with no network really signs the phone out', async ({ page, context }) => {
+  await page.goto('/')
+  await page.getByLabel('Organisation').fill(slug)
+  await page.getByLabel('Staff code').fill(code)
+  await page.getByLabel('PIN (6 digits)').fill(pin)
+  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page.getByText(/CLOCKED (IN|OUT)/)).toBeVisible()
+  await page.evaluate(async () => { await navigator.serviceWorker.ready })
+
+  await context.setOffline(true)
+  await page.getByRole('button', { name: 'Log out' }).click()
+  await expect(page.getByRole('heading', { name: 'Worker login' })).toBeVisible()
+  await context.setOffline(false)
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Worker login' })).toBeVisible()
+  await page.waitForTimeout(1500) // no late redirect into the app
+  await expect(page).toHaveURL(/\/$/)
 })

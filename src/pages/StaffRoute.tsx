@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useStaff, type StaffContext } from '../context/useStaff';
+import { PRIVACY_NOTICE_VERSION } from '../lib/support';
 
 interface StaffRouteProps {
   // 'admin': organisation admins only. 'member': workers and supervisors, who
@@ -29,7 +30,11 @@ export const StaffRoute = ({ require, children }: StaffRouteProps) => {
   const isAdmin = context.staff.role === 'admin';
   if (require === 'admin' && !isAdmin) return <Navigate to="/home" replace />;
   if (require === 'member' && isAdmin) return <Navigate to="/admin/review" replace />;
-  if (require === 'member' && !context.staff.consent_accepted_at && location.pathname !== '/consent') {
+  // First login: the notice must be accepted. A newer notice is shown again when
+  // online (accepting needs the server), so offline clock-in is never blocked.
+  const neverAccepted = !context.staff.consent_accepted_at;
+  const outdated = (context.staff.consent_version ?? 0) < PRIVACY_NOTICE_VERSION && navigator.onLine;
+  if (require === 'member' && (neverAccepted || outdated) && location.pathname !== '/consent') {
     return <Navigate to="/consent" replace />;
   }
   return <>{children(context, reload)}</>;

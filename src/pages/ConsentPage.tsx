@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { StaffContext } from '../context/useStaff';
+import { PRIVACY_NOTICE_VERSION, SUPPORT_EMAIL } from '../lib/support';
+import { signOut } from '../lib/signOut';
 
 // First-login privacy notice for workers and supervisors (Nigeria Data
 // Protection Act 2023: tell people what is collected, why, who sees it and for
-// how long). Acceptance is recorded on the staff record.
+// how long). Acceptance and the notice version are recorded (accept_consent);
+// raising PRIVACY_NOTICE_VERSION shows this screen again.
 export const ConsentPage = ({ context, reload }: { context: StaffContext; reload: () => Promise<void> }) => {
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -15,7 +18,7 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
   const accept = async () => {
     setBusy(true);
     setError('');
-    const { error: rpcError } = await supabase.rpc('accept_consent');
+    const { error: rpcError } = await supabase.rpc('accept_consent', { p_version: PRIVACY_NOTICE_VERSION });
     if (rpcError) {
       setBusy(false);
       return setError(navigator.onLine ? 'Could not save. Please try again.' : "You're offline. Connect to the internet to continue.");
@@ -25,7 +28,7 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
   };
 
   const decline = async () => {
-    await supabase.auth.signOut();
+    if (await signOut()) return;
     navigate('/', { replace: true });
   };
 
@@ -34,7 +37,7 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 space-y-4">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-blue-600" size={28} aria-hidden />
-          <h1 className="text-xl font-bold text-gray-900">Before you start</h1>
+          <h1 className="text-xl font-bold text-gray-900">{context.staff.consent_accepted_at ? 'Our privacy notice has changed' : 'Before you start'}</h1>
         </div>
         <p className="text-gray-700">
           <strong>{context.organization.name}</strong> uses this app to record attendance. When you clock in or out, the app collects:
@@ -45,12 +48,14 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
           <li>your location (GPS) and the time.</li>
         </ul>
         <p className="text-gray-700">
-          Only your organisation&apos;s admins and supervisors can see these records. Photos are deleted automatically after a set
-          period; the attendance times and places are kept for payroll and project records.
+          Only your organisation&apos;s admins and supervisors can see these records. Photos are deleted automatically after{' '}
+          {context.organization.photo_retention_days ? `${context.organization.photo_retention_days} days` : 'a set period'}; the attendance
+          times and places are kept for payroll and project records. There is no face recognition and no tracking between clock-ins.
         </p>
         <p className="text-gray-700">
-          You can ask your admin for a copy of your records, or to correct them. Location is only recorded when you clock in or out,
-          not in between.
+          You can ask your admin for a copy of your records, or to correct them. Questions: ask your admin or write to{' '}
+          <a className="text-blue-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.{' '}
+          <Link to="/privacy" className="text-blue-700 underline">Read the full privacy notice</Link>.
         </p>
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
         <button onClick={accept} disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60 flex justify-center">

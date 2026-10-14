@@ -338,6 +338,7 @@ export type Database = {
       staff: {
         Row: {
           consent_accepted_at: string | null
+          consent_version: number | null
           created_at: string
           created_by: string | null
           deactivated_at: string | null
@@ -354,6 +355,7 @@ export type Database = {
         }
         Insert: {
           consent_accepted_at?: string | null
+          consent_version?: number | null
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
@@ -370,6 +372,7 @@ export type Database = {
         }
         Update: {
           consent_accepted_at?: string | null
+          consent_version?: number | null
           created_at?: string
           created_by?: string | null
           deactivated_at?: string | null
@@ -449,7 +452,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_consent: { Args: never; Returns: string }
+      accept_consent:
+        | { Args: never; Returns: string }
+        | { Args: { p_version: number }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       mark_photos_deleted: { Args: { p_event_ids: string[] }; Returns: number }
       mark_reference_photo_deleted: {

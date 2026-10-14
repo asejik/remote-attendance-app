@@ -12,8 +12,9 @@ import { distanceM, outsideSite, type Fix } from '../lib/geo';
 import { flagLabel } from '../lib/reports';
 import { DIAGNOSTICS } from '../lib/buildFlags';
 import { getStorageInfo } from '../lib/storage';
-import { suspensionOf } from '../lib/support';
+import { SUPPORT_EMAIL, suspensionOf } from '../lib/support';
 import type { StaffContext } from '../context/useStaff';
+import { signOut } from '../lib/signOut';
 
 // The face camera (face-api.js + TensorFlow) is the largest part of the app;
 // load it only when a clock-in starts. It is precached for offline use.
@@ -238,7 +239,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const logOut = async () => {
     const unsent = waiting.length + failed.length;
     if (unsent && !window.confirm(`${unsent} record(s) haven't uploaded yet. They stay on this phone until you log in again. Log out?`)) return;
-    await supabase.auth.signOut();
+    if (await signOut()) return;
     navigate('/', { replace: true });
   };
 
@@ -384,7 +385,11 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           </ul>
         </section>
 
-        {DIAGNOSTICS && <Link to="/diagnostics" className="text-xs text-gray-400 underline pb-6">Device diagnostics</Link>}
+        <p className="text-xs text-gray-500 pb-6 text-center space-x-3">
+          <Link to="/privacy" className="underline">Privacy notice</Link>
+          <span>Help: ask your admin, or <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
+          {DIAGNOSTICS && <Link to="/diagnostics" className="underline">Device diagnostics</Link>}
+        </p>
       </main>
     </div>
   );

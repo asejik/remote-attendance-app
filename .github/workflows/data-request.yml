@@ -1,0 +1,60 @@
+name: Data request (production)
+
+# Export or delete the data of one organisation, or of one worker in it
+# (access and erasure requests; a client leaving). Run by hand; needs the
+# production environment's approval. Deletion is a dry run unless "confirm"
+# repeats the target exactly. See docs/deploy/RUNBOOK.md.
+on:
+  workflow_dispatch:
+    inputs:
+      action: { description: 'What to do', type: choice, options: [export, delete], default: export }
+      org_slug: { description: 'Organisation code (e.g. abc)', required: true }
+      staff_code: { description: 'One worker only: their staff code (leave empty for the whole organisation)', required: false }
+      include_photos: { description: 'Export: include photos for a whole organisation (always on for one worker)', type: boolean, default: false }
+      confirm: { description: 'Delete only: type the target again, e.g. abc or abc/W-0001 (empty = dry run)', required: false }
+
+permissions:
+  contents: read
+
+jobs:
+  request:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run the request
+        env:
+          SUPABASE_URL: ${{ secrets.PROD_VITE_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.PROD_SUPABASE_SECRET_KEY }}
+          ACTION: ${{ inputs.action }}
+          ORG_SLUG: ${{ inputs.org_slug }}
+          STAFF_CODE: ${{ inputs.staff_code }}
+          INCLUDE_PHOTOS: ${{ inputs.include_photos }}
+          CONFIRM: ${{ inputs.confirm }}
+          OUT_DIR: ${{ runner.temp }}/export
+        run: node scripts/data-request.mjs
+      # The repository is public, so its artifacts can be downloaded by any signed-in
+      # GitHub user: the export is encrypted with a passphrase only the owner holds.
+      - name: Encrypt the export
+        if: inputs.action == 'export'
+        env:
+          EXPORT_PASSPHRASE: ${{ secrets.EXPORT_PASSPHRASE }}
+        run: |
+          if [ ${#EXPORT_PASSPHRASE} -lt 20 ]; then echo "::error::Set EXPORT_PASSPHRASE (20+ characters) in the production environment"; exit 1; fi
+          tar -czf "$RUNNER_TEMP/export.tar.gz" -C "$RUNNER_TEMP/export" .
+          openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:EXPORT_PASSPHRASE \
+            -in "$RUNNER_TEMP/export.tar.gz" -out "$RUNNER_TEMP/export.tar.gz.enc"
+          rm -rf "$RUNNER_TEMP/export" "$RUNNER_TEMP/export.tar.gz"
+      - name: Upload the encrypted export (kept 1 day)
+        if: inputs.action == 'export'
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-export
+          path: ${{ runner.temp }}/export.tar.gz.enc
+          retention-days: 1

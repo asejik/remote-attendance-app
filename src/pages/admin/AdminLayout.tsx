@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { ClipboardCheck, FileSpreadsheet, Lock, LogOut, MapPin, Settings, UserMinus, Users } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import type { StaffContext } from '../../context/useStaff';
 import { SUPPORT_EMAIL, suspensionOf } from '../../lib/support';
+import { signOut } from '../../lib/signOut';
 
 const TABS = [
   { to: '/admin/review', label: 'Review', icon: ClipboardCheck },
@@ -19,7 +19,7 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
   const navigate = useNavigate();
   const suspension = suspensionOf(context.organization);
   const logOut = async () => {
-    await supabase.auth.signOut();
+    if (await signOut()) return;
     navigate('/', { replace: true });
   };
 

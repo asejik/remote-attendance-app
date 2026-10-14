@@ -1,6 +1,12 @@
 // Where clients and workers reach the service operator.
 export const SUPPORT_EMAIL = 'info@asejik.com';
 
+// Raise PRIVACY_NOTICE_VERSION whenever the notice workers accept changes in
+// substance: everyone is asked to accept it again (when online). Version 1 was
+// the M3 text; version 2 adds the retention period and the contact.
+export const PRIVACY_NOTICE_VERSION = 2;
+export const PRIVACY_NOTICE_UPDATED = '14 October 2026';
+
 // Mirrors private.org_accepts_clockins() (migration 20261015100000): after the
 // owner suspends an organisation, admins are read-only at once and workers can
 // clock in for 7 more days.

@@ -49,3 +49,4 @@ supabase/legacy
 
 # Playwright test build (contains test-only code)
 /dist-e2e/
+data-export/

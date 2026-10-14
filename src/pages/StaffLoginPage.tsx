@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { HardHat, Loader2, Shield } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getLastOrgSlug, staffLogin } from '../lib/staffAuth';
 import { useStaff } from '../context/useStaff';
+import { SUPPORT_EMAIL } from '../lib/support';
+import { signOut } from '../lib/signOut';
 
 const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500';
 
@@ -53,7 +55,7 @@ export const StaffLoginPage = () => {
     const { data: staff } = await supabase.from('staff').select('role').eq('user_id', data.user.id).maybeSingle();
     setBusy(false);
     if (staff?.role !== 'admin') {
-      await supabase.auth.signOut();
+      await signOut();
       setError('This login is for organisation admins. Workers log in with a staff code and PIN.');
     }
   };
@@ -121,6 +123,10 @@ export const StaffLoginPage = () => {
           {mode === 'worker' ? 'Organisation admin? Log in here' : '← Back to worker login'}
         </button>
       </div>
+      <p className="mt-6 text-center text-xs text-gray-500 space-x-3">
+        <Link to="/privacy" className="underline">Privacy notice</Link>
+        <span>Help: <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
+      </p>
     </div>
   );
 };

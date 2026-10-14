@@ -8,6 +8,7 @@ import { StaffLoginPage } from './pages/StaffLoginPage';
 import { ConsentPage } from './pages/ConsentPage';
 import { WorkerHomePage } from './pages/WorkerHomePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { DIAGNOSTICS } from './lib/buildFlags';
 import { Loader2 } from 'lucide-react';
 
@@ -36,6 +37,7 @@ function App() {
         <Routes>
           <Route path="/" element={mobile(<StaffLoginPage />)} />
           <Route path="/reset-password" element={mobile(<ResetPasswordPage />)} />
+          <Route path="/privacy" element={mobile(<PrivacyPage />)} />
           <Route path="/consent" element={mobile(<StaffRoute require="member">{(c, reload) => <ConsentPage context={c} reload={reload} />}</StaffRoute>)} />
           <Route path="/home" element={mobile(<StaffRoute require="member">{(c) => <WorkerHomePage context={c} />}</StaffRoute>)} />
           {DIAGNOSTICS && <Route path="/diagnostics" element={mobile(<StaffRoute require="member">{() => <Suspense fallback={null}><DiagnosticsPage /></Suspense>}</StaffRoute>)} />}

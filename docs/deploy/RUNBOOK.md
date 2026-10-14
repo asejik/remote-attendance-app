@@ -48,8 +48,20 @@ Installed apps read `https://attendance.asejik.com/version.json` at start and sh
 4. Review and fix the cause; add a test that would have caught it.
 
 ## A worker or client asks for their data
-- **Copy of records:** the admin downloads a report filtered to that worker (Reports, or Review with the worker filter).
-- **Deletion:** deactivate the worker (photos are removed automatically: reference photo after 30 days, clock-in photos after the retention period). Full deletion of records on request goes through the platform operator (SQL, reviewed), within 30 days.
+Answer within 30 days. Requests normally come through the client (the data controller); one sent to info@asejik.com is passed to them and handled on their instruction.
+- **Copy of records:** GitHub → Actions → **Data request (production)** → `export`, organisation code and the worker's staff code → approve. Download the `data-export` artifact (kept 1 day) and decrypt it:
+  `openssl enc -d -aes-256-cbc -pbkdf2 -iter 600000 -in export.tar.gz.enc -out export.tar.gz` (passphrase: `EXPORT_PASSPHRASE` from your password manager), then `tar -xzf export.tar.gz`. It holds the worker's staff record, clock-in records (CSV) and their photos still on file. For day-to-day copies the admin can also use Reports filtered to that worker.
+- **Correction:** the admin edits the worker (name, phone) or notes the correction on the affected clock-ins (Review).
+- **Deletion:** first run the workflow with `delete` and **no** confirm: the log shows what would be deleted (dry run). Then run it again with `confirm` = `abc/W-0001` (organisation/staff code). It removes the worker's photos, clock-in records, staff record, PIN and login, and writes an `erase_staff` audit entry. Export first if the client must keep the attendance history (the law may require them to keep payroll records; check with the client before erasing).
+- Deactivating a worker (without deletion) removes their photos automatically: the reference photo 30 days later, clock-in photos after the retention period.
 
 ## Client leaves the service
-Export all reports for the client, confirm in writing, then delete the organisation's data (events, staff, sites, photos, Auth users) with a reviewed script, within 30 days, and confirm deletion in writing.
+1. **Data request (production)** → `export` for the whole organisation (tick *include photos* if they want them) → send the decrypted files to the client securely; get written confirmation they have them.
+2. Within 30 days: `delete` with no confirm (dry run, check the counts), then again with `confirm` = the organisation code. Everything is removed: photos, clock-ins, staff, sites, logins, audit log, the organisation.
+3. Confirm the deletion to the client in writing (date and counts from the workflow log).
+
+## Bad release: undo it
+- **Web app:** Cloudflare → *Workers & Pages* → the app → *Deployments* → pick the last good one → **Rollback**. Takes effect immediately; installed web apps update on their next start.
+- **Backend (database / Edge Functions):** don't edit production by hand. If a migration is at fault, write a new migration that reverses it (use `supabase/rollbacks/<migration>.down.sql` as the starting point; it is usually DESTRUCTIVE, so export data first) and deploy it with **Deploy production backend**. For a bad Edge Function, revert the commit on `main` and run **Deploy production backend** again (it redeploys all three functions).
+- **Android app:** Android won't install an older version over a newer one. Revert the change on `main`, set `public/version.json` to a **higher** version (e.g. `1.1.1`), tag and release it (see *Releasing the Android app*), and raise `minimum` if the bad version must not be used.
+- Afterwards: note what happened in `docs/PROGRESS.md` and add a test that would have caught it.

@@ -6,10 +6,27 @@ import { useAuth } from './useAuth';
 export interface StaffContext {
   staff: Staff;
   // status/suspended_at may be missing from contexts cached before they existed.
-  organization: { id: string; name: string; slug: string; timezone: string; status?: string; suspended_at?: string | null };
+  organization: {
+    id: string; name: string; slug: string; timezone: string;
+    status?: string; suspended_at?: string | null; photo_retention_days?: number;
+  };
 }
 
-const cacheKey = (userId: string) => `staffContext:${userId}`;
+const CACHE_PREFIX = 'staffContext:';
+const cacheKey = (userId: string) => `${CACHE_PREFIX}${userId}`;
+
+// Called on sign-out, so a stale record can't send the next person into the app.
+export const clearStaffCache = () => {
+  try {
+    Object.keys(localStorage).filter((k) => k.startsWith(CACHE_PREFIX)).forEach((k) => localStorage.removeItem(k));
+  } catch {
+    // Cache is a convenience.
+  }
+};
+
+// Only a request that never reached the server counts as offline. A refusal
+// (e.g. 42501 while signing out) must not fall back to the cached record.
+const isNetworkError = (error: { code?: string; message?: string }) => !error.code || /failed to fetch|network|load failed/i.test(error.message ?? '');
 
 // Online: the server's answer (cached for offline use; a definite "no active
 // record" clears the cache). Offline / network error: the last cached answer,
@@ -18,9 +35,10 @@ const cacheKey = (userId: string) => `staffContext:${userId}`;
 const fetchStaffContext = async (userId: string): Promise<StaffContext | null> => {
   const { data, error } = await supabase
     .from('staff')
-    .select('*, organizations(id, name, slug, timezone, status, suspended_at)')
+    .select('*, organizations(id, name, slug, timezone, status, suspended_at, photo_retention_days)')
     .eq('user_id', userId)
     .maybeSingle();
+  if (error && !isNetworkError(error)) return null;
   if (error) {
     try {
       const cached = localStorage.getItem(cacheKey(userId));
