@@ -186,8 +186,8 @@ test('reports: CSV escapes formulas; Excel stores names as text', async ({ page 
   expect(rows).toHaveLength(3)
   expect(rows[1]).toContain(",'=Evil Worker,W-1,Clock in,Main Site,")
   // Rejected is 0 or 1 depending on whether the review test ran first.
-  expect(summary).toMatch(/'=Evil Worker,W-1,worker,active,1,1,2,1,[01]\r\n/)
-  expect(summary).toContain(`${ABSENT},W-2,worker,active,0,0,0,0,0`)
+  expect(summary).toMatch(/'=Evil Worker,W-1,worker,active,1,1,0,2,1,[01]\r\n/) // hours worked 0: never clocked out
+  expect(summary).toContain(`${ABSENT},W-2,worker,active,0,0,0,0,0,0`)
 
   const [xlsx] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download Excel (.xlsx)' }).click()])
   const book = XLSX.read(readFileSync((await xlsx.path())!))

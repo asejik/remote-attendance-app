@@ -12,6 +12,8 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 - ☐ Admin → Sites: change a site's radius. (Owner, Supabase SQL: `select action, details from audit_log where action like '%site%' order by id desc limit 3;` shows the before/after.)
 - ☐ Suspension (dev, Supabase table editor → organizations → demo → status `suspended`): admin sees the red banner, Review/Reports still work, saving Settings says *Changes are turned off…*. Worker can still clock in. Set status back to `active`.
 - ☐ Sentry → Crons: a `purge-expired-photos` monitor exists (environment *development*). Set up its alert for *production* at go-live.
+- ☐ Night shift: a worker clocks in late evening and out after midnight. Reports → summary CSV shows 1 day present, 0 days without clock-out, and the hours; Absent for that evening doesn't list them under "never clocked out".
+- ☐ Admin screens still open quickly after first load (they now load on demand); Reports → Excel and Sites map still work.
 - ☐ Release APK (first production release): set `public/version.json` `latest` above the installed version; reopen the app: a blue *A new version is available* bar with **Update** opens the download. Set `minimum` above it: the bar turns red. Clock-in still works.
 
 ## M6 Production readiness (2026-10-15). Mostly checked during go-live (docs/deploy/GO_LIVE.md)

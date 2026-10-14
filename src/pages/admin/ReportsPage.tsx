@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { fetchEventsForReport, fetchStaffForReport } from '../../lib/adminEvents';
 import { downloadCsv, downloadXlsx } from '../../lib/download';
-import { dayRangeUtc, EVENT_HEADER, eventRows, localDay, summarise, summaryRows, SUMMARY_HEADER } from '../../lib/reports';
+import { dayRangeUtc, EVENT_HEADER, eventRows, localDay, MAX_SHIFT_MS, summarise, summaryRows, SUMMARY_HEADER } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 
 // Download attendance for a date range as CSV (two files) or one Excel workbook.
@@ -18,8 +18,13 @@ export const ReportsPage = ({ context }: { context: StaffContext }) => {
   const build = async () => {
     const [a, b] = from <= to ? [from, to] : [to, from];
     const { start, end } = dayRangeUtc(a, b, tz);
-    const [events, staff] = await Promise.all([fetchEventsForReport(start, end), fetchStaffForReport()]);
-    return { name: `attendance_${context.organization.slug}_${a}_to_${b}`, events, rows: eventRows(events, staff, tz), summary: summaryRows(summarise(events, staff, tz)) };
+    // Fetch a little past the range so night shifts started on the last day find their clock-out.
+    const [fetched, staff] = await Promise.all([fetchEventsForReport(start, new Date(Date.parse(end) + MAX_SHIFT_MS).toISOString()), fetchStaffForReport()]);
+    const events = fetched.filter((e) => Date.parse(e.captured_at) < Date.parse(end));
+    return {
+      name: `attendance_${context.organization.slug}_${a}_to_${b}`, events,
+      rows: eventRows(events, staff, tz), summary: summaryRows(summarise(fetched, staff, tz, { from: a, to: b })),
+    };
   };
 
   const run = async (format: 'csv' | 'xlsx') => {

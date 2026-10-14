@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { fetchEventsForReport, fetchStaffForReport } from '../../lib/adminEvents';
-import { absentees, dayRangeUtc, localDay, type ReportStaff } from '../../lib/reports';
+import { absentees, dayRangeUtc, localDay, MAX_SHIFT_MS, type ReportStaff } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 
 // Who did not clock in on a given day, and who clocked in but never out.
@@ -15,7 +15,9 @@ export const AbsentPage = ({ context }: { context: StaffContext }) => {
   useEffect(() => {
     let cancelled = false;
     const { start, end } = dayRangeUtc(day, day, tz);
-    Promise.all([fetchEventsForReport(start, end), fetchStaffForReport()])
+    // A little past the day, so night shifts' clock-outs after midnight count.
+    const after = new Date(Date.parse(end) + MAX_SHIFT_MS).toISOString();
+    Promise.all([fetchEventsForReport(start, after), fetchStaffForReport()])
       .then(([events, staff]) => {
         if (!cancelled) {
           setResult({ day, ...absentees(events, staff, day, tz) });

@@ -52,7 +52,15 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}', 'models/*'],
-        // The main bundle (face-api + tfjs) is ~1.2 MB; the default 2 MiB cap is close.
+        // Admin-only libraries (Excel export, site map) aren't precached, so workers'
+        // phones don't download them; they're cached the first time an admin uses them.
+        globIgnores: ['**/assets/xlsx-*', '**/assets/SiteMap-*'],
+        runtimeCaching: [{
+          urlPattern: /\/assets\/(xlsx|SiteMap)-[\w-]+\.(js|css)$/,
+          handler: 'CacheFirst', // file names change with every build
+          options: { cacheName: 'admin-libraries', expiration: { maxEntries: 10 } },
+        }],
+        // The face-api chunk (lazy, but precached for offline clock-in) is ~650 kB.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: '/index.html',
       },

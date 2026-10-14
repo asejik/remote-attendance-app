@@ -71,39 +71,72 @@ export const dayRangeUtc = (from: string, to: string, timeZone: string) => {
 
 const byTime = (a: ReportEvent, b: ReportEvent) => a.captured_at.localeCompare(b.captured_at);
 
-// A day is incomplete when the worker's last event that day is a clock-in.
-const dayStatus = (events: ReportEvent[], timeZone: string) => {
-  const days = new Map<string, ReportEvent[]>();
+// A clock-out up to this long after a clock-in closes that shift, even across
+// midnight (night shifts). A shift counts on the local day it started. Screens
+// fetch events this far past the end of the chosen range to find those clock-outs.
+const MAX_SHIFT_HOURS = 16;
+export const MAX_SHIFT_MS = MAX_SHIFT_HOURS * 3_600_000;
+
+export interface Shift {
+  clockIn: ReportEvent;
+  clockOut: ReportEvent | null; // null: never clocked out
+}
+
+// One worker's events → shifts. A second clock-in before any clock-out leaves
+// the first shift open; a clock-out with no recent clock-in is ignored.
+export const shiftsOf = (events: ReportEvent[]): Shift[] => {
+  const shifts: Shift[] = [];
+  let open: ReportEvent | null = null;
   for (const e of [...events].sort(byTime)) {
-    const day = localDay(e.captured_at, timeZone);
-    days.set(day, [...(days.get(day) ?? []), e]);
+    if (e.type === 'CLOCK_IN') {
+      if (open) shifts.push({ clockIn: open, clockOut: null });
+      open = e;
+    } else if (open && Date.parse(e.captured_at) - Date.parse(open.captured_at) <= MAX_SHIFT_MS) {
+      shifts.push({ clockIn: open, clockOut: e });
+      open = null;
+    }
   }
-  return [...days.entries()].map(([day, list]) => ({
-    day,
-    present: list.some((e) => e.type === 'CLOCK_IN'),
-    incomplete: list[list.length - 1].type === 'CLOCK_IN',
-  }));
+  if (open) shifts.push({ clockIn: open, clockOut: null });
+  return shifts;
+};
+
+// Local days (YYYY-MM-DD) to count; undefined = every day in the data.
+export interface DayRange {
+  from: string;
+  to: string;
+}
+const inDays = (iso: string, timeZone: string, days?: DayRange) => {
+  if (!days) return true;
+  const d = localDay(iso, timeZone);
+  return d >= days.from && d <= days.to;
 };
 
 export interface WorkerSummary {
   staff: ReportStaff;
   daysPresent: number;
   incompleteDays: number;
+  hoursWorked: number; // closed shifts only, 1 decimal
   clockIns: number;
   flagged: number;
   rejected: number;
 }
 
-export const summarise = (events: ReportEvent[], staff: ReportStaff[], timeZone: string): WorkerSummary[] =>
+// Per worker over `days` (events may run up to MAX_SHIFT_HOURS past the range,
+// so a night shift's clock-out is found). A day is incomplete when a shift that
+// started that day was never clocked out.
+export const summarise = (events: ReportEvent[], staff: ReportStaff[], timeZone: string, days?: DayRange): WorkerSummary[] =>
   staff
     .filter((s) => s.role !== 'admin')
     .map((s) => {
-      const mine = events.filter((e) => e.staff_id === s.id);
-      const days = dayStatus(mine, timeZone);
+      const shifts = shiftsOf(events.filter((e) => e.staff_id === s.id)).filter((sh) => inDays(sh.clockIn.captured_at, timeZone, days));
+      const mine = events.filter((e) => e.staff_id === s.id && inDays(e.captured_at, timeZone, days));
+      const startDay = (sh: Shift) => localDay(sh.clockIn.captured_at, timeZone);
+      const workedMs = shifts.reduce((sum, sh) => sum + (sh.clockOut ? Date.parse(sh.clockOut.captured_at) - Date.parse(sh.clockIn.captured_at) : 0), 0);
       return {
         staff: s,
-        daysPresent: days.filter((d) => d.present).length,
-        incompleteDays: days.filter((d) => d.incomplete).length,
+        daysPresent: new Set(shifts.map(startDay)).size,
+        incompleteDays: new Set(shifts.filter((sh) => !sh.clockOut).map(startDay)).size,
+        hoursWorked: Math.round(workedMs / 360_000) / 10,
         clockIns: mine.filter((e) => e.type === 'CLOCK_IN').length,
         flagged: mine.filter((e) => e.flags.length > 0).length,
         rejected: mine.filter((e) => e.review_status === 'rejected').length,
@@ -111,16 +144,15 @@ export const summarise = (events: ReportEvent[], staff: ReportStaff[], timeZone:
     })
     .sort((a, b) => a.staff.full_name.localeCompare(b.staff.full_name));
 
-// For one local day: active non-admin staff with no clock-in, and those whose
-// last event of the day is a clock-in (never clocked out).
+// For one local day: active non-admin staff with no clock-in, and those with a
+// shift that started that day and was never clocked out (a night shift's
+// clock-out after midnight counts; pass events up to MAX_SHIFT_HOURS later).
 export const absentees = (events: ReportEvent[], staff: ReportStaff[], day: string, timeZone: string) => {
-  const today = events.filter((e) => localDay(e.captured_at, timeZone) === day);
   const people = staff.filter((s) => s.status === 'active' && s.role !== 'admin');
-  const noClockIn = people.filter((s) => !today.some((e) => e.staff_id === s.id && e.type === 'CLOCK_IN'));
-  const noClockOut = people.filter((s) => {
-    const mine = today.filter((e) => e.staff_id === s.id).sort(byTime);
-    return mine.length > 0 && mine[mine.length - 1].type === 'CLOCK_IN';
-  });
+  const startedToday = (s: ReportStaff) =>
+    shiftsOf(events.filter((e) => e.staff_id === s.id)).filter((sh) => localDay(sh.clockIn.captured_at, timeZone) === day);
+  const noClockIn = people.filter((s) => startedToday(s).length === 0);
+  const noClockOut = people.filter((s) => startedToday(s).some((sh) => !sh.clockOut));
   return { noClockIn, noClockOut };
 };
 
@@ -153,11 +185,11 @@ export const eventRows = (events: ReportEvent[], staff: ReportStaff[], timeZone:
   ]);
 };
 
-export const SUMMARY_HEADER = ['Worker', 'Staff code', 'Role', 'Status', 'Days present', 'Days without clock-out', 'Clock-ins', 'Flagged', 'Rejected'];
+export const SUMMARY_HEADER = ['Worker', 'Staff code', 'Role', 'Status', 'Days present', 'Days without clock-out', 'Hours worked', 'Clock-ins', 'Flagged', 'Rejected'];
 
 export const summaryRows = (summaries: WorkerSummary[]): Cell[][] =>
   summaries.map((s) => [
-    s.staff.full_name, s.staff.staff_code, s.staff.role, s.staff.status, s.daysPresent, s.incompleteDays, s.clockIns, s.flagged, s.rejected,
+    s.staff.full_name, s.staff.staff_code, s.staff.role, s.staff.status, s.daysPresent, s.incompleteDays, s.hoursWorked, s.clockIns, s.flagged, s.rejected,
   ]);
 
 // CSV cell: neutralise spreadsheet formulas (CSV/formula injection), then quote

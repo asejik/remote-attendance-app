@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  absentees, csvCell, dayRangeUtc, eventRows, localDay, summarise, toCsv, EVENT_HEADER,
+  absentees, csvCell, dayRangeUtc, eventRows, localDay, shiftsOf, summarise, toCsv, EVENT_HEADER,
   type ReportEvent, type ReportStaff,
 } from './reports';
 
@@ -46,14 +46,30 @@ describe('summarise', () => {
   it('counts days present, incomplete days, flags and rejections; excludes admins', () => {
     const rows = summarise(events, staff, TZ);
     expect(rows.map((r) => r.staff.id)).toEqual(['a', 'b', 'c']);
-    expect(rows[0]).toMatchObject({ daysPresent: 2, incompleteDays: 1, clockIns: 2, flagged: 1, rejected: 0 });
-    expect(rows[1]).toMatchObject({ daysPresent: 1, incompleteDays: 0, clockIns: 1, flagged: 0, rejected: 1 });
+    expect(rows[0]).toMatchObject({ daysPresent: 2, incompleteDays: 1, hoursWorked: 9, clockIns: 2, flagged: 1, rejected: 0 });
+    expect(rows[1]).toMatchObject({ daysPresent: 1, incompleteDays: 0, hoursWorked: 8, clockIns: 1, flagged: 0, rejected: 1 });
     expect(rows[2]).toMatchObject({ daysPresent: 0, incompleteDays: 0 });
   });
 
-  it('a late-evening clock-in and after-midnight clock-out count on their own Lagos days', () => {
-    const night = [ev('a', 'CLOCK_IN', '2026-10-14T21:30:00Z'), ev('a', 'CLOCK_OUT', '2026-10-14T23:30:00Z')]; // 22:30 and 00:30 Lagos
-    expect(summarise(night, staff, TZ)[0]).toMatchObject({ daysPresent: 1, incompleteDays: 1 });
+  it('a night shift (22:30 to 06:15 Lagos) is one complete day, counted on the day it started', () => {
+    const night = [ev('a', 'CLOCK_IN', '2026-10-14T21:30:00Z'), ev('a', 'CLOCK_OUT', '2026-10-15T05:15:00Z')];
+    expect(summarise(night, staff, TZ)[0]).toMatchObject({ daysPresent: 1, incompleteDays: 0, hoursWorked: 7.8 });
+    // Reporting only the 14th still finds the clock-out on the 15th (pages fetch 16 h past the range).
+    expect(summarise(night, staff, TZ, { from: '2026-10-14', to: '2026-10-14' })[0]).toMatchObject({ daysPresent: 1, incompleteDays: 0 });
+    // Reporting only the 15th: that shift belongs to the 14th, and its clock-out alone isn't a day present.
+    expect(summarise(night, staff, TZ, { from: '2026-10-15', to: '2026-10-15' })[0]).toMatchObject({ daysPresent: 0, clockIns: 0 });
+  });
+
+  it('pairs each clock-in with the next clock-out within 16 hours', () => {
+    const shifts = shiftsOf([
+      ev('a', 'CLOCK_IN', '2026-10-13T07:00:00Z'), // forgot to clock out: a second clock-in follows
+      ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z'), ev('a', 'CLOCK_OUT', '2026-10-14T15:00:00Z'),
+      ev('a', 'CLOCK_OUT', '2026-10-14T15:05:00Z'), // stray duplicate clock-out: ignored
+      ev('a', 'CLOCK_IN', '2026-10-15T07:00:00Z'), ev('a', 'CLOCK_OUT', '2026-10-16T07:00:00Z'), // 24 h later: not this shift's
+    ]);
+    expect(shifts.map((sh) => [sh.clockIn.captured_at.slice(0, 10), sh.clockOut?.captured_at.slice(0, 13) ?? null])).toEqual([
+      ['2026-10-13', null], ['2026-10-14', '2026-10-14T15'], ['2026-10-15', null],
+    ]);
   });
 });
 
@@ -63,6 +79,14 @@ describe('absentees', () => {
     const { noClockIn, noClockOut } = absentees(events, staff, '2026-10-14', TZ);
     expect(noClockIn.map((s) => s.id)).toEqual(['b']); // c is deactivated, z is admin
     expect(noClockOut.map((s) => s.id)).toEqual(['a']);
+  });
+
+  it("a night shift clocked out after midnight isn't listed as never clocked out", () => {
+    const events = [ev('a', 'CLOCK_IN', '2026-10-14T21:30:00Z'), ev('a', 'CLOCK_OUT', '2026-10-15T05:15:00Z'), ev('b', 'CLOCK_IN', '2026-10-14T21:00:00Z')];
+    const { noClockIn, noClockOut } = absentees(events, staff, '2026-10-14', TZ);
+    expect(noClockIn).toEqual([]);
+    expect(noClockOut.map((s) => s.id)).toEqual(['b']);
+    expect(absentees(events, staff, '2026-10-15', TZ).noClockIn.map((s) => s.id)).toEqual(['a', 'b']); // a clock-out alone isn't a clock-in
   });
 });
 

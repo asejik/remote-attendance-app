@@ -9,20 +9,24 @@ import { ConsentPage } from './pages/ConsentPage';
 import { WorkerHomePage } from './pages/WorkerHomePage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { DIAGNOSTICS } from './lib/buildFlags';
+import { Loader2 } from 'lucide-react';
 
 // Test builds only; it imports face-api, so keep it out of the main bundle.
 const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage').then((m) => ({ default: m.DiagnosticsPage })));
 import { AdminLayout } from './pages/admin/AdminLayout';
-import { ReviewPage } from './pages/admin/ReviewPage';
-import { AbsentPage } from './pages/admin/AbsentPage';
-import { SitesPage } from './pages/admin/SitesPage';
-import { StaffPage } from './pages/admin/StaffPage';
-import { ReportsPage } from './pages/admin/ReportsPage';
-import { SettingsPage } from './pages/admin/SettingsPage';
+
+// Admin screens load on demand, so workers' phones never download them.
+const ReviewPage = lazy(() => import('./pages/admin/ReviewPage').then((m) => ({ default: m.ReviewPage })));
+const AbsentPage = lazy(() => import('./pages/admin/AbsentPage').then((m) => ({ default: m.AbsentPage })));
+const SitesPage = lazy(() => import('./pages/admin/SitesPage').then((m) => ({ default: m.SitesPage })));
+const StaffPage = lazy(() => import('./pages/admin/StaffPage').then((m) => ({ default: m.StaffPage })));
+const ReportsPage = lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
+const SettingsPage = lazy(() => import('./pages/admin/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 const mobile = (node: ReactNode) => <MobileLayout>{node}</MobileLayout>;
+const loading = <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading" /></div>;
 const admin = (page: (c: StaffContext) => ReactNode) => (
-  <StaffRoute require="admin">{(c) => <AdminLayout context={c}>{page(c)}</AdminLayout>}</StaffRoute>
+  <StaffRoute require="admin">{(c) => <AdminLayout context={c}><Suspense fallback={loading}>{page(c)}</Suspense></AdminLayout>}</StaffRoute>
 );
 
 function App() {
