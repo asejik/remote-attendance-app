@@ -38,17 +38,18 @@ npx vitest run src/lib/db.test.ts -t "PENDING"   # single test file / name
 npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env. Session tests need `E2E_STAFF_EMAIL`/`E2E_STAFF_PASSWORD` and the accounts test needs `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`/`E2E_ORG_SLUG` plus `SUPABASE_SECRET_KEY` in `.env`. They skip without them (as in CI)
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
+npm run check:migrations  # names, rollback files, and (CI, BASE_SHA) new migrations sort after existing ones
 npm run knip           # unused files/deps/exports
 npm run test:rls       # access-rule (RLS) suite against the dev project: builds 2 test orgs + 6 users, checks every role, cleans up
 npx supabase db push --linked --dry-run   # then without --dry-run: apply new migrations to dev
 npx supabase gen types typescript --linked > src/lib/database.types.ts   # after every schema change
-SEED_ALLOW=dev node scripts/seed-dev.mjs  # demo org "Demo Construction Ltd" (idempotent; resets demo passwords)
+SEED_ALLOW=dev node scripts/seed-dev.mjs  # demo org "Demo Construction Ltd" (idempotent; --reset-passwords / --reset-pins to change existing logins)
 npx supabase functions deploy <name> --use-api --no-verify-jwt   # deploy an Edge Function to dev (no Docker)
 npx cap sync android   # copy dist/ into the Android project after a build
 ```
 
 - Node 24 is installed through nvm in WSL. Non-interactive shells don't load it, so prefix commands with `. ~/.nvm/nvm.sh >/dev/null &&`. Otherwise `npm` resolves to the Windows install and fails on the `\\wsl.localhost` path.
-- CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets and lint on every push, using placeholder env values.
+- CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets, lint and check:migrations on every push, using placeholder env values.
 - **`db-fresh.yml`** proves production can be built from nothing. On changes to `supabase/`, `tests/rls/` and related files, it starts an empty local Supabase in Docker on the runner, checks that every migration applied, serves the Edge Functions, runs `test:rls` with `REQUIRE_RLS_TESTS=1` (it fails if anything skips), and runs the onboarding script.
 - **CI logs:** `GITHUB_LOGS_TOKEN` in `.env` is a read-only, fine-grained token (Actions read on this repo only). Use it as `Authorization: Bearer` with `GET /repos/asejik/remote-attendance-app/actions/jobs/{id}/logs` to read failing runs.
 - **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `attendance-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.attendance`.
@@ -56,11 +57,11 @@ npx cap sync android   # copy dist/ into the Android project after a build
 - `.env` also holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for server-side tooling only. The secret key bypasses RLS: use it read-only, against dev only, and **never** give it a `VITE_` prefix.
 - The legacy prototype schema, policies and security findings are recorded in `supabase/legacy/README.md` (private).
 - `vite` is aliased to `rolldown-vite` via `overrides` in package.json. Keep that override.
-- `.env` holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. `src/lib/supabase.ts` throws at import time if either is missing. The current Supabase project is the **dev** environment (test data only).
+- `.env` holds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (every variable is listed in `.env.example`). `src/lib/supabase.ts` throws at import time if either is missing. The current Supabase project is the **dev** environment (test data only).
 
 ## Database (new schema, M2 onwards)
 
-The new tables live **in the same Supabase project as the legacy prototype tables** (decision: option B). Legacy `profiles`, `sites`, `attendance_logs` and the public `attendance-photos` bucket still serve the prototype on `main`. Don't touch them; they're retired after M4.
+The new tables live **in the same Supabase project as the legacy prototype tables** (decision: option B). Legacy `profiles`, `sites`, `attendance_logs` and the `attendance-photos` bucket (made private in M4) still serve the prototype on `main`. Don't touch them; they're dropped at go-live (`docs/deploy/GO_LIVE.md` step 8).
 
 - **Tables:** `organizations` → `staff` (role `admin|supervisor|worker`, optional `user_id`), `work_sites` (named so because `sites` is legacy), `attendance_events` (id generated on the device, so uploads are idempotent), `audit_log`. Every tenant table has `organization_id`. Composite FKs keep staff and sites in the same organisation as the event.
 - **RLS is deny-by-default.** anon has no privileges on the new tables. Helpers in the unexposed `private` schema (`current_staff()`, `current_org_id()`, `current_staff_role()`, `is_org_admin()`) are SECURITY DEFINER with an empty search_path. A deactivated staff member resolves to no staff record, so they see nothing.
@@ -76,7 +77,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Workers accept the privacy notice via the `accept_consent()` RPC.
   - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.
   - These screens became the default app in M4 (paths `/`, `/consent`, `/home`; admin under `/admin/*`).
-- **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. Apply to dev with `db push`. Docker is unavailable locally, so `db dump`, `db pull` and `test db` don't work here (the `db-fresh` CI job runs Docker on GitHub instead).
+- **Migrations** live in `supabase/migrations/`, with hand-run rollbacks in `supabase/rollbacks/`. **Name a new migration with a timestamp later than the newest existing file** (some are dated ahead of the calendar, so `supabase migration new` can sort too early); `check:migrations` enforces this in CI. Apply to dev with `db push`. Docker is unavailable locally, so `db dump`, `db pull` and `test db` don't work here (the `db-fresh` CI job runs Docker on GitHub instead).
 - **PostgREST bulk inserts send `null` for keys missing from some rows** (not the column default). Include every key in every row.
 
 ## App architecture (M4 onwards)
@@ -107,7 +108,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Sites can be placed by map tap, current location, or typed coordinates.
   - Dialogs close on Escape (`src/hooks/useEscape.ts`).
 - **Test-only liveness bypass:** `import.meta.env.VITE_E2E === '1'` auto-captures in `LivenessCamera`. Playwright builds with it into `dist-e2e/`. `check:secrets` fails if the marker `E2E_LIVENESS_BYPASS` appears in `dist/`.
-- **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at M6.
+- **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at go-live (GO_LIVE step 8).
 
 ## Production and deployment (M6)
 

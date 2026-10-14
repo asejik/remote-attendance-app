@@ -13,6 +13,7 @@
     "test:e2e": "playwright test",
     "knip": "knip",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "check:migrations": "node scripts/check-migrations.mjs",
     "test:rls": "vitest run --config vitest.rls.config.ts"
   },
   "dependencies": {

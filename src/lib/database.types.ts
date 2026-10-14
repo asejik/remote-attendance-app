@@ -448,6 +448,32 @@ export type Database = {
     Functions: {
       accept_consent: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
+      mark_photos_deleted: { Args: { p_event_ids: string[] }; Returns: number }
+      mark_reference_photo_deleted: {
+        Args: { p_staff_ids: string[] }
+        Returns: number
+      }
+      orphan_event_photos: {
+        Args: { p_limit?: number; p_min_age?: string }
+        Returns: {
+          name: string
+        }[]
+      }
+      photos_to_purge: {
+        Args: { p_limit?: number }
+        Returns: {
+          event_id: string
+          face_photo_path: string
+          site_photo_path: string
+        }[]
+      }
+      reference_photos_to_purge: {
+        Args: { p_limit?: number }
+        Returns: {
+          reference_photo_path: string
+          staff_id: string
+        }[]
+      }
       review_event: {
         Args: {
           decision: Database["public"]["Enums"]["review_status"]

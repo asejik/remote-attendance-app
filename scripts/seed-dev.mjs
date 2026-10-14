@@ -1,6 +1,9 @@
 // Seeds the DEV project with a demo organisation for building and testing the UI.
-// Idempotent: re-running reuses existing rows and resets the demo passwords.
-// Usage: node scripts/seed-dev.mjs   (needs SUPABASE_URL + SUPABASE_SECRET_KEY in .env)
+// Idempotent: re-running reuses existing rows. New accounts get a password (and,
+// for workers and supervisors, a PIN: org `demo` + staff code + PIN). Existing
+// ones keep theirs unless asked, because .env holds the E2E admin's password.
+// Usage: node scripts/seed-dev.mjs [--reset-passwords] [--reset-pins]
+//        (needs SUPABASE_URL + SUPABASE_SECRET_KEY in .env)
 // Prints the demo logins; keep them in the private repo, never commit them here.
 import { randomInt } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -37,21 +40,31 @@ for (const site of SITES) {
   if (!existing.length) check(await svc.from('work_sites').insert({ ...site, organization_id: org.id, active: true }), `site ${site.name}`)
 }
 
+const resetPasswords = process.argv.includes('--reset-passwords')
+const resetPins = process.argv.includes('--reset-pins')
 const { data: list } = await svc.auth.admin.listUsers({ perPage: 1000 })
 const logins = []
 for (const p of PEOPLE) {
-  const password = `Demo-${randomInt(100000, 999999)}`
+  let password = `Demo-${randomInt(100000, 999999)}`
   let user = list.users.find((u) => u.email === p.email)
-  if (user) {
+  const isNew = !user
+  if (user && resetPasswords) {
     check(await svc.auth.admin.updateUserById(user.id, { password }), `reset ${p.email}`)
+  } else if (user) {
+    password = '(unchanged)'
   } else {
     user = check(await svc.auth.admin.createUser({ email: p.email, password, email_confirm: true, user_metadata: { full_name: p.name } }), `create ${p.email}`).user
   }
-  check(await svc.from('staff').upsert(
+  const staff = check(await svc.from('staff').upsert(
     { organization_id: org.id, user_id: user.id, full_name: p.name, staff_code: p.code, role: p.role, status: 'active' },
     { onConflict: 'organization_id,staff_code' },
-  ), `staff ${p.code}`)
-  logins.push({ role: p.role, email: p.email, password })
+  ).select('id').single(), `staff ${p.code}`)
+  let pin = p.role === 'admin' ? null : '(unchanged)'
+  if (p.role !== 'admin' && (isNew || resetPins)) {
+    pin = String(randomInt(0, 1_000_000)).padStart(6, '0')
+    check(await svc.rpc('staff_pin_set', { p_staff_id: staff.id, p_pin: pin }), `PIN ${p.code}`)
+  }
+  logins.push({ role: p.role, code: p.code, email: p.email, password, pin })
 }
 
 console.log(`Seeded organisation "${org.name}" (${org.id}) with ${SITES.length} sites.`)

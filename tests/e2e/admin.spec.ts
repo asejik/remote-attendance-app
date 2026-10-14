@@ -24,6 +24,17 @@ const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP////////////////////
 let orgId = ''
 const userIds: string[] = []
 
+// The screens filter by "today" in the organisation's time zone (Africa/Lagos,
+// UTC+1, no DST). Seeded events and the browser clock are kept on the same
+// local day, so a run that crosses midnight can't disagree with itself.
+const LAGOS_OFFSET = 3_600_000
+const DAY = 86_400_000
+const LATEST = (23 * 60 + 50) * 60_000 // 23:50 local
+let base = Date.now() - 3 * 60_000
+const timeOfDay = (base + LAGOS_OFFSET) % DAY
+if (timeOfDay > LATEST) base -= timeOfDay - LATEST
+const pageNow = base + 4 * 60_000 // after both seeded events, same local day
+
 const svc = () => createClient(url, secret!, { auth: { persistSession: false } })
 
 test.beforeAll(async () => {
@@ -50,7 +61,6 @@ test.beforeAll(async () => {
   await s.storage.from('reference-photos').upload(ref, JPEG, { contentType: 'image/jpeg' })
   await s.from('staff').update({ reference_photo_path: ref }).eq('id', evil!.id)
 
-  const now = Date.now()
   for (const [i, lat] of [[0, SITE.latitude], [1, SITE.latitude + 0.018]] as const) {
     const id = randomUUID()
     for (const kind of ['face', 'site']) {
@@ -58,7 +68,7 @@ test.beforeAll(async () => {
     }
     const { error: evError } = await s.from('attendance_events').insert({
       id, organization_id: orgId, staff_id: evil!.id, captured_by: evilUser, site_id: site!.id, type: 'CLOCK_IN',
-      captured_at: new Date(now - (3 - i) * 60_000).toISOString(), latitude: lat, longitude: SITE.longitude, accuracy_m: 12,
+      captured_at: new Date(base + i * 60_000).toISOString(), latitude: lat, longitude: SITE.longitude, accuracy_m: 12,
       face_photo_path: `${orgId}/${id}/face.jpg`, site_photo_path: `${orgId}/${id}/site.jpg`,
     })
     if (evError) throw evError
@@ -84,6 +94,7 @@ test.afterAll(async () => {
 })
 
 const login = async (page: Page) => {
+  await page.clock.setFixedTime(pageNow)
   await page.goto('/')
   await page.getByRole('button', { name: 'Organisation admin? Log in here' }).click()
   await page.getByLabel('Email').fill(adminEmail)

@@ -38,6 +38,7 @@ export const fetchReviewPage = async (filter: EventFilter, page: number) => {
     .order('review_status', { ascending: true })
     .order('flag_count', { ascending: false })
     .order('captured_at', { ascending: false })
+    .order('id') // stable paging when timestamps tie
     .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
   if (error) throw error;
   return { events: (data ?? []) as unknown as ReviewEvent[], total: count ?? 0 };
@@ -51,7 +52,7 @@ export const fetchEventsForReport = async (start: string, end: string): Promise<
       .from('attendance_events')
       .select('id, staff_id, type, captured_at, site_name_snapshot, distance_m, within_radius, accuracy_m, flags, liveness_passed, review_status, review_note, reviewed_at')
       .gte('captured_at', start).lt('captured_at', end)
-      .order('captured_at').range(from, from + 999);
+      .order('captured_at').order('id').range(from, from + 999); // id: stable paging on ties
     if (error) throw error;
     all.push(...(data ?? []));
     if (!data || data.length < 1000) return all;
