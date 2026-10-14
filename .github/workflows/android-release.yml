@@ -65,6 +65,8 @@ jobs:
           RELEASE_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_RELEASE_KEYSTORE_PASSWORD }}
           VERSION_NAME: ${{ github.ref_name }}
           VERSION_CODE: ${{ github.run_number }}
+          SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }} # native crash reports (optional)
+          SENTRY_ENVIRONMENT: production
         run: ./gradlew assembleRelease --no-daemon
       - name: Verify APK is signed with the release key
         env:

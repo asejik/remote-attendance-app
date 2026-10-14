@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify('test') },
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'supabase/functions/_shared/*.test.ts'],
     environment: 'node',
   },
 })

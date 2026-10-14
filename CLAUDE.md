@@ -133,6 +133,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - `VITE_ENABLE_DIAGNOSTICS=1` (test APK only): shows `/diagnostics`.
   - `VITE_SENTRY_DSN`: enables Sentry (`src/lib/monitoring.ts`, PII stripped). Upload refusals are reported by `sync.ts` (code/status only).
   - Edge Functions: secrets `SENTRY_DSN` + `SENTRY_ENVIRONMENT` enable `_shared/sentry.ts` (errors via `logError`, and the purge job's Sentry Cron check-in). Dev uses `development`.
+  - Android native crashes: `io.sentry:sentry-android-core` (Java/Kotlin crashes, freezes), configured by manifest meta-data (no screenshots, view hierarchy or PII); the DSN comes from env `SENTRY_DSN` at Gradle time (empty = off).
   - Release APK only: `VITE_APP_VERSION` (tag) + `VITE_UPDATE_URL` (`{site}/version.json`) turn on the update notice (`src/lib/appUpdate.ts`).
   - `VITE_MAP_TILE_URL` / `VITE_MAP_ATTRIBUTION`: the map tile provider.
 - **Lazy chunks:** the face camera (face-api), diagnostics, the site map (Leaflet) and Excel export (SheetJS) are loaded on demand. Keep heavy libraries out of the main bundle.

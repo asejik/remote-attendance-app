@@ -4,6 +4,7 @@
 // organisation. Each action is written to the audit log.
 import { corsHeaders, json, randomDigits, randomPin, randomSecret, serviceClient } from '../_shared/http.ts'
 import { logError } from '../_shared/sentry.ts'
+import { retryOnce } from '../_shared/retry.ts'
 
 type Svc = ReturnType<typeof serviceClient>
 interface Admin { userId: string; staffId: string; orgId: string; orgSlug: string }
@@ -60,10 +61,14 @@ const create = async (svc: Svc, admin: Admin, body: Record<string, unknown>) => 
       return json({ error: staffError?.code === '23505' ? 'staff_code_taken' : 'server_error' }, staffError?.code === '23505' ? 409 : 500)
     }
 
+    // The PIN is the last step. If it can't be set (after one retry), undo the
+    // staff record and login so the admin can simply try again with the same code.
     const pin = randomPin()
-    const { error: pinError } = await svc.rpc('staff_pin_set', { p_staff_id: staff.id, p_pin: pin })
+    const pinError = await retryOnce(() => svc.rpc('staff_pin_set', { p_staff_id: staff.id, p_pin: pin }))
     if (pinError) {
-      await logError('admin-staff', 'staff_pin_set failed', pinError)
+      await logError('admin-staff', 'staff_pin_set failed; account creation undone', pinError)
+      await svc.from('staff').delete().eq('id', staff.id)
+      await svc.auth.admin.deleteUser(created.user.id)
       return json({ error: 'server_error' }, 500)
     }
     await audit(svc, admin, 'create_staff', staff.id, { role, staff_code: code })

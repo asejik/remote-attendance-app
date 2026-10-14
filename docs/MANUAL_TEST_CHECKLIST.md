@@ -18,6 +18,7 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 - ☐ Existing demo worker: on next login (online) they see **"Our privacy notice has changed"** with the number of days photos are kept; after agreeing, it doesn't come back. While offline it never blocks clock-in.
 - ☐ Worker phone: turn on airplane mode, tap Log out: you land on the login screen and stay logged out after turning the network back on.
 - ☐ Data request (dev rehearsal, optional): `ACTION=export ORG_SLUG=demo STAFF_CODE=WRK-02 node scripts/data-request.mjs` writes a folder in `data-export/` with that worker's records and photos. (Don't run `delete` on demo unless you mean it; without `CONFIRM` it is only a dry run.)
+- ☐ Native crash reporting: install the new test APK and open it once. Sentry → *Releases* (or Insights → Sessions) shows a session from `com.asejik.attendance` in environment `test-apk`. Any Android-side crash or freeze later appears as an issue there.
 - ☐ Release APK (first production release): set `public/version.json` `latest` above the installed version; reopen the app: a blue *A new version is available* bar with **Update** opens the download. Set `minimum` above it: the bar turns red. Clock-in still works.
 
 ## M6 Production readiness (2026-10-15). Mostly checked during go-live (docs/deploy/GO_LIVE.md)

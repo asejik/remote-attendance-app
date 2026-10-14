@@ -24,6 +24,15 @@
 
         </activity>
 
+        <!-- Native crash reporting (Sentry). No personal data: no screenshots, no
+             view hierarchy, no default PII. DSN and environment come from the build. -->
+        <meta-data android:name="io.sentry.dsn" android:value="${sentryDsn}" />
+        <meta-data android:name="io.sentry.environment" android:value="${sentryEnvironment}" />
+        <meta-data android:name="io.sentry.send-default-pii" android:value="false" />
+        <meta-data android:name="io.sentry.attach-screenshot" android:value="false" />
+        <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="false" />
+        <meta-data android:name="io.sentry.traces.sample-rate" android:value="0" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
