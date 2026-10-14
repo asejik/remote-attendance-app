@@ -19,6 +19,8 @@ let orgId = ''
 let userId = ''
 
 const svc = () => createClient(url, secret!, { auth: { persistSession: false } })
+// PIN sign-in runs an Edge Function (cold starts of 4-5 s seen on dev) plus a session exchange.
+const PIN_LOGIN_MS = 15_000
 
 test.use({ geolocation: { ...SITE, accuracy: 15 } })
 
@@ -61,7 +63,7 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await page.getByRole('button', { name: 'I understand and agree' }).click()
+  await page.getByRole('button', { name: 'I understand and agree' }).click({ timeout: PIN_LOGIN_MS })
   await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
   await page.getByLabel('Your site').selectOption({ label: 'E2E Site' })
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
@@ -122,7 +124,7 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Our privacy notice has changed' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Our privacy notice has changed' })).toBeVisible({ timeout: PIN_LOGIN_MS })
   await expect(page.getByText('Photos are deleted automatically after 60 days')).toBeVisible()
   await page.getByRole('button', { name: 'I understand and agree' }).click()
   await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
@@ -159,7 +161,7 @@ test('logging out with no network really signs the phone out', async ({ page, co
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page.getByText(/CLOCKED (IN|OUT)/)).toBeVisible()
+  await expect(page.getByText(/CLOCKED (IN|OUT)/)).toBeVisible({ timeout: PIN_LOGIN_MS })
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
 
   await context.setOffline(true)

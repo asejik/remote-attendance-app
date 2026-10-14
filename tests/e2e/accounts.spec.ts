@@ -76,7 +76,8 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
   await workerLogin(page, code, pin === '000000' ? '111111' : '000000')
   await expect(page.getByRole('alert')).toContainText('Organisation, staff code or PIN is not correct.')
   await workerLogin(page, code, pin)
-  await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible()
+  // PIN sign-in runs an Edge Function (cold starts of 4-5 s seen on dev) plus a session exchange.
+  await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: 'I understand and agree' }).click()
   await expect(page.getByRole('heading', { name: workerName })).toBeVisible()
 

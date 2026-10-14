@@ -79,13 +79,13 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const [storageLow, setStorageLow] = useState(false);
 
   // Organisation settings, sites and the server's recent events (cached for offline).
-  const refreshFromServer = useCallback(async () => {
-    const [orgRes, sitesRes, eventsRes] = await Promise.all([
+  const loadFromServer = useCallback(() => Promise.all([
       supabase.from('organizations').select('site_photo_required, geofence_mode').eq('id', organization.id).maybeSingle(),
       supabase.from('work_sites').select('id, name, latitude, longitude, radius_m').order('name'),
       supabase.from('attendance_events').select('id, type, captured_at, site_name_snapshot, flags')
         .eq('staff_id', staff.id).order('captured_at', { ascending: false }).limit(5),
-    ]);
+  ]), [organization.id, staff.id]);
+  const applyFromServer = useCallback(([orgRes, sitesRes, eventsRes]: Awaited<ReturnType<typeof loadFromServer>>) => {
     if (orgRes.data) {
       setSettings(orgRes.data);
       writeCache(cacheKey(organization.id, 'settings'), orgRes.data);
@@ -99,6 +99,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
       writeCache(cacheKey(staff.id, 'recent'), eventsRes.data);
     }
   }, [organization.id, staff.id]);
+  const refreshFromServer = useCallback(async () => applyFromServer(await loadFromServer()), [loadFromServer, applyFromServer]);
 
   useEffect(() => {
     let cancelled = false;
@@ -121,7 +122,9 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
-    refreshFromServer();
+    loadFromServer().then((result) => {
+      if (!cancelled) applyFromServer(result);
+    });
     return () => {
       cancelled = true;
       unsubscribe();
@@ -129,7 +132,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
       window.removeEventListener('online', update);
       window.removeEventListener('offline', update);
     };
-  }, [userId, refreshFromServer]);
+  }, [userId, loadFromServer, applyFromServer]);
 
   // History: this device's records plus the server's, newest first, no duplicates.
   const localIds = new Set(local.map((e) => e.id));

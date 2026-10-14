@@ -9,4 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase Environment Variables');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+// db.retry off: supabase-js (2.10x+) retries failed reads 3 times (1 + 2 + 4 s).
+// The app handles failures itself (offline cache fallback, sync backoff), and
+// those retries made an offline reopen sit on "Loading" for about 7 seconds.
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, { db: { retry: false } });
