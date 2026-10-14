@@ -48,13 +48,18 @@ export const queue = {
     notify();
   },
   getPhoto: (id: string, kind: PhotoKind) => getStore().getPhoto(id, kind),
+  // Worker taps "Try again" on a refused record: back in the upload queue.
+  async retry(id: string) {
+    await getStore().update(id, { status: 'pending', attempts: 0, failReason: undefined });
+    notify();
+  },
   // After a confirmed upload: drop photos, keep the record for the history list.
   async markSynced(id: string, flags: string[]) {
     await getStore().deletePhotos(id);
-    await getStore().update(id, { status: 'synced', syncedAt: new Date().toISOString(), flags, lastError: undefined });
+    await getStore().update(id, { status: 'synced', syncedAt: new Date().toISOString(), flags, lastError: undefined, failReason: undefined });
     notify();
   },
-  // Remove uploaded records older than 30 days (pending ones are never pruned).
+  // Remove uploaded records older than 30 days (pending and failed ones are never pruned).
   async prune(now = Date.now()) {
     const old = (await getStore().list()).filter(
       (e) => e.status === 'synced' && now - new Date(e.syncedAt ?? e.capturedAt).getTime() > SYNCED_RETENTION_MS,

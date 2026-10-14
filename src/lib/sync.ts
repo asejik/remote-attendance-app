@@ -2,6 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Network } from '@capacitor/network';
 import { supabase } from './supabase';
 import { queue, type QueuedEvent } from './queue';
+import { reportSyncProblem } from './monitoring';
 
 export interface SyncReport {
   synced: number;
@@ -31,6 +32,31 @@ export const syncPendingRecords = () => {
   }
   return inFlight;
 };
+
+// A refusal the server will repeat on every retry (row-level security, a
+// constraint, invalid data, a file too large), as opposed to a network or
+// server problem or an expired session. Returns a reason for the worker, or null.
+type ApiError = { code?: string; status?: number; statusCode?: string | number; message?: string };
+const statusOf = (e: ApiError) => {
+  const n = Number(e?.statusCode ?? e?.status); // storage errors: statusCode carries the real reason
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+};
+export const refusalReason = (error: unknown): string | null => {
+  const e = error as ApiError;
+  if (/jwt|token|expired/i.test(e?.message ?? '')) return null; // session problem: sign-in refresh fixes it
+  const code = typeof e?.code === 'string' ? e.code : '';
+  const status = statusOf(e);
+  if (code === '42501' || status === 403) return 'Your account is not allowed to send records (it may be deactivated).';
+  if (status === 413) return 'A photo was too large to upload.';
+  if (/^2[23]\d{3}$/.test(code) || status === 400 || status === 422) return 'The server did not accept this record.';
+  return null;
+};
+// Refused this many times in a row before it's marked failed, in case of a one-off.
+const REFUSALS_BEFORE_FAILED = 2;
+// A record that keeps failing for other reasons is reported once, at this attempt.
+const REPORT_AT_ATTEMPT = 3;
+const isNetworkError = (error: unknown) =>
+  error instanceof TypeError || /failed to fetch|network|load failed/i.test((error as ApiError)?.message ?? '');
 
 const isDuplicate = (error: unknown) => {
   const e = error as { statusCode?: string | number; message?: string };
@@ -86,7 +112,17 @@ const runSync = async () => {
       syncedCount++;
     } catch (err) {
       console.error('Sync failed for record:', event.id, err);
-      await queue.update(event.id, { attempts: event.attempts + 1, lastError: errorMessage(err) });
+      const attempts = event.attempts + 1;
+      const message = errorMessage(err);
+      const reason = refusalReason(err);
+      const e = err as ApiError;
+      if (reason && attempts >= REFUSALS_BEFORE_FAILED) {
+        await queue.update(event.id, { status: 'failed', attempts, lastError: message, failReason: reason });
+        reportSyncProblem('refused', e?.code, statusOf(e), message);
+      } else {
+        await queue.update(event.id, { attempts, lastError: message });
+        if (attempts === REPORT_AT_ATTEMPT && !isNetworkError(err)) reportSyncProblem('failing', e?.code, statusOf(e), message);
+      }
       errorCount++;
     }
   }

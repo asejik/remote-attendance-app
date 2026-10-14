@@ -109,3 +109,36 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
   const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
   expect(count).toBe(2)
 })
+
+test('a clock-in the server refuses twice is shown as not accepted, and "try again" uploads it', async ({ page }) => {
+  test.setTimeout(120_000)
+  await svc().from('organizations').update({ geofence_mode: 'flag' }).eq('id', orgId)
+
+  await page.goto('/')
+  await page.getByLabel('Organisation').fill(slug)
+  await page.getByLabel('Staff code').fill(code)
+  await page.getByLabel('PIN (6 digits)').fill(pin)
+  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
+  await page.getByLabel('Your site').selectOption({ label: 'E2E Site' })
+
+  // The server refuses the record as it would for a deactivated worker.
+  const refuse = (route: import('@playwright/test').Route) => route.request().method() === 'POST'
+    ? route.fulfill({ status: 403, contentType: 'application/json', body: JSON.stringify({ code: '42501', message: 'new row violates row-level security policy' }) })
+    : route.continue()
+  await page.route('**/rest/v1/attendance_events*', refuse)
+
+  await page.getByRole('button', { name: 'Tap to clock IN' }).click()
+  // First refusal is retried (backoff 30 s); the second marks it not accepted.
+  await expect(page.getByRole('alert').filter({ hasText: '1 record not accepted' })).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByRole('alert')).toContainText('not allowed to send records')
+  await expect(page.getByText('Not accepted', { exact: true })).toBeVisible()
+  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible() // a refused clock-in doesn't count
+
+  await page.unroute('**/rest/v1/attendance_events*', refuse)
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByText('All records uploaded')).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('CLOCKED IN', { exact: true })).toBeVisible()
+  const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
+  expect(count).toBe(3)
+})

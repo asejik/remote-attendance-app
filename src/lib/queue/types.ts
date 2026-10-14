@@ -18,9 +18,12 @@ export interface QueuedEvent {
   livenessPassed: boolean;
   hasFacePhoto: boolean;
   hasSitePhoto: boolean;
-  status: 'pending' | 'synced';
+  // failed = the server refused it twice (not a network problem); kept with its
+  // photos so the worker can show it to a supervisor or try again.
+  status: 'pending' | 'synced' | 'failed';
   attempts: number;
   lastError?: string;
+  failReason?: string; // plain-language reason shown to the worker when failed
   syncedAt?: string;
   flags?: string[]; // server-computed, filled in after upload
 }

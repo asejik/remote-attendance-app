@@ -25,3 +25,15 @@ export const initMonitoring = () => {
     },
   });
 };
+
+// Upload problems are caught by the sync engine, so Sentry would never see them
+// on its own. Only the error code and HTTP status are sent: no coordinates,
+// names or photos. A no-op when Sentry isn't enabled.
+export const reportSyncProblem = (kind: 'refused' | 'failing', code: string | undefined, status: number | undefined, message: string) => {
+  Sentry.captureMessage(kind === 'refused' ? 'Upload refused by the server' : 'Upload keeps failing', {
+    level: kind === 'refused' ? 'error' : 'warning',
+    tags: { sync: kind, code: code ?? 'none', status: status ? String(status) : 'none' },
+    extra: { message: message.slice(0, 200) },
+    fingerprint: ['sync', kind, code ?? String(status ?? 'none')],
+  });
+};

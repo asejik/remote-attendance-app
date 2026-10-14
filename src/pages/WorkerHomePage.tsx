@@ -2,7 +2,8 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
-import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, History, Loader2, LogOut, MapPin, RefreshCw } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, HardDrive, History, Loader2, LogOut, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/queue';
 import { startAutoSync, syncPendingRecords } from '../lib/sync';
@@ -10,6 +11,7 @@ import { dataUrlToBlob, shrinkPhoto } from '../lib/image';
 import { distanceM, outsideSite, type Fix } from '../lib/geo';
 import { flagLabel } from '../lib/reports';
 import { DIAGNOSTICS } from '../lib/buildFlags';
+import { getStorageInfo } from '../lib/storage';
 import type { StaffContext } from '../context/useStaff';
 
 // The face camera (face-api.js + TensorFlow) is the largest part of the app;
@@ -49,6 +51,9 @@ const getFix = async (): Promise<Fix | null> => {
   }
 };
 
+// Warn when browser storage (where queued photos wait on the web) is this full.
+const STORAGE_LOW_RATIO = 0.8;
+
 type Step = 'idle' | 'locating' | 'face' | 'site-instruction' | 'saving';
 
 export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
@@ -69,6 +74,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const [pending, setPending] = useState<{ fix: Fix | null; face: Blob; livenessPassed: boolean } | null>(null);
   const [fixForCapture, setFixForCapture] = useState<Fix | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [storageLow, setStorageLow] = useState(false);
 
   // Organisation settings, sites and the server's recent events (cached for offline).
   const refreshFromServer = useCallback(async () => {
@@ -97,8 +103,18 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
     const readQueue = () => queue.forUser(userId).then((events) => {
       if (!cancelled) setLocal(events);
     });
+    // Web only: queued photos live in browser storage, which has a quota.
+    const checkStorage = async () => {
+      if (Capacitor.isNativePlatform()) return;
+      const { usageBytes, quotaBytes } = await getStorageInfo();
+      if (!cancelled) setStorageLow(!!usageBytes && !!quotaBytes && usageBytes / quotaBytes > STORAGE_LOW_RATIO);
+    };
+    checkStorage();
     readQueue();
-    const unsubscribe = subscribeQueue(readQueue);
+    const unsubscribe = subscribeQueue(() => {
+      readQueue();
+      checkStorage();
+    });
     const stopSync = startAutoSync();
     const update = () => setOnline(navigator.onLine);
     window.addEventListener('online', update);
@@ -116,13 +132,15 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   // History: this device's records plus the server's, newest first, no duplicates.
   const localIds = new Set(local.map((e) => e.id));
   const history = [
-    ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], waiting: e.status === 'pending' })),
+    ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], state: e.status })),
     ...serverEvents.filter((e) => !localIds.has(e.id))
-      .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, waiting: false })),
+      .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, state: 'synced' as const })),
   ].sort((a, b) => b.at.localeCompare(a.at));
-  const last = history[0];
+  // A record the server refused doesn't count towards clocked in/out.
+  const last = history.find((h) => h.state !== 'failed');
   const clockedIn = last?.type === 'CLOCK_IN';
   const waiting = local.filter((e) => e.status === 'pending');
+  const failed = local.filter((e) => e.status === 'failed');
   const site = sites.find((s) => s.id === siteId);
 
   const start = async () => {
@@ -210,8 +228,14 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
     setSyncing(false);
   };
 
+  const retryFailed = async () => {
+    for (const e of failed) await queue.retry(e.id);
+    await syncNow();
+  };
+
   const logOut = async () => {
-    if (waiting.length && !window.confirm(`${waiting.length} record(s) haven't uploaded yet. They will upload next time you log in on this phone. Log out?`)) return;
+    const unsent = waiting.length + failed.length;
+    if (unsent && !window.confirm(`${unsent} record(s) haven't uploaded yet. They stay on this phone until you log in again. Log out?`)) return;
     await supabase.auth.signOut();
     navigate('/', { replace: true });
   };
@@ -265,6 +289,24 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           {!sites.length && <span className="block mt-1 text-xs text-amber-700">No sites yet. Connect to the internet, or ask your admin to add your site.</span>}
         </label>
 
+        {failed.length > 0 && (
+          <div className="w-full bg-red-50 border border-red-200 rounded-xl p-3 space-y-2" role="alert">
+            <p className="flex items-center gap-2 text-red-800 text-sm font-semibold">
+              <XCircle size={18} aria-hidden /> {failed.length} record{failed.length > 1 ? 's' : ''} not accepted
+            </p>
+            <p className="text-sm text-red-800">{failed[0].failReason} Show this screen to your supervisor or admin.</p>
+            <button onClick={retryFailed} disabled={syncing || !online} className="text-xs bg-red-100 text-red-900 px-3 py-1.5 rounded-full flex items-center gap-1 disabled:opacity-50">
+              {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Try again
+            </button>
+          </div>
+        )}
+
+        {storageLow && (
+          <p className="w-full text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 flex items-start gap-2" role="status">
+            <HardDrive size={16} className="mt-0.5 shrink-0" aria-hidden /> Phone storage is nearly full. Connect to the internet so your records upload, and free up some space.
+          </p>
+        )}
+
         {waiting.length > 0 ? (
           <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between" role="status">
             <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
@@ -274,7 +316,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
               {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Upload now
             </button>
           </div>
-        ) : (
+        ) : failed.length === 0 && (
           <p className="w-full bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-center gap-2 text-green-800 text-sm font-semibold" role="status">
             <Cloud size={16} aria-hidden /> All records uploaded
           </p>
@@ -324,8 +366,10 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
                     </p>
                   )}
                 </div>
-                <span className={`text-xs font-medium whitespace-nowrap flex items-center gap-1 ${h.waiting ? 'text-orange-700' : 'text-green-700'}`}>
-                  {h.waiting ? <><CloudOff size={12} aria-hidden /> Waiting</> : <><CheckCircle size={12} aria-hidden /> Uploaded</>}
+                <span className={`text-xs font-medium whitespace-nowrap flex items-center gap-1 ${h.state === 'failed' ? 'text-red-700' : h.state === 'pending' ? 'text-orange-700' : 'text-green-700'}`}>
+                  {h.state === 'failed' ? <><XCircle size={12} aria-hidden /> Not accepted</>
+                    : h.state === 'pending' ? <><CloudOff size={12} aria-hidden /> Waiting</>
+                    : <><CheckCircle size={12} aria-hidden /> Uploaded</>}
                 </span>
               </li>
             ))}

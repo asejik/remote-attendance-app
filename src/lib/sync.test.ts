@@ -7,7 +7,9 @@ const upload = vi.fn();
 const upsert = vi.fn();
 const flags = vi.fn();
 const session = vi.fn();
+const report = vi.fn();
 vi.mock('@capacitor/network', () => ({ Network: { addListener: vi.fn() } }));
+vi.mock('./monitoring', () => ({ reportSyncProblem: (...args: unknown[]) => report(...args) }));
 vi.mock('./supabase', () => ({
   supabase: {
     auth: { getSession: () => session() },
@@ -18,7 +20,7 @@ vi.mock('./supabase', () => ({
 
 const { queue, setQueueStore } = await import('./queue');
 const { createWebStore } = await import('./queue/webStore');
-const { syncPendingRecords, startAutoSync, retryDelayMs, getLastSyncTrigger } = await import('./sync');
+const { syncPendingRecords, startAutoSync, retryDelayMs, getLastSyncTrigger, refusalReason } = await import('./sync');
 
 setQueueStore(createWebStore());
 
@@ -44,6 +46,7 @@ const resetMocks = async () => {
   upsert.mockReset().mockResolvedValue({ error: null });
   flags.mockReset().mockResolvedValue({ data: { flags: ['outside_radius'] } });
   session.mockReset().mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
+  report.mockReset();
 };
 
 describe('sync engine', () => {
@@ -97,6 +100,66 @@ describe('sync engine', () => {
     upsert.mockResolvedValueOnce({ error: { message: 'new row violates row-level security policy' } });
     await syncPendingRecords();
     expect((await stored(event.id)).lastError).toBe('new row violates row-level security policy');
+  });
+
+  it('marks a record failed after the server refuses it twice, keeps its photos and reports it once', async () => {
+    const event = await queueOne();
+    const rls = { code: '42501', message: 'new row violates row-level security policy for table "attendance_events"' };
+    upsert.mockResolvedValue({ error: rls });
+
+    await syncPendingRecords();
+    expect((await stored(event.id)).status).toBe('pending'); // one refusal could be a fluke
+    expect(report).not.toHaveBeenCalled();
+
+    await syncPendingRecords();
+    const after = await stored(event.id);
+    expect(after).toMatchObject({ status: 'failed', attempts: 2, failReason: expect.stringMatching(/not allowed/) });
+    expect(await queue.getPhoto(event.id, 'face')).not.toBeNull();
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0].slice(0, 3)).toEqual(['refused', '42501', undefined]);
+
+    await syncPendingRecords(); // failed records are no longer retried
+    expect(upsert).toHaveBeenCalledTimes(2);
+    expect(await queue.allPending()).toEqual([]);
+  });
+
+  it('puts a failed record back in the queue on "try again", and never prunes it', async () => {
+    const event = await queueOne();
+    await queue.update(event.id, { status: 'failed', attempts: 2, failReason: 'x' });
+    await queue.prune(Date.now() + 90 * 86_400_000);
+    expect((await stored(event.id)).status).toBe('failed');
+    await queue.retry(event.id);
+    const back = await stored(event.id);
+    expect(back).toMatchObject({ status: 'pending', attempts: 0 });
+    expect(back.failReason).toBeUndefined();
+    expect(await syncPendingRecords()).toEqual({ synced: 1, errors: 0 });
+  });
+
+  it('reports a record that keeps failing for other reasons once, at the third try; network errors never', async () => {
+    const serverDown = await queueOne();
+    upsert.mockResolvedValue({ error: { code: 'PGRST000', message: 'Could not connect to the database' } });
+    for (let i = 0; i < 4; i++) await syncPendingRecords();
+    expect((await stored(serverDown.id)).status).toBe('pending');
+    expect(report).toHaveBeenCalledTimes(1);
+    expect(report.mock.calls[0][0]).toBe('failing');
+
+    await queue.update(serverDown.id, { status: 'synced' });
+    report.mockReset();
+    await queueOne();
+    upload.mockRejectedValue(new TypeError('Failed to fetch'));
+    for (let i = 0; i < 4; i++) await syncPendingRecords();
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('tells refusals apart from session and server problems', () => {
+    expect(refusalReason({ code: '42501', message: 'rls' })).toMatch(/not allowed/);
+    expect(refusalReason({ statusCode: '403', status: 400, message: 'new row violates row-level security policy' })).toMatch(/not allowed/);
+    expect(refusalReason({ code: '23503', message: 'foreign key' })).toMatch(/did not accept/);
+    expect(refusalReason({ statusCode: '413', message: 'Payload too large' })).toMatch(/too large/);
+    expect(refusalReason({ statusCode: '403', status: 400, message: 'jwt expired' })).toBeNull();
+    expect(refusalReason({ code: 'PGRST301', message: 'JWT expired' })).toBeNull();
+    expect(refusalReason({ status: 503, message: 'Service unavailable' })).toBeNull();
+    expect(refusalReason(new TypeError('Failed to fetch'))).toBeNull();
   });
 
   it("only uploads the signed-in user's records", async () => {
