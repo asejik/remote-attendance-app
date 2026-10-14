@@ -11,6 +11,7 @@ const MESSAGES: Record<string, string> = {
   staff_code_taken: 'That staff code is already used.',
   cannot_change_self: "You can't deactivate your own account.",
   forbidden: 'Not allowed. Only organisation admins can do this, and not while the subscription is suspended.',
+  mfa_required: 'Please log in again and enter the code from your authenticator app.',
   network: "Can't reach the server. Check your internet connection.",
 };
 

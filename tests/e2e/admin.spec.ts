@@ -4,6 +4,8 @@ import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { enrolTotp } from '../support/mfa'
+import { totp } from '../support/totp'
 
 // M5 admin screens end to end on the dev project, in a throwaway organisation:
 // review queue (flagged first, photos side by side, reject needs a note, audit),
@@ -23,6 +25,7 @@ const ABSENT = 'Absent Worker'
 const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
 let orgId = ''
 let adminUserId = ''
+let adminTotp = ''
 let absentStaffId = ''
 let siteId = ''
 const userIds: string[] = []
@@ -57,6 +60,10 @@ test.beforeAll(async () => {
   const adminUser = await user(adminEmail)
   adminUserId = adminUser
   await s.from('staff').insert({ organization_id: orgId, user_id: adminUser, full_name: 'E2E Admin', staff_code: 'ADM-1', role: 'admin', status: 'active' })
+  // Two-step login is required for admins: set up their authenticator up front.
+  const adminClient = createClient(url, process.env.VITE_SUPABASE_ANON_KEY!, { auth: { persistSession: false } })
+  await adminClient.auth.signInWithPassword({ email: adminEmail, password: adminPassword })
+  adminTotp = await enrolTotp(adminClient)
   const evilUser = await user(`evil-${run}@attendance-dev.test`)
   const { data: evil } = await s.from('staff')
     .insert({ organization_id: orgId, user_id: evilUser, full_name: EVIL, staff_code: 'W-1', role: 'worker', status: 'active' }).select('id').single()
@@ -106,6 +113,9 @@ const login = async (page: Page) => {
   await page.getByLabel('Email').fill(adminEmail)
   await page.getByLabel('Password').fill(adminPassword)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/verify/)
+  await page.getByLabel('6-digit code').fill(totp(adminTotp))
+  await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page).toHaveURL(/\/admin\/review/)
 }
 

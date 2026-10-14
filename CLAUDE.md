@@ -35,7 +35,7 @@ npm run typecheck      # tsc -b (noUnusedLocals/Parameters on)
 npm run lint           # ESLint
 npm test               # Vitest unit tests (src/**/*.test.ts, node env + fake-indexeddb)
 npx vitest run src/lib/db.test.ts -t "PENDING"   # single test file / name
-npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env. Session tests need `E2E_STAFF_EMAIL`/`E2E_STAFF_PASSWORD` and the accounts test needs `E2E_ADMIN_EMAIL`/`E2E_ADMIN_PASSWORD`/`E2E_ORG_SLUG` plus `SUPABASE_SECRET_KEY` in `.env`. They skip without them (as in CI)
+npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a production build served by `vite preview` on [::1]:4173 (service worker active), dev Supabase from .env. Session tests need `E2E_STAFF_EMAIL`/`E2E_STAFF_PASSWORD`; the admin and accounts tests need `SUPABASE_SECRET_KEY` (they create throwaway admins with two-step login; `E2E_ORG_SLUG`, default `demo`) in `.env`. They skip without them (as in CI)
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
 npm run check:migrations  # names, rollback files, and (CI, BASE_SHA) new migrations sort after existing ones
@@ -75,6 +75,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Each worker's Auth email is `{code}@{slug}.staff.invalid`, with a random password nobody knows, so PINs can't be guessed against Auth directly.
   - `admin-staff` (actions `create`, `reset_pin`, `set_status`, `set_reference_photo`) checks that the caller is an active admin and scopes everything to their org.
   - Admins themselves use email + password and are created by the platform owner (seed/script), never through `admin-staff`.
+  - **Admins need two-step login** (TOTP, Supabase MFA; migration `20261015150000`): `private.current_staff_role()` returns no role for an admin whose session isn't AAL2, so every admin policy and RPC refuses them, and `admin-staff` answers `mfa_required`. The app sends them to `/admin/verify` (set up the authenticator app, or enter the code); the password-reset screen asks for the code too (Supabase requires AAL2 to change a password). Tests: `tests/support/totp.ts` + `tests/support/mfa.ts` (RLS fixtures enrol admins; the accounts E2E goes through the real set-up screen). Recovery is by the owner (RUNBOOK).
   - Deactivation sets `staff.status` and bans the Auth user.
   - Workers accept the privacy notice via the `accept_consent()` RPC.
   - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.

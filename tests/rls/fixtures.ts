@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../../src/lib/database.types'
+import { enrolTotp } from '../support/mfa'
 
 type Client = SupabaseClient<Database>
 
@@ -51,7 +52,11 @@ interface Person {
   userId: string
   staffId: string
   client: Client
+  email: string
+  password: string
+  totpSecret?: string // admins: their authenticator secret (two-step login)
 }
+
 
 export interface World {
   slugA: string
@@ -119,7 +124,8 @@ export const buildWorld = async (): Promise<World> => {
     const client = anon()
     const signedIn = await client.auth.signInWithPassword({ email, password })
     if (signedIn.error) throw new Error(`sign in ${code}: ${signedIn.error.message}`)
-    return { userId: user.id, staffId: staff.id, client }
+    const totpSecret = role === 'admin' && active ? await enrolTotp(client) : undefined
+    return { userId: user.id, staffId: staff.id, client, email, password, totpSecret }
   }
 
   return {

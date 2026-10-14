@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/useAuth';
+import { verifiedTotpFactor, verifyTotp } from '../lib/mfa';
 
 // Landing page for the admin password-reset email link. Supabase signs the user
 // in from the link; they then choose a new password.
@@ -13,14 +14,30 @@ export const ResetPasswordPage = () => {
   const [confirm, setConfirm] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // Supabase requires two-step login before a password change when it is set up.
+  const [needCode, setNeedCode] = useState(false);
+  const [code, setCode] = useState('');
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (password.length < 12) return setError('Use at least 12 characters. A short sentence is easy to remember.');
     if (password !== confirm) return setError('The two passwords do not match.');
     setBusy(true);
+    setError('');
+    if (needCode) {
+      const factor = await verifiedTotpFactor().catch(() => null);
+      const problem = factor ? await verifyTotp(factor.id, code) : 'Could not check the code. Please try again.';
+      if (problem) {
+        setBusy(false);
+        return setError(problem);
+      }
+    }
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setBusy(false);
+    if (updateError?.code === 'insufficient_aal') {
+      setNeedCode(true);
+      return setError('Enter the 6-digit code from your authenticator app, then save again.');
+    }
     if (updateError) return setError('Could not change the password. The link may have expired; request a new one.');
     navigate('/admin/review', { replace: true });
   };
@@ -43,6 +60,13 @@ export const ResetPasswordPage = () => {
               <input type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password"
                 className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3" />
             </label>
+            {needCode && (
+              <label className="block text-sm font-medium text-gray-700">
+                6-digit code from your authenticator app
+                <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
+                  autoComplete="one-time-code" required className="mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 tracking-widest" />
+              </label>
+            )}
             {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
             <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-gray-800 text-white font-medium flex justify-center disabled:opacity-60">
               {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'Save password'}

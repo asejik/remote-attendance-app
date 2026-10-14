@@ -55,7 +55,7 @@ Supabase's built-in mailer is limited (~2 emails/hour) and not for production.
 ## 6. First client organisation and admin (owner, ~3 min)
 
 Actions → **Onboard organisation (production)** → Run workflow → enter the organisation name, short code (what workers type at login, e.g. `abc`), the admin's name and email, and the settings → approve. Running it twice is harmless.
-The admin then opens the app → **Organisation admin? Log in here** → **Forgot password?** to set their own password, so no password is ever sent by chat or email (needs step 4's email setup).
+The admin then opens the app → **Organisation admin? Log in here** → **Forgot password?** to set their own password, so no password is ever sent by chat or email (needs step 4's email setup). On their first login they set up two-step login (an authenticator app on their phone, by scanning a QR code); tell them to have the app installed.
 
 ## 7. Android release (developer tags; owner publishes)
 

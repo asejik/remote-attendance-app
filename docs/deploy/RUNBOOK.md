@@ -24,6 +24,13 @@ For the owner (platform operator). Organisation-specific details (client names, 
 2. Effect: admins see a red banner and can still view and export, but can't change sites, workers, reviews or settings. Workers keep clocking in for **7 days**, then their clock-ins are refused and they see a notice.
 3. To restore, set `status` back to `active`. Clock-ins refused after the grace period stay on workers' phones as *not accepted*; they tap **Try again**.
 
+## An admin lost their phone (two-step login)
+Admins must enter a code from an authenticator app after their password. If the phone is lost or replaced:
+1. Confirm who they are outside the app (a call to a number you already have, or through the client's management). Never just reply to an email that asks for a reset.
+2. Supabase (production) → *Authentication → Users* → find their email → open the user → remove their **MFA factor** (the "Authenticator app" entry).
+3. Ask them to log in again: they set up the authenticator on the new phone (QR code) before they can see anything.
+4. If they also forgot the password: do steps 1–2 first, then they use **Forgot password?**.
+
 ## A worker can't log in
 - "not correct": check organisation code and staff code (admin → Staff); reset the PIN.
 - "Too many wrong PINs": wait 15 minutes, or the admin resets the PIN (unlocks immediately).

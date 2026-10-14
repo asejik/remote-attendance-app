@@ -7,6 +7,15 @@ import { logError } from '../_shared/sentry.ts'
 import { retryOnce } from '../_shared/retry.ts'
 
 type Svc = ReturnType<typeof serviceClient>
+
+const jwtClaims = (jwt: string): { aal?: string } => {
+  try {
+    const part = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+    return JSON.parse(atob(part.padEnd(part.length + ((4 - (part.length % 4)) % 4), '=')))
+  } catch {
+    return {}
+  }
+}
 interface Admin { userId: string; staffId: string; orgId: string; orgSlug: string }
 
 const audit = async (svc: Svc, admin: Admin, action: string, targetId: string, details: Record<string, unknown> = {}) => {
@@ -146,6 +155,9 @@ Deno.serve(withCors(async (req) => {
   if (!me || me.role !== 'admin' || me.status !== 'active' || me.organizations?.status !== 'active') {
     return json({ error: 'forbidden' }, 403)
   }
+  // Admins must have completed two-step login (migration 20261015150000). The
+  // token was just validated by getUser, so its claims can be trusted.
+  if (jwtClaims(jwt).aal !== 'aal2') return json({ error: 'mfa_required' }, 403)
   const admin: Admin = { userId: auth.user.id, staffId: me.id, orgId: me.organization_id, orgSlug: me.organizations.slug }
 
   let body: Record<string, unknown>

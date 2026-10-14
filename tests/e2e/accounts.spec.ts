@@ -1,14 +1,29 @@
 import { expect, test } from './fixtures'
 import type { Page } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
+import { totp } from '../support/totp'
 
 // M3 flow on the dev project: admin adds a worker (with reference photo), the
 // worker logs in with code + PIN and accepts the notice, the admin deactivates
-// them, and their next login is refused. Needs E2E_ADMIN_* in the local .env.
-const adminEmail = process.env.E2E_ADMIN_EMAIL
-const adminPassword = process.env.E2E_ADMIN_PASSWORD
+// them, and their next login is refused. Uses a throwaway admin in the demo
+// organisation, who sets up two-step login through the real screen.
 const org = process.env.E2E_ORG_SLUG ?? 'demo'
-test.skip(!adminEmail || !adminPassword || !process.env.SUPABASE_SECRET_KEY, 'E2E_ADMIN_* / SUPABASE_SECRET_KEY not set')
+const secretKey = process.env.SUPABASE_SECRET_KEY
+test.skip(!secretKey, 'SUPABASE_SECRET_KEY not set')
+const svc = () => createClient(process.env.VITE_SUPABASE_URL!, secretKey!, { auth: { persistSession: false } })
+const adminEmail = `e2e-accounts-admin-${randomUUID().slice(0, 8)}@attendance-dev.test`
+const adminPassword = `Pw-${randomUUID()}`
+let adminUserId = ''
+let adminTotp = '' // learnt from the set-up screen on the first login
+
+test.beforeAll(async () => {
+  const s = svc()
+  const { data: o } = await s.from('organizations').select('id').eq('slug', org).single()
+  const { data: u } = await s.auth.admin.createUser({ email: adminEmail, password: adminPassword, email_confirm: true })
+  adminUserId = u.user!.id
+  await s.from('staff').insert({ organization_id: o!.id, user_id: adminUserId, full_name: 'E2E Accounts Admin', staff_code: `ADM-${adminUserId.slice(0, 6)}`, role: 'admin', status: 'active' })
+})
 
 // 1x1 JPEG.
 const JPEG = Buffer.from(
@@ -23,6 +38,15 @@ const adminLogin = async (page: Page) => {
   await page.getByLabel('Email').fill(adminEmail!)
   await page.getByLabel('Password').fill(adminPassword!)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/verify/)
+  if (!adminTotp) {
+    // First login: the set-up screen shows a QR code and the key to type by hand.
+    await expect(page.getByRole('heading', { name: 'Set up two-step login' })).toBeVisible()
+    await expect(page.getByRole('img', { name: 'QR code for your authenticator app' })).toBeVisible()
+    adminTotp = (await page.getByTestId('totp-secret').textContent())!.trim()
+  }
+  await page.getByLabel('6-digit code').fill(totp(adminTotp))
+  await page.getByRole('button', { name: /Finish set-up|Continue/ }).click()
   await expect(page).toHaveURL(/\/admin\/review/)
   await page.getByRole('link', { name: 'Staff' }).click()
   await expect(page.getByRole('button', { name: 'Add worker' })).toBeVisible()
@@ -42,13 +66,16 @@ const logOut = async (page: Page) => {
 }
 
 test.afterAll(async () => {
-  const svc = createClient(process.env.VITE_SUPABASE_URL!, process.env.SUPABASE_SECRET_KEY!, { auth: { persistSession: false } })
-  const { data } = await svc.from('staff').select('id, user_id, organization_id').eq('full_name', workerName)
-  for (const s of data ?? []) {
-    await svc.storage.from('reference-photos').remove([`${s.organization_id}/${s.id}.jpg`])
-    await svc.from('audit_log').delete().eq('target_id', s.id)
-    await svc.from('staff').delete().eq('id', s.id)
-    if (s.user_id) await svc.auth.admin.deleteUser(s.user_id)
+  const s = svc()
+  const { data } = await s.from('staff').select('id, user_id, organization_id').or(`full_name.eq.${workerName},user_id.eq.${adminUserId}`)
+  for (const row of data ?? []) {
+    await s.storage.from('reference-photos').remove([`${row.organization_id}/${row.id}.jpg`])
+    await s.from('audit_log').delete().eq('target_id', row.id)
+    await s.from('staff').delete().eq('id', row.id)
+    if (row.user_id) {
+      await s.from('profiles').delete().eq('id', row.user_id) // legacy signup trigger
+      await s.auth.admin.deleteUser(row.user_id)
+    }
   }
 })
 
