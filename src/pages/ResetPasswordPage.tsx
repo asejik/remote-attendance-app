@@ -43,7 +43,7 @@ export const ResetPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 bg-gray-50">
+    <main className="min-h-screen flex flex-col justify-center px-6 bg-gray-50">
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
         <h1 className="text-xl font-bold text-gray-900">Choose a new password</h1>
         {!user ? (
@@ -74,6 +74,6 @@ export const ResetPasswordPage = () => {
           </form>
         )}
       </div>
-    </div>
+    </main>
   );
 };

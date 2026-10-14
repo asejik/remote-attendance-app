@@ -33,7 +33,7 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 px-5 py-8">
+    <main className="min-h-screen bg-gray-50 px-5 py-8">
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 space-y-4">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-blue-600" size={28} aria-hidden />
@@ -61,8 +61,8 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
         <button onClick={accept} disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60 flex justify-center">
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'I understand and agree'}
         </button>
-        <button onClick={decline} className="w-full py-2 text-sm text-gray-600 underline">I don&apos;t agree (log out)</button>
+        <button onClick={decline} className="w-full min-h-11 text-sm text-gray-600 underline">I don&apos;t agree (log out)</button>
       </div>
-    </div>
+    </main>
   );
 };

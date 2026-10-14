@@ -7,9 +7,9 @@ import { PRIVACY_NOTICE_UPDATED, SUPPORT_EMAIL } from '../lib/support';
 // first-login notice and the worker home screen. Wording to be confirmed by
 // counsel before launch (Nigeria Data Protection Act 2023).
 export const PrivacyPage = () => (
-  <div className="min-h-screen bg-gray-50 px-5 py-8">
+  <main className="min-h-screen bg-gray-50 px-5 py-8">
     <article className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-6 space-y-4 text-gray-700">
-      <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+      <Link to="/" className="inline-flex min-h-11 items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
         <ArrowLeft size={16} aria-hidden /> Back
       </Link>
       <div className="flex items-center gap-3">
@@ -79,7 +79,7 @@ export const PrivacyPage = () => (
         </p>
       </Section>
     </article>
-  </div>
+  </main>
 );
 
 const Section = ({ title, children }: { title: string; children: ReactNode }) => (

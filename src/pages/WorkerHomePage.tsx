@@ -259,10 +259,10 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
             <Camera className="mx-auto text-blue-600" size={36} aria-hidden />
             <h2 id="site-photo-title" className="text-xl font-bold text-gray-900">Now a photo of the site</h2>
             <p className="text-gray-600">Take a clear picture of where you are working, so your admin can see the site.</p>
-            <button onClick={takeSitePhoto} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+            <button autoFocus onClick={takeSitePhoto} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
               Open camera <ArrowRight size={20} aria-hidden />
             </button>
-            <button onClick={() => { setStep('idle'); setPending(null); }} className="text-gray-500 text-sm underline">Cancel</button>
+            <button onClick={() => { setStep('idle'); setPending(null); }} className="min-h-11 px-4 text-gray-600 text-sm underline">Cancel</button>
           </div>
         </div>
       )}
@@ -272,7 +272,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           <h1 className="text-lg font-bold text-gray-900">{staff.full_name}</h1>
           <p className="text-xs text-gray-500">{organization.name} · {staff.staff_code}</p>
         </div>
-        <button onClick={logOut} aria-label="Log out" className="p-2 text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+        <button onClick={logOut} aria-label="Log out" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
       </header>
 
       <main className="p-4 max-w-md mx-auto flex flex-col items-center gap-5">
@@ -307,7 +307,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
               <XCircle size={18} aria-hidden /> {failed.length} record{failed.length > 1 ? 's' : ''} not accepted
             </p>
             <p className="text-sm text-red-800">{failed[0].failReason} Show this screen to your supervisor or admin.</p>
-            <button onClick={retryFailed} disabled={syncing || !online} className="text-xs bg-red-100 text-red-900 px-3 py-1.5 rounded-full flex items-center gap-1 disabled:opacity-50">
+            <button onClick={retryFailed} disabled={syncing || !online} className="min-h-11 text-sm bg-red-100 text-red-900 px-4 rounded-full flex items-center gap-1.5 disabled:opacity-50">
               {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Try again
             </button>
           </div>
@@ -324,7 +324,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
             <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
               <CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload
             </span>
-            <button onClick={syncNow} disabled={syncing || !online} className="text-xs bg-orange-100 text-orange-900 px-3 py-1.5 rounded-full flex items-center gap-1 disabled:opacity-50">
+            <button onClick={syncNow} disabled={syncing || !online} className="min-h-11 text-sm bg-orange-100 text-orange-900 px-4 rounded-full flex items-center gap-1.5 disabled:opacity-50">
               {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Upload now
             </button>
           </div>
@@ -336,7 +336,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
 
         <div className={`w-full rounded-xl border p-5 text-center ${clockedIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
           <p className="text-sm text-gray-500">Current status</p>
-          <p className={`text-3xl font-bold ${clockedIn ? 'text-green-700' : 'text-gray-800'}`}>{clockedIn ? 'CLOCKED IN' : 'CLOCKED OUT'}</p>
+          <p className={`text-[min(1.875rem,9vw)] leading-tight font-bold ${clockedIn ? 'text-green-700' : 'text-gray-800'}`}>{clockedIn ? 'CLOCKED IN' : 'CLOCKED OUT'}</p>
           {last && (
             <p className="mt-1 text-xs text-gray-500 flex items-center justify-center gap-1">
               <Clock size={12} aria-hidden /> {last.site ?? 'No site'} · {new Date(last.at).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
@@ -352,7 +352,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
         )}
 
         <button onClick={start} disabled={step !== 'idle'}
-          className={`flex flex-col items-center justify-center w-48 h-48 border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-blue-100'}`}>
+          className={`flex flex-col items-center justify-center w-[min(12rem,75vw)] aspect-square p-2 text-center border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-blue-100'}`}>
           <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-blue-600'}`}>
             {step === 'idle' ? <Camera size={40} aria-hidden /> : <Loader2 className="animate-spin" size={40} aria-hidden />}
           </span>

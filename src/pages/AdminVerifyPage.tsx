@@ -69,7 +69,7 @@ export const AdminVerifyPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
+    <main className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-blue-600" size={28} aria-hidden />
@@ -103,7 +103,7 @@ export const AdminVerifyPage = () => {
             <label className="block text-sm font-medium text-gray-700">
               6-digit code
               <div className="relative mt-1">
-                <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
+                <input autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
                   autoComplete="one-time-code" required className="block w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 tracking-widest text-lg" />
                 <KeyRound className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={16} aria-hidden />
               </div>
@@ -118,8 +118,8 @@ export const AdminVerifyPage = () => {
         <p className="text-xs text-gray-500">
           Lost your phone? Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> to have two-step login reset.
         </p>
-        <button type="button" onClick={logOut} className="w-full text-sm text-gray-600 underline">Log out</button>
+        <button type="button" onClick={logOut} className="w-full min-h-11 text-sm text-gray-600 underline">Log out</button>
       </div>
-    </div>
+    </main>
   );
 };

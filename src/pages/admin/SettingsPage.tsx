@@ -71,13 +71,13 @@ export const SettingsPage = ({ context }: { context: StaffContext }) => {
         <span className="block text-sm text-gray-600">After this, photos are deleted automatically. Times and places are kept.</span>
         <input type="number" min={7} max={365} required value={settings.photo_retention_days}
           onChange={(e) => setSettings({ ...settings, photo_retention_days: Number(e.target.value) })}
-          className="mt-1 block w-32 rounded-lg border border-gray-300 py-2 px-2" />
+          className="mt-1 block w-32 min-h-11 rounded-lg border border-gray-300 py-2 px-2" />
       </label>
 
       {message && (
         <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm rounded-lg p-3 ${message.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>{message.text}</p>
       )}
-      <button type="submit" disabled={busy} className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60">
+      <button type="submit" disabled={busy} className="min-h-11 px-5 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60">
         {busy ? 'Saving…' : 'Save settings'}
       </button>
     </form>

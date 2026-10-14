@@ -38,7 +38,7 @@ export const AbsentPage = ({ context }: { context: StaffContext }) => {
     <div className="space-y-4">
       <label className="block max-w-xs text-sm font-medium text-gray-700">Day
         <input type="date" value={day} max={today} onChange={(e) => setDay(e.target.value || today)}
-          className="mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm" />
+          className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm" />
       </label>
       {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
       {loading && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading" /></div>}

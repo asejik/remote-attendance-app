@@ -18,7 +18,7 @@ const RESIGN_MS = 8 * 60_000;
 // Bulk approvals sent at once.
 const BULK_CHUNK = 5;
 
-const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900';
+const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900';
 
 export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const tz = context.organization.timezone;
@@ -219,9 +219,9 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
       {result && shown.length > 0 && pages > 1 && (
         <nav aria-label="Pages" className="flex items-center justify-center gap-3 text-sm">
-          <button disabled={page === 0} onClick={() => setPage(page - 1)} className="px-3 py-2 rounded-lg border bg-white disabled:opacity-40">Previous</button>
+          <button disabled={page === 0} onClick={() => setPage(page - 1)} className="min-h-11 px-4 rounded-lg border bg-white disabled:opacity-40">Previous</button>
           <span>Page {page + 1} of {pages}</span>
-          <button disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} className="px-3 py-2 rounded-lg border bg-white disabled:opacity-40">Next</button>
+          <button disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} className="min-h-11 px-4 rounded-lg border bg-white disabled:opacity-40">Next</button>
         </nav>
       )}
 
@@ -232,9 +232,12 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
 const Lightbox = ({ photo, onClose }: { photo: { src: string; alt: string }; onClose: () => void }) => {
   useEscape(onClose);
+  // Focus moves to the close button, and back to the photo that opened it.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null); // read before autoFocus moves it
+  useEffect(() => () => opener?.focus(), [opener]);
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={photo.alt} onClick={onClose}>
-      <button aria-label="Close photo" className="absolute top-4 right-4 text-white p-2"><X size={28} /></button>
+      <button autoFocus onClick={onClose} aria-label="Close photo" className="absolute top-4 right-4 text-white min-h-11 min-w-11 inline-flex items-center justify-center"><X size={28} /></button>
       <img src={photo.src} alt={photo.alt} className="max-h-full max-w-full rounded-lg" />
     </div>
   );
@@ -247,7 +250,7 @@ const Photo = ({ src, alt, label, onOpen }: { src?: string; alt: string; label: 
         <img src={src} alt={alt} loading="lazy" className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
       </button>
     ) : (
-      <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-400 px-1">None</span>
+      <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
     )}
     <figcaption className="mt-1 text-xs text-gray-500">{label}</figcaption>
   </figure>
@@ -328,24 +331,24 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
       {rejecting ? (
         <div className="mt-3 space-y-2">
           <label className="block text-sm font-medium text-gray-700">Reason for rejecting
-            <textarea value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={2} className="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm" />
+            <textarea autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={2} className="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm" />
           </label>
           <div className="flex gap-2">
-            <button onClick={() => decide('rejected')} disabled={busy} className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium disabled:opacity-60">Confirm reject</button>
-            <button onClick={() => { setRejecting(false); setError(''); }} className="px-4 py-2 rounded-lg border text-sm">Cancel</button>
+            <button onClick={() => decide('rejected')} disabled={busy} className="min-h-11 px-4 rounded-lg bg-red-700 text-white text-sm font-medium disabled:opacity-60">Confirm reject</button>
+            <button onClick={() => { setRejecting(false); setError(''); }} className="min-h-11 px-4 rounded-lg border text-sm">Cancel</button>
           </div>
         </div>
       ) : (
         <div className="mt-3 flex gap-2">
           {e.review_status !== 'approved' && (
             <button onClick={() => decide('approved')} disabled={busy} aria-label={`Approve clock-in by ${name}`}
-              className="px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium flex items-center gap-1 disabled:opacity-60">
+              className="min-h-11 px-4 rounded-lg bg-green-700 text-white text-sm font-medium flex items-center gap-1 disabled:opacity-60">
               <Check size={16} aria-hidden /> Approve
             </button>
           )}
           {e.review_status !== 'rejected' && (
             <button onClick={() => setRejecting(true)} disabled={busy} aria-label={`Reject clock-in by ${name}`}
-              className="px-4 py-2 rounded-lg border border-red-300 text-red-700 text-sm font-medium flex items-center gap-1 disabled:opacity-60">
+              className="min-h-11 px-4 rounded-lg border border-red-300 text-red-700 text-sm font-medium flex items-center gap-1 disabled:opacity-60">
               <X size={16} aria-hidden /> Reject
             </button>
           )}

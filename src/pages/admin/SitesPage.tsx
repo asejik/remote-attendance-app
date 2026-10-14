@@ -14,7 +14,7 @@ type Site = Database['public']['Tables']['work_sites']['Row'];
 interface Draft { id?: string; name: string; address: string; latitude: string; longitude: string; radius_m: number }
 
 const EMPTY: Draft = { name: '', address: '', latitude: '', longitude: '', radius_m: 200 };
-const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2 px-2 text-sm';
+const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm';
 
 const fetchSites = async () => {
   const { data, error } = await supabase.from('work_sites').select('*').order('active', { ascending: false }).order('name');
@@ -52,7 +52,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => setDraft(EMPTY)} className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-medium">
+      <button onClick={() => setDraft(EMPTY)} className="min-h-11 flex items-center gap-2 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium">
         <Plus size={16} aria-hidden /> Add site
       </button>
       {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
@@ -72,9 +72,9 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
                 </p>
               </div>
               <button onClick={() => setDraft({ id: s.id, name: s.name, address: s.address ?? '', latitude: String(s.latitude), longitude: String(s.longitude), radius_m: s.radius_m })}
-                aria-label={`Edit ${s.name}`} className="p-2 h-fit rounded-lg text-gray-600 hover:bg-gray-100"><Pencil size={16} /></button>
+                aria-label={`Edit ${s.name}`} className="min-h-11 min-w-11 inline-flex items-center justify-center h-fit rounded-lg text-gray-600 hover:bg-gray-100"><Pencil size={16} /></button>
             </div>
-            <button onClick={() => setActive(s, !s.active)} className="mt-2 text-xs underline text-gray-600">
+            <button onClick={() => setActive(s, !s.active)} className="mt-1 min-h-11 text-sm underline text-gray-600">
               {s.active ? `Deactivate ${s.name}` : `Reactivate ${s.name}`}
             </button>
           </li>
@@ -146,8 +146,8 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
     <div className="fixed inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="site-dialog-title">
       <form onSubmit={save} className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h2 id="site-dialog-title" className="text-lg font-bold text-gray-900">{draft.id ? 'Edit site' : 'Add site'}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 text-gray-500"><X size={20} /></button>
+          <h2 id="site-dialog-title" tabIndex={-1} autoFocus className="text-lg font-bold text-gray-900 outline-none">{draft.id ? 'Edit site' : 'Add site'}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">Site name
           <input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} className={inputClass} />
@@ -159,10 +159,10 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-gray-700">Location</legend>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={useCurrentLocation} disabled={locating} className="px-3 py-2 rounded-lg border text-sm flex items-center gap-1.5 disabled:opacity-60">
+            <button type="button" onClick={useCurrentLocation} disabled={locating} className="min-h-11 px-3 rounded-lg border text-sm flex items-center gap-1.5 disabled:opacity-60">
               {locating ? <Loader2 className="animate-spin" size={14} aria-hidden /> : <LocateFixed size={14} aria-hidden />} Use my current location
             </button>
-            <button type="button" onClick={() => setShowMap(!showMap)} className="px-3 py-2 rounded-lg border text-sm flex items-center gap-1.5">
+            <button type="button" onClick={() => setShowMap(!showMap)} className="min-h-11 px-3 rounded-lg border text-sm flex items-center gap-1.5">
               <MapIcon size={14} aria-hidden /> {showMap ? 'Hide map' : 'Pick on map'}
             </button>
           </div>

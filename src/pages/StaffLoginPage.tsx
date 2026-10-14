@@ -7,7 +7,7 @@ import { useStaff } from '../context/useStaff';
 import { SUPPORT_EMAIL } from '../lib/support';
 import { signOut } from '../lib/signOut';
 
-const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500';
+const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500';
 
 export const StaffLoginPage = () => {
   const navigate = useNavigate();
@@ -71,7 +71,7 @@ export const StaffLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center px-6 py-12 bg-gray-50">
+    <main className="min-h-screen flex flex-col justify-center px-6 py-12 bg-gray-50">
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl">
         <div className="text-center mb-6">
           <div className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center text-white mb-3 ${mode === 'admin' ? 'bg-gray-800' : 'bg-blue-600'}`}>
@@ -108,7 +108,7 @@ export const StaffLoginPage = () => {
               <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={inputClass} />
             </label>
             <SubmitButton busy={busy} label="Log in" dark />
-            <button type="button" onClick={forgotPassword} className="w-full text-sm text-gray-600 underline">Forgot password?</button>
+            <button type="button" onClick={forgotPassword} className="w-full min-h-11 text-sm text-gray-600 underline">Forgot password?</button>
           </form>
         )}
 
@@ -118,7 +118,7 @@ export const StaffLoginPage = () => {
         <button
           type="button"
           onClick={() => { setMode(mode === 'worker' ? 'admin' : 'worker'); setError(''); setInfo(''); }}
-          className="mt-6 w-full text-sm font-medium text-gray-600 hover:text-gray-900"
+          className="mt-4 w-full min-h-11 text-sm font-medium text-gray-600 hover:text-gray-900"
         >
           {mode === 'worker' ? 'Organisation admin? Log in here' : '← Back to worker login'}
         </button>
@@ -127,7 +127,7 @@ export const StaffLoginPage = () => {
         <Link to="/privacy" className="underline">Privacy notice</Link>
         <span>Help: <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
       </p>
-    </div>
+    </main>
   );
 };
 

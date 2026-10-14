@@ -6,7 +6,7 @@ import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
 
-const inputClass = 'mt-1 block w-full rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
+const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
 
 interface StaffList {
   staff: Staff[];
@@ -126,10 +126,10 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                   {rowBusy === s.id ? <Loader2 className="animate-spin text-gray-400" aria-label="Working" /> : (
                     <>
                       <button onClick={() => onReset(s)} disabled={s.status !== 'active'} aria-label={`Reset PIN for ${s.full_name}`}
-                        className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"><KeyRound size={18} /></button>
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"><KeyRound size={18} /></button>
                       <button onClick={() => onToggleStatus(s)}
                         aria-label={`${s.status === 'active' ? 'Deactivate' : 'Reactivate'} ${s.full_name}`}
-                        className="p-2 rounded-lg text-gray-600 hover:bg-gray-100">
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100">
                         {s.status === 'active' ? <UserX size={18} /> : <UserCheck size={18} />}
                       </button>
                     </>
@@ -190,11 +190,11 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
       <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
           <h2 id="add-staff-title" className="text-lg font-bold text-gray-900">Add worker</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 text-gray-500"><X size={20} /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">
           Full name
-          <input required value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
+          <input required autoFocus value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
         </label>
         <fieldset>
           <legend className="text-sm font-medium text-gray-700">Role</legend>
@@ -238,7 +238,7 @@ const PinDialog = ({ org, notice, onClose }: { org: string; notice: { name: stri
         <div className="flex justify-between"><dt className="text-gray-500">PIN</dt><dd className="font-mono font-semibold text-2xl tracking-widest" data-testid="new-pin">{notice.pin}</dd></div>
       </dl>
       <p className="text-sm text-amber-800 bg-amber-50 rounded-lg p-3">Give these to the worker privately. The PIN won&apos;t be shown again; you can reset it later.</p>
-      <button onClick={onClose} className="w-full py-3 rounded-lg bg-gray-800 text-white font-medium">Done</button>
+      <button autoFocus onClick={onClose} className="w-full py-3 rounded-lg bg-gray-800 text-white font-medium">Done</button>
     </div>
   </div>
 );

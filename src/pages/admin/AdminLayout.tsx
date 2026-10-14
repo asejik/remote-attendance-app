@@ -31,12 +31,13 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
             <p className="text-xs text-gray-500">Admin</p>
             <h1 className="text-lg font-bold text-gray-900">{context.organization.name}</h1>
           </div>
-          <button onClick={logOut} aria-label="Log out" className="p-2 text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+          <button onClick={logOut} aria-label="Log out" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
         </div>
-        <nav aria-label="Admin sections" className="max-w-5xl mx-auto px-2 flex gap-1 overflow-x-auto">
+        {/* Phones: two rows of three, so no section is hidden off-screen. */}
+        <nav aria-label="Admin sections" className="max-w-5xl mx-auto px-2 grid grid-cols-3 sm:flex sm:gap-1">
           {TABS.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium whitespace-nowrap border-b-2 ${
+              className={({ isActive }) => `min-h-11 flex items-center justify-center sm:justify-start gap-1.5 px-3 text-sm font-medium whitespace-nowrap border-b-2 ${
                 isActive ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
               <Icon size={16} aria-hidden /> {label}
             </NavLink>

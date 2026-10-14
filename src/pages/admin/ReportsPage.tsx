@@ -51,10 +51,10 @@ export const ReportsPage = ({ context }: { context: StaffContext }) => {
       <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm font-medium text-gray-700">From
-            <input type="date" value={from} max={today} onChange={(e) => setFrom(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-2 text-sm" />
+            <input type="date" value={from} max={today} onChange={(e) => setFrom(e.target.value)} className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm" />
           </label>
           <label className="text-sm font-medium text-gray-700">To
-            <input type="date" value={to} max={today} onChange={(e) => setTo(e.target.value)} className="mt-1 block w-full rounded-lg border border-gray-300 py-2 px-2 text-sm" />
+            <input type="date" value={to} max={today} onChange={(e) => setTo(e.target.value)} className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm" />
           </label>
         </div>
         <p className="text-sm text-gray-600">
@@ -62,10 +62,10 @@ export const ReportsPage = ({ context }: { context: StaffContext }) => {
           Times are in {tz.replace('_', ' ')} time.
         </p>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => run('xlsx')} disabled={busy !== null} className="px-4 py-2.5 rounded-lg bg-green-700 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
+          <button onClick={() => run('xlsx')} disabled={busy !== null} className="min-h-11 px-4 rounded-lg bg-green-700 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
             {busy === 'xlsx' ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Download size={16} aria-hidden />} Download Excel (.xlsx)
           </button>
-          <button onClick={() => run('csv')} disabled={busy !== null} className="px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
+          <button onClick={() => run('csv')} disabled={busy !== null} className="min-h-11 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
             {busy === 'csv' ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Download size={16} aria-hidden />} Download CSV (2 files)
           </button>
         </div>
