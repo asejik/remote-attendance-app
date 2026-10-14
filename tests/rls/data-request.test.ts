@@ -32,7 +32,7 @@ describe.skipIf(!hasCredentials)('data requests (export and deletion)', () => {
     await w.workerA2.client.from('attendance_events').insert(newEvent(w.orgA, w.workerA2.staffId, w.siteA))
   })
   afterAll(async () => {
-    rmSync(out, { recursive: true, force: true })
+    if (out) rmSync(out, { recursive: true, force: true })
     if (w) await destroyWorld(w)
   })
 
