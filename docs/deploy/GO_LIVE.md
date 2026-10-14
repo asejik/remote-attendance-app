@@ -43,6 +43,8 @@ Repo → **Settings → Environments → New environment** → `production`.
 
 ## 4. Email for password resets (owner, ~15 min)
 
+First, while in Supabase (production) → **Authentication → Providers → Email** (Pro plan): turn on **Prevent use of leaked passwords**. Admin passwords must be 12+ characters (set by the deploy workflow).
+
 Supabase's built-in mailer is limited (~2 emails/hour) and not for production.
 1. resend.com → sign up (free: 3,000 emails/month, 100/day) → **Domains → Add** `asejik.com` (or a subdomain such as `mail.asejik.com`).
 2. Add the DNS records Resend shows at your DNS host (where asejik.com's DNS is managed, currently Vercel) and wait until Resend shows **Verified**.

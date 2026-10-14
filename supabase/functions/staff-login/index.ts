@@ -67,18 +67,30 @@ Deno.serve(async (req) => {
     await logError('staff-login', 'getUserById failed', userError)
     return json({ error: 'server_error' }, 500)
   }
-  const { data: link, error: linkError } = await svc.auth.admin.generateLink({ type: 'magiclink', email })
-  if (linkError) {
-    await logError('staff-login', 'generateLink failed', linkError)
+  // A new magic link replaces the previous one, so two sign-ins for the same
+  // worker at once (a double tap, two phones) would fail all but the newest.
+  // On "expired" (taken over), wait a moment and mint again.
+  let session: { access_token: string; refresh_token: string } | null = null
+  for (let attempt = 0; attempt < 3 && !session; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 150 + Math.random() * 350))
+    const { data: link, error: linkError } = await svc.auth.admin.generateLink({ type: 'magiclink', email })
+    if (linkError) {
+      await logError('staff-login', 'generateLink failed', linkError)
+      return json({ error: 'server_error' }, 500)
+    }
+    const { data: verified, error: verifyError } = await publicClient().auth.verifyOtp({
+      token_hash: link.properties.hashed_token,
+      type: 'magiclink',
+    })
+    if (verified?.session) session = verified.session
+    else if (verifyError?.code !== 'otp_expired') {
+      await logError('staff-login', 'verifyOtp failed', verifyError)
+      return json({ error: 'server_error' }, 500)
+    }
+  }
+  if (!session) {
+    await logError('staff-login', 'verifyOtp kept expiring (concurrent sign-ins)')
     return json({ error: 'server_error' }, 500)
   }
-  const { data: verified, error: verifyError } = await publicClient().auth.verifyOtp({
-    token_hash: link.properties.hashed_token,
-    type: 'magiclink',
-  })
-  if (verifyError || !verified.session) {
-    await logError('staff-login', 'verifyOtp failed', verifyError)
-    return json({ error: 'server_error' }, 500)
-  }
-  return json({ access_token: verified.session.access_token, refresh_token: verified.session.refresh_token })
+  return json({ access_token: session.access_token, refresh_token: session.refresh_token })
 })

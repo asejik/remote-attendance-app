@@ -16,7 +16,7 @@ export const ResetPasswordPage = () => {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (password.length < 8) return setError('Use at least 8 characters.');
+    if (password.length < 12) return setError('Use at least 12 characters. A short sentence is easy to remember.');
     if (password !== confirm) return setError('The two passwords do not match.');
     setBusy(true);
     const { error: updateError } = await supabase.auth.updateUser({ password });

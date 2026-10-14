@@ -30,7 +30,7 @@ const wanted = {
   disable_signup: env('DISABLE_SIGNUP', 'true') === 'true',
   site_url: env('SITE_URL'),
   uri_allow_list: env('REDIRECT_URLS', `${env('SITE_URL')}/**`),
-  password_min_length: 8,
+  password_min_length: 12, // admins see every worker's photos and locations (P04 M2)
 }
 const current = await api('GET', '/config/auth')
 const changes = Object.fromEntries(Object.entries(wanted).filter(([k, v]) => current[k] !== v))
