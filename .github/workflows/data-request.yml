@@ -22,6 +22,13 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      # The repository is public, so are its Actions logs. Hide every text input
+      # (client and admin names, emails, staff codes) before any step prints it.
+      # Values are read from the event file, so they never appear in this step's log.
+      - name: Hide inputs in the public log
+        run: |
+          jq -r '.inputs // {} | to_entries[] | select(.value | type == "string" and length > 0 and . != "true" and . != "false") | .value' "$GITHUB_EVENT_PATH" |
+            while IFS= read -r value; do echo "::add-mask::$value"; done
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:

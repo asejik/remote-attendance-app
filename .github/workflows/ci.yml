@@ -25,6 +25,7 @@ jobs:
       - run: npm run build
       - run: npm run check:secrets
       - run: npm run lint
+      - run: npm run check:workflows
       - name: Migration names, rollbacks and order
         run: npm run check:migrations
         env:

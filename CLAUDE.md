@@ -39,6 +39,7 @@ npm run test:e2e       # Playwright (tests/e2e, Pixel 7 Chromium) against a prod
 npm run build          # typecheck then vite build -> dist/
 npm run check:secrets  # fail if a Supabase secret key is in src/ or dist/ (run after build)
 npm run check:migrations  # names, rollback files, and (CI, BASE_SHA) new migrations sort after existing ones
+npm run check:workflows   # workflows with manual inputs must mask them first (Actions logs are public)
 npm run knip           # unused files/deps/exports
 npm run test:rls       # access-rule (RLS) suite against the dev project: builds 2 test orgs + 6 users, checks every role, cleans up
 npx supabase db push --linked --dry-run   # then without --dry-run: apply new migrations to dev
@@ -49,7 +50,7 @@ npx cap sync android   # copy dist/ into the Android project after a build
 ```
 
 - Node 24 is installed through nvm in WSL. Non-interactive shells don't load it, so prefix commands with `. ~/.nvm/nvm.sh >/dev/null &&`. Otherwise `npm` resolves to the Windows install and fails on the `\\wsl.localhost` path.
-- CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets, lint and check:migrations on every push, using placeholder env values.
+- CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets, lint, check:workflows and check:migrations on every push, using placeholder env values.
 - **`db-fresh.yml`** proves production can be built from nothing. On changes to `supabase/`, `tests/rls/` and related files, it starts an empty local Supabase in Docker on the runner, checks that every migration applied, serves the Edge Functions, runs `test:rls` with `REQUIRE_RLS_TESTS=1` (it fails if anything skips), and runs the onboarding script.
 - **CI logs:** `GITHUB_LOGS_TOKEN` in `.env` is a read-only, fine-grained token (Actions read on this repo only). Use it as `Authorization: Bearer` with `GET /repos/asejik/remote-attendance-app/actions/jobs/{id}/logs` to read failing runs.
 - **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `attendance-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.attendance`.
