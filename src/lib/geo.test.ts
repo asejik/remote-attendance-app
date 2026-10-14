@@ -5,7 +5,7 @@ describe('distanceM matches the server (private.distance_m)', () => {
   // Reference values computed by the database function on 2026-10-14.
   it.each([
     ['~2 km north', [11.8311, 13.151, 11.8491, 13.151], 2001.50867960213],
-    ['Maiduguri to Ilorin', [11.8311, 13.151, 8.4966, 4.5421], 1012409.85737249],
+    ['two Nigerian cities about 1,000 km apart', [11.8311, 13.151, 8.4966, 4.5421], 1012409.85737249],
     ['a few metres', [6.5244, 3.3792, 6.5245, 3.3793], 15.6744971450371],
   ] as const)('%s', (_label, [a, b, c, d], expected) => {
     expect(distanceM(a, b, c, d)).toBeCloseTo(expected, 3);

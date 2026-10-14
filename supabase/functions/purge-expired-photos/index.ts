@@ -3,7 +3,7 @@
 //   2. reference photos of staff deactivated more than 30 days ago
 //   3. orphan event photos (uploaded, but the event record never arrived)
 // Attendance records themselves are kept; only photos are deleted.
-import { corsHeaders, json, serviceClient } from '../_shared/http.ts'
+import { withCors, json, serviceClient } from '../_shared/http.ts'
 import { cronCheckIn, reportError } from '../_shared/sentry.ts'
 
 const BATCH = 200
@@ -16,8 +16,7 @@ const timingSafeEqual = (a: string, b: string) => {
   return diff === 0
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   const expected = Deno.env.get('CRON_SECRET') ?? ''
@@ -80,4 +79,4 @@ Deno.serve(async (req) => {
   if (result.errors.length) await reportError('purge-expired-photos', 'purge finished with errors', { message: result.errors.join('; ') })
   await cronCheckIn('purge-expired-photos', result.errors.length ? 'error' : 'ok', '15 2 * * *')
   return json(result, result.errors.length ? 500 : 200)
-})
+}))

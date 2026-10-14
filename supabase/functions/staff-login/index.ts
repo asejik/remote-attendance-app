@@ -2,7 +2,7 @@
 // The PIN is checked (with lockout) by staff_pin_verify(); on success the
 // function mints a normal Supabase session for the worker's Auth user, whose
 // password is a random secret, so PINs cannot be guessed against Auth directly.
-import { corsHeaders, json, publicClient, serviceClient } from '../_shared/http.ts'
+import { withCors, json, publicClient, serviceClient } from '../_shared/http.ts'
 import { logError, reportError } from '../_shared/sentry.ts'
 
 // Per-address throttle (migration 20261015120000). Cloudflare sets
@@ -19,8 +19,7 @@ const addressKey = async (req: Request) => {
   return `ip:${Array.from(mac.slice(0, 20), (b) => b.toString(16).padStart(2, '0')).join('')}`
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   let body: { org?: unknown; code?: unknown; pin?: unknown }
@@ -93,4 +92,4 @@ Deno.serve(async (req) => {
     return json({ error: 'server_error' }, 500)
   }
   return json({ access_token: session.access_token, refresh_token: session.refresh_token })
-})
+}))

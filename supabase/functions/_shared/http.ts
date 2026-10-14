@@ -1,14 +1,40 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
-// Auth is by bearer token, not cookies, so a wildcard origin is safe here.
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// Browsers may call the functions only from the app itself: the web app, the
+// Android app (Capacitor serves it from https://localhost) and local dev/test
+// servers. ALLOWED_ORIGINS (comma-separated) adds more, e.g. a preview URL.
+// Auth is by bearer token, not cookies, so this is defence in depth (P04 L2).
+const DEFAULT_ORIGINS = [
+  'https://attendance.asejik.com', 'https://localhost',
+  'http://localhost:5173', 'http://[::1]:5173', 'http://localhost:4173', 'http://[::1]:4173',
+]
+const allowedOrigin = (req: Request) => {
+  const origin = req.headers.get('Origin')
+  const extra = (Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map((o) => o.trim()).filter(Boolean)
+  return origin && [...DEFAULT_ORIGINS, ...extra].includes(origin) ? origin : null
+}
+
+// Wraps a function handler: answers CORS preflights and adds the CORS headers
+// only for allowed origins.
+export const withCors = (handler: (req: Request) => Promise<Response>) => async (req: Request) => {
+  const origin = allowedOrigin(req)
+  const cors: Record<string, string> = origin
+    ? {
+        'Access-Control-Allow-Origin': origin,
+        'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        Vary: 'Origin',
+      }
+    : { Vary: 'Origin' }
+  if (req.method === 'OPTIONS') return new Response(origin ? 'ok' : null, { status: origin ? 200 : 403, headers: cors })
+  const res = await handler(req)
+  const headers = new Headers(res.headers)
+  for (const [k, v] of Object.entries(cors)) headers.set(k, v)
+  return new Response(res.body, { status: res.status, headers })
 }
 
 export const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 const env = (name: string) => {
   const value = Deno.env.get(name)

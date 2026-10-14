@@ -243,3 +243,23 @@ describe.skipIf(!hasCredentials)('access rules (RLS) on the new schema', () => {
     })
   })
 })
+
+describe.skipIf(!hasCredentials)('organisation plan fields', () => {
+  let w: World
+  beforeAll(async () => {
+    await purgeStaleWorlds()
+    w = await buildWorld()
+  })
+  afterAll(async () => {
+    if (w) await destroyWorld(w)
+  })
+
+  it("aren't readable by signed-in users; the rest of their organisation is", async () => {
+    for (const person of [w.workerA1, w.adminA]) {
+      expect((await person.client.from('organizations').select('seats')).error?.code).toBe('42501')
+      expect((await person.client.from('organizations').select('price_per_seat_ngn')).error?.code).toBe('42501')
+      const { data } = await person.client.from('organizations').select('id, name, timezone, photo_retention_days')
+      expect(data?.map((o) => o.id)).toEqual([w.orgA])
+    }
+  })
+})

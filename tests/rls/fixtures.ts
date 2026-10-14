@@ -43,7 +43,7 @@ const options = { auth: { persistSession: false, autoRefreshToken: false } }
 export const service = () => createClient<Database>(url, secretKey, options)
 export const anon = () => createClient<Database>(url, anonKey, options)
 
-// Maiduguri-ish coordinates; offsets of ~0.018 deg latitude are ~2 km.
+// Sample coordinates in Nigeria; offsets of ~0.018 deg latitude are ~2 km.
 export const SITE_A = { latitude: 11.8311, longitude: 13.151 }
 const SITE_B = { latitude: 8.4966, longitude: 4.5421 }
 

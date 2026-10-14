@@ -2,7 +2,7 @@
 //   create | reset_pin | set_status | set_reference_photo
 // The caller must be an active admin; every target must be in the caller's
 // organisation. Each action is written to the audit log.
-import { corsHeaders, json, randomDigits, randomPin, randomSecret, serviceClient } from '../_shared/http.ts'
+import { withCors, json, randomDigits, randomPin, randomSecret, serviceClient } from '../_shared/http.ts'
 import { logError } from '../_shared/sentry.ts'
 import { retryOnce } from '../_shared/retry.ts'
 
@@ -132,8 +132,7 @@ const setReferencePhoto = async (svc: Svc, admin: Admin, body: Record<string, un
   return json({ staff: updated })
 }
 
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
   const svc = serviceClient()
@@ -162,4 +161,4 @@ Deno.serve(async (req) => {
     case 'set_reference_photo': return setReferencePhoto(svc, admin, body)
     default: return json({ error: 'unknown_action' }, 400)
   }
-})
+}))
