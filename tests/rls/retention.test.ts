@@ -23,7 +23,7 @@ describe.skipIf(!hasCredentials || !cronSecret)('photo retention job', () => {
 
   const recordEvent = async (key: string, client: World['workerA1']['client'], org: string, staffId: string, siteId: string, ageDays: number) => {
     const id = randomUUID()
-    for (const kind of ['face', 'site']) {
+    for (const kind of ['face', 'site', 'face_thumb', 'site_thumb']) { // thumbnails: migration 20261015160000
       const { error } = await client.storage.from('event-photos').upload(`${org}/${id}/${kind}.jpg`, jpeg())
       if (error) throw error
     }
@@ -65,6 +65,7 @@ describe.skipIf(!hasCredentials || !cronSecret)('photo retention job', () => {
     for (const [key, staffId, ageDays] of [['refA2', w.workerA2.staffId, 40], ['refA3', w.deactivatedA3.staffId, 1]] as const) {
       const path = `${w.orgA}/${staffId}.jpg`
       await svc.storage.from('reference-photos').upload(path, jpeg())
+      await svc.storage.from('reference-photos').upload(path.replace('.jpg', '_thumb.jpg'), jpeg())
       await svc.from('staff').update({ status: 'deactivated', deactivated_at: new Date(Date.now() - ageDays * DAY).toISOString(), reference_photo_path: path }).eq('id', staffId)
       paths[key] = path
     }
@@ -89,10 +90,15 @@ describe.skipIf(!hasCredentials || !cronSecret)('photo retention job', () => {
 
     expect(await exists('event-photos', paths.oldA)).toBe(false)
     expect(await exists('event-photos', paths.oldA.replace('face', 'site'))).toBe(false)
+    expect(await exists('event-photos', paths.oldA.replace('face', 'face_thumb'))).toBe(false) // thumbnails go too
+    expect(await exists('event-photos', paths.oldA.replace('face', 'site_thumb'))).toBe(false)
     expect(await exists('event-photos', paths.recentA)).toBe(true)
+    expect(await exists('event-photos', paths.recentA.replace('face', 'face_thumb'))).toBe(true)
     expect(await exists('event-photos', paths.oldB)).toBe(true) // org B keeps photos for 60 days
     expect(await exists('reference-photos', paths.refA2)).toBe(false)
+    expect(await exists('reference-photos', paths.refA2.replace('.jpg', '_thumb.jpg'))).toBe(false)
     expect(await exists('reference-photos', paths.refA3)).toBe(true)
+    expect(await exists('reference-photos', paths.refA3.replace('.jpg', '_thumb.jpg'))).toBe(true)
     expect(await exists('event-photos', paths.orphan)).toBe(false)
 
     const svc = service()

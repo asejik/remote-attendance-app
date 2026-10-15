@@ -3,6 +3,8 @@ import { Network } from '@capacitor/network';
 import { supabase } from './supabase';
 import { queue, type QueuedEvent } from './queue';
 import { reportSyncProblem } from './monitoring';
+import { makeThumbnail } from './image';
+import { thumbPathOf } from './photoUrls';
 
 export interface SyncReport {
   synced: number;
@@ -72,7 +74,17 @@ const uploadPhoto = async (event: QueuedEvent, kind: 'face' | 'site') => {
   const path = `${event.organizationId}/${event.id}/${kind}.jpg`;
   const { error } = await supabase.storage.from('event-photos').upload(path, blob, { contentType: 'image/jpeg', upsert: false });
   if (error && !isDuplicate(error)) throw error;
+  await uploadThumbnail(path, blob);
   return path;
+};
+
+// Best effort: admin lists fall back to the full photo when there's no
+// thumbnail, so a thumbnail problem never holds up the record itself.
+const uploadThumbnail = async (path: string, blob: Blob) => {
+  const thumb = await makeThumbnail(blob);
+  if (!thumb) return;
+  const { error } = await supabase.storage.from('event-photos').upload(thumbPathOf(path), thumb, { contentType: 'image/jpeg', upsert: false });
+  if (error && !isDuplicate(error)) console.warn('Thumbnail upload failed (the full photo is used instead)', errorMessage(error));
 };
 
 const uploadEvent = async (event: QueuedEvent) => {

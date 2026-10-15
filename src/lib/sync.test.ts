@@ -8,7 +8,9 @@ const upsert = vi.fn();
 const flags = vi.fn();
 const session = vi.fn();
 const report = vi.fn();
+const thumbnail = vi.fn();
 vi.mock('@capacitor/network', () => ({ Network: { addListener: vi.fn() } }));
+vi.mock('./image', () => ({ makeThumbnail: (...args: unknown[]) => thumbnail(...args) }));
 vi.mock('./monitoring', () => ({ reportSyncProblem: (...args: unknown[]) => report(...args) }));
 vi.mock('./supabase', () => ({
   supabase: {
@@ -47,6 +49,7 @@ const resetMocks = async () => {
   flags.mockReset().mockResolvedValue({ data: { flags: ['outside_radius'] } });
   session.mockReset().mockResolvedValue({ data: { session: { user: { id: 'user-1' } } } });
   report.mockReset();
+  thumbnail.mockReset().mockResolvedValue(null); // no canvas in Node: no thumbnails unless a test adds them
 };
 
 describe('sync engine', () => {
@@ -69,6 +72,18 @@ describe('sync engine', () => {
     expect(after.status).toBe('synced');
     expect(after.flags).toEqual(['outside_radius']);
     expect(await queue.getPhoto(event.id, 'face')).toBeNull(); // photos removed from the device
+  });
+
+  it('uploads a thumbnail next to each photo; a thumbnail failure never holds up the record', async () => {
+    thumbnail.mockResolvedValue(new Blob(['small'], { type: 'image/jpeg' }));
+    upload.mockImplementation(async (path: string) => (path.endsWith('site_thumb.jpg') ? { error: { statusCode: '403', message: 'denied' } } : { error: null }));
+    const event = await queueOne();
+    expect(await syncPendingRecords()).toEqual({ synced: 1, errors: 0 });
+    expect(upload.mock.calls.map((c) => c[0])).toEqual([
+      `org-1/${event.id}/face.jpg`, `org-1/${event.id}/face_thumb.jpg`, `org-1/${event.id}/site.jpg`, `org-1/${event.id}/site_thumb.jpg`,
+    ]);
+    expect(upsert.mock.calls[0][0].face_photo_path).toBe(`org-1/${event.id}/face.jpg`); // the record points at the full photo
+    expect((await stored(event.id)).status).toBe('synced');
   });
 
   it('skips the site photo when none was taken', async () => {

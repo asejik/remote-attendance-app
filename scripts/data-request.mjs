@@ -60,6 +60,9 @@ const photoPaths = {
   'event-photos': events.flatMap((e) => (e.photos_deleted_at ? [] : [e.face_photo_path, e.site_photo_path])).filter(Boolean),
   'reference-photos': staff.map((s) => s.reference_photo_path).filter(Boolean),
 }
+// Thumbnails sit next to each photo (face.jpg -> face_thumb.jpg, migration
+// 20261015160000). Exports leave them out; deletions include them.
+const withThumbs = (paths) => paths.flatMap((p) => [p, p.replace(/\.jpg$/, '_thumb.jpg')])
 
 // Every object under {org}/ in a bucket (event photos sit one folder deeper).
 const listAll = async (bucket, prefix) => {
@@ -113,10 +116,11 @@ if (action === 'export') {
   console.log(`Exported ${target}: ${staff.length} staff, ${events.length} clock-in records, ${photos} photos -> ${dir}`)
 } else {
   const objects = person
-    ? photoPaths
+    ? { 'event-photos': withThumbs(photoPaths['event-photos']), 'reference-photos': withThumbs(photoPaths['reference-photos']) }
     : { 'event-photos': await listAll('event-photos', org.id), 'reference-photos': await listAll('reference-photos', org.id) }
   const userIds = staff.map((s) => s.user_id).filter(Boolean)
-  const plan = `${target}: ${objects['event-photos'].length} event photos, ${objects['reference-photos'].length} reference photos, ` +
+  const count = person ? photoPaths : objects // a person's list also names thumbnails, which may not exist
+  const plan = `${target}: ${count['event-photos'].length} event photos, ${count['reference-photos'].length} reference photos (and their thumbnails), ` +
     `${events.length} clock-in records, ${staff.length} staff, ${userIds.length} logins${person ? '' : ', all sites, the audit log and the organisation'}`
   if (process.env.CONFIRM?.trim().toLowerCase() !== target.toLowerCase()) {
     console.log(`DRY RUN (nothing deleted). Would delete ${plan}.\nTo delete, set CONFIRM=${target}`)

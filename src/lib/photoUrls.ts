@@ -41,5 +41,40 @@ export const renewPhotoUrl = async (bucket: PhotoBucket, path: string) => {
   return (await signPhotoUrls(bucket, [path]))[path] ?? null;
 };
 
+// Thumbnails sit next to the photo: face.jpg -> face_thumb.jpg, {staff}.jpg ->
+// {staff}_thumb.jpg (P02). Also used by purge-expired-photos and data-request.
+export const thumbPathOf = (path: string) => path.replace(/\.jpg$/, '_thumb.jpg');
+
+export interface ListPhoto {
+  url: string;
+  path: string; // what the URL points at: the thumbnail, or the photo itself when there's no thumbnail
+}
+const noThumb = new Set<string>(); // photos uploaded before thumbnails existed (or by an older app)
+
+// Links for showing photos small in a list: the thumbnail when one exists,
+// otherwise the full photo. Keyed by the full photo's path.
+export const signListPhotos = async (bucket: PhotoBucket, paths: string[]): Promise<Record<string, ListPhoto>> => {
+  const unique = [...new Set(paths.filter(Boolean))];
+  const wanted = unique.filter((p) => !noThumb.has(keyOf(bucket, p)));
+  const thumbs = await signPhotoUrls(bucket, wanted.map(thumbPathOf));
+  for (const p of wanted) if (!thumbs[thumbPathOf(p)]) noThumb.add(keyOf(bucket, p));
+  const fallback = unique.filter((p) => !thumbs[thumbPathOf(p)]);
+  const full = fallback.length ? await signPhotoUrls(bucket, fallback) : {};
+  return Object.fromEntries(unique.flatMap((p) => {
+    const thumb = thumbs[thumbPathOf(p)];
+    if (thumb) return [[p, { url: thumb, path: thumbPathOf(p) }]];
+    return full[p] ? [[p, { url: full[p], path: p }]] : [];
+  }));
+};
+
+// After a photo is replaced (reference photos): drop its links so the new one shows.
+export const forgetPhoto = (bucket: PhotoBucket, path: string) => {
+  for (const p of [path, thumbPathOf(path)]) cache.delete(keyOf(bucket, p));
+  noThumb.delete(keyOf(bucket, path));
+};
+
 // On sign-out, so the next person on this device can't reuse the links.
-export const clearPhotoUrls = () => cache.clear();
+export const clearPhotoUrls = () => {
+  cache.clear();
+  noThumb.clear();
+};

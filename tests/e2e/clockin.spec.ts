@@ -95,6 +95,10 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
   expect(ev.face_photo_path).toBe(`${orgId}/${ev.id}/face.jpg`)
   const { data: photo } = await svc().storage.from('event-photos').download(ev.face_photo_path!)
   expect(photo!.size).toBeGreaterThan(1000)
+  // A small thumbnail for the admin lists is uploaded next to it (P02).
+  const { data: thumb } = await svc().storage.from('event-photos').download(`${orgId}/${ev.id}/face_thumb.jpg`)
+  expect(thumb!.size).toBeGreaterThan(500)
+  expect(thumb!.size).toBeLessThan(photo!.size)
 
   // Clock out online.
   await page.getByRole('button', { name: 'Tap to clock OUT' }).click()

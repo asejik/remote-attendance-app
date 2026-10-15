@@ -8,7 +8,7 @@ import { dayRangeUtc, flagLabel, localDay, localTime } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
 import { orSuspended } from '../../lib/support';
-import { renewPhotoUrl, signPhotoUrls, type PhotoBucket } from '../../lib/photoUrls';
+import { renewPhotoUrl, signListPhotos, signPhotoUrls, type ListPhoto, type PhotoBucket } from '../../lib/photoUrls';
 
 interface Option { id: string; label: string }
 type StatusFilter = ReviewStatus | 'all';
@@ -30,7 +30,8 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<{ events: ReviewEvent[]; total: number } | null>(null);
-  const [photos, setPhotos] = useState<Record<string, string>>({});
+  // Full photo path -> link to show in the list (its thumbnail when there is one).
+  const [photos, setPhotos] = useState<Record<string, ListPhoto>>({});
   const [error, setError] = useState('');
   const [people, setPeople] = useState<Option[]>([]);
   // Login → name, to show who recorded a clock-in for someone else.
@@ -62,8 +63,8 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
     try {
       const data = await fetchReviewPage(filter, pageNo);
       const [eventPhotos, refPhotos] = await Promise.all([
-        signPhotoUrls('event-photos', data.events.flatMap((e) => [e.face_photo_path ?? '', e.site_photo_path ?? ''])),
-        signPhotoUrls('reference-photos', data.events.map((e) => e.staff?.reference_photo_path ?? '')),
+        signListPhotos('event-photos', data.events.flatMap((e) => [e.face_photo_path ?? '', e.site_photo_path ?? ''])),
+        signListPhotos('reference-photos', data.events.map((e) => e.staff?.reference_photo_path ?? '')),
       ]);
       return { data, photos: { ...eventPhotos, ...refPhotos }, error: '' };
     } catch {
@@ -97,12 +98,18 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   // A photo that fails to load (its 10-minute link expired before it scrolled
   // into view) gets a new link, once. Loaded photos are never downloaded again.
   const [renewed] = useState(() => new Set<string>());
-  const renew = useCallback(async (bucket: PhotoBucket, path: string) => {
-    if (renewed.has(path)) return;
-    renewed.add(path);
-    const url = await renewPhotoUrl(bucket, path).catch(() => null);
-    if (url) setPhotos((p) => ({ ...p, [path]: url }));
+  const renew = useCallback(async (bucket: PhotoBucket, path: string, shown: ListPhoto) => {
+    if (renewed.has(shown.path)) return;
+    renewed.add(shown.path);
+    const url = await renewPhotoUrl(bucket, shown.path).catch(() => null);
+    if (url) setPhotos((p) => ({ ...p, [path]: { url, path: shown.path } }));
   }, [renewed]);
+
+  // The list shows thumbnails; the full photo is fetched only when one is opened.
+  const openPhoto = useCallback(async (bucket: PhotoBucket, path: string, alt: string) => {
+    const src = (await signPhotoUrls(bucket, [path]).catch(() => ({} as Record<string, string>)))[path];
+    if (src) setLightbox({ src, alt });
+  }, []);
 
   // The page as the admin sees it: reviews applied, and cards that no longer match the status filter gone.
   const shown = (result?.events ?? [])
@@ -202,7 +209,7 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
       <ul className="space-y-3">
         {shown.map((e) => (
-          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox} onRenew={renew}
+          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={openPhoto} onRenew={renew}
             onReviewed={(row) => onReviewed([row])} />
         ))}
       </ul>
@@ -239,24 +246,32 @@ const Lightbox = ({ photo, onClose }: { photo: { src: string; alt: string }; onC
   );
 };
 
-const Photo = ({ src, alt, label, onOpen, onError }: {
-  src?: string; alt: string; label: string; onOpen: (p: { src: string; alt: string }) => void; onError: () => void;
-}) => (
-  <figure className="text-center">
-    {src ? (
-      <button onClick={() => onOpen({ src, alt })} className="block">
-        <img src={src} alt={alt} loading="lazy" decoding="async" onError={onError} className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
-      </button>
-    ) : (
-      <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
-    )}
-    <figcaption className="mt-1 text-xs text-gray-500">{label}</figcaption>
-  </figure>
-);
+type OpenPhoto = (bucket: PhotoBucket, path: string, alt: string) => void;
+type RenewPhoto = (bucket: PhotoBucket, path: string, shown: ListPhoto) => void;
+
+const Photo = ({ bucket, path, photos, alt, label, onOpen, onRenew }: {
+  bucket: PhotoBucket; path: string | null | undefined; photos: Record<string, ListPhoto>; alt: string; label: string;
+  onOpen: OpenPhoto; onRenew: RenewPhoto;
+}) => {
+  const shown = path ? photos[path] : undefined;
+  return (
+    <figure className="text-center">
+      {path && shown ? (
+        <button onClick={() => onOpen(bucket, path, alt)} className="block">
+          <img src={shown.url} alt={alt} loading="lazy" decoding="async" onError={() => onRenew(bucket, path, shown)}
+            className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
+        </button>
+      ) : (
+        <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
+      )}
+      <figcaption className="mt-1 text-xs text-gray-500">{label}</figcaption>
+    </figure>
+  );
+};
 
 const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReviewed }: {
-  event: ReviewEvent; tz: string; photos: Record<string, string>; recordedBy?: string;
-  onOpen: (p: { src: string; alt: string }) => void; onRenew: (bucket: PhotoBucket, path: string) => void; onReviewed: (row: ReviewedRow) => void;
+  event: ReviewEvent; tz: string; photos: Record<string, ListPhoto>; recordedBy?: string;
+  onOpen: OpenPhoto; onRenew: RenewPhoto; onReviewed: (row: ReviewedRow) => void;
 }) => {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
@@ -318,12 +333,12 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReview
       )}
 
       <div className="mt-3 flex gap-3 flex-wrap">
-        <Photo src={e.face_photo_path ? photos[e.face_photo_path] : undefined} alt={`Clock-in photo of ${name}`} label={e.photos_deleted_at ? 'Expired' : 'Clock-in'} onOpen={onOpen}
-          onError={() => e.face_photo_path && onRenew('event-photos', e.face_photo_path)} />
-        <Photo src={e.staff?.reference_photo_path ? photos[e.staff.reference_photo_path] : undefined} alt={`Reference photo of ${name}`} label="Reference" onOpen={onOpen}
-          onError={() => e.staff?.reference_photo_path && onRenew('reference-photos', e.staff.reference_photo_path)} />
-        <Photo src={e.site_photo_path ? photos[e.site_photo_path] : undefined} alt={`Site photo from ${name}`} label="Site" onOpen={onOpen}
-          onError={() => e.site_photo_path && onRenew('event-photos', e.site_photo_path)} />
+        <Photo bucket="event-photos" path={e.face_photo_path} photos={photos} alt={`Clock-in photo of ${name}`}
+          label={e.photos_deleted_at ? 'Expired' : 'Clock-in'} onOpen={onOpen} onRenew={onRenew} />
+        <Photo bucket="reference-photos" path={e.staff?.reference_photo_path} photos={photos} alt={`Reference photo of ${name}`}
+          label="Reference" onOpen={onOpen} onRenew={onRenew} />
+        <Photo bucket="event-photos" path={e.site_photo_path} photos={photos} alt={`Site photo from ${name}`}
+          label="Site" onOpen={onOpen} onRenew={onRenew} />
       </div>
 
       {e.review_note && <p className="mt-2 text-sm text-gray-700"><span className="font-medium">Note:</span> {e.review_note}</p>}

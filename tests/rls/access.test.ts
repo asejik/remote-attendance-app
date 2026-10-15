@@ -137,6 +137,10 @@ describe.skipIf(!hasCredentials)('access rules (RLS) on the new schema', () => {
       expect((await w.workerA1.client.storage.from('event-photos').download(own)).error).not.toBeNull()
       expect((await w.workerA1.client.storage.from('event-photos').upload(`${w.orgB}/${randomUUID()}/face.jpg`, jpeg())).error).not.toBeNull()
       expect((await w.workerA1.client.storage.from('event-photos').upload(`${w.orgA}/john-smith.jpg`, jpeg())).error).not.toBeNull()
+      // Thumbnails (migration 20261015160000): only face_thumb/site_thumb next to an event; nothing else.
+      expect((await w.workerA1.client.storage.from('event-photos').upload(own.replace(/face\.jpg$/, 'face_thumb.jpg'), jpeg())).error).toBeNull()
+      expect((await w.workerA1.client.storage.from('event-photos').upload(own.replace(/face\.jpg$/, 'face_big.jpg'), jpeg())).error).not.toBeNull()
+      expect((await w.workerA1.client.storage.from('event-photos').upload(`${w.orgB}/${randomUUID()}/face_thumb.jpg`, jpeg())).error).not.toBeNull()
       expect((await w.workerA1.client.storage.from('reference-photos').upload(`${w.orgA}/${w.workerA1.staffId}.jpg`, jpeg())).error).not.toBeNull()
     })
   })

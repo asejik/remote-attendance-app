@@ -76,7 +76,7 @@ test.beforeAll(async () => {
 
   for (const [i, lat] of [[0, SITE.latitude], [1, SITE.latitude + 0.018]] as const) {
     const id = randomUUID()
-    for (const kind of ['face', 'site']) {
+    for (const kind of ['face', 'site', ...(i === 0 ? ['face_thumb'] : [])]) { // one event has a thumbnail, one doesn't
       await s.storage.from('event-photos').upload(`${orgId}/${id}/${kind}.jpg`, JPEG, { contentType: 'image/jpeg' })
     }
     const { error: evError } = await s.from('attendance_events').insert({
@@ -136,6 +136,12 @@ test('review queue: flagged first, photos side by side, reject needs a note, app
   await expect(page.getByRole('button', { name: 'Approve 1 without flags' })).toBeVisible()
   const unflaggedPhoto = cards.filter({ hasNotText: 'Outside site' }).getByRole('img', { name: `Clock-in photo of ${EVIL}` })
   const photoUrl = await unflaggedPhoto.getAttribute('src')
+  // Lists show the thumbnail when there is one, else the photo; opening it shows the full photo.
+  expect(photoUrl).toContain('/face_thumb.jpg')
+  expect(await cards.filter({ hasText: 'Outside site' }).getByRole('img', { name: `Clock-in photo of ${EVIL}` }).getAttribute('src')).toContain('/face.jpg')
+  await unflaggedPhoto.click()
+  await expect(page.getByRole('dialog').getByRole('img')).toHaveAttribute('src', /\/face\.jpg/)
+  await page.keyboard.press('Escape')
 
   const flagged = cards.filter({ hasText: 'Outside site (2.0 km)' })
   await flagged.getByRole('button', { name: /Reject clock-in/ }).click()

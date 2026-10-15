@@ -5,20 +5,20 @@ import { createStaff, resetPin, setStaffStatus, updateStaff, uploadReferencePhot
 import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
-import { renewPhotoUrl, signPhotoUrls } from '../../lib/photoUrls';
+import { renewPhotoUrl, signListPhotos, type ListPhoto } from '../../lib/photoUrls';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 
 const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
 
 interface StaffList {
   staff: Staff[];
-  photos: Record<string, string>; // reference_photo_path -> short-lived signed URL
+  photos: Record<string, ListPhoto>; // reference_photo_path -> link to its thumbnail (or the photo)
 }
 
 const fetchStaffList = async (): Promise<StaffList | null> => {
   const { data, error } = await supabase.from('staff').select('*').order('full_name');
   if (error || !data) return null;
-  const photos = await signPhotoUrls('reference-photos', data.map((s) => s.reference_photo_path ?? ''));
+  const photos = await signListPhotos('reference-photos', data.map((s) => s.reference_photo_path ?? ''));
   return { staff: data, photos };
 };
 
@@ -26,7 +26,7 @@ const fetchStaffList = async (): Promise<StaffList | null> => {
 // PINs, deactivate/reactivate. PINs are shown once and never stored readable.
 export const StaffPage = ({ context }: { context: StaffContext }) => {
   const [staff, setStaff] = useState<Staff[] | null>(null);
-  const [photos, setPhotos] = useState<Record<string, string>>({});
+  const [photos, setPhotos] = useState<Record<string, ListPhoto>>({});
   const [loadError, setLoadError] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
@@ -44,10 +44,11 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
   // An expired link (photo scrolled into view after 10 minutes) gets a new one, once.
   const [renewed] = useState(() => new Set<string>());
   const renewOnce = async (path: string) => {
-    if (renewed.has(path)) return;
-    renewed.add(path);
-    const url = await renewPhotoUrl('reference-photos', path).catch(() => null);
-    if (url) setPhotos((p) => ({ ...p, [path]: url }));
+    const shown = photos[path];
+    if (!shown || renewed.has(shown.path)) return;
+    renewed.add(shown.path);
+    const url = await renewPhotoUrl('reference-photos', shown.path).catch(() => null);
+    if (url) setPhotos((p) => ({ ...p, [path]: { url, path: shown.path } }));
   };
 
   useEffect(() => {
@@ -113,7 +114,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
             <li key={s.id} className={`bg-white rounded-xl border p-3 flex items-center gap-3 ${s.status === 'active' ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <label className="relative shrink-0 cursor-pointer" title="Take or choose a reference photo">
                 {s.reference_photo_path && photos[s.reference_photo_path] ? (
-                  <img src={photos[s.reference_photo_path]} alt={`Reference photo of ${s.full_name}`} loading="lazy" decoding="async"
+                  <img src={photos[s.reference_photo_path].url} alt={`Reference photo of ${s.full_name}`} loading="lazy" decoding="async"
                     onError={() => renewOnce(s.reference_photo_path!)} className="h-14 w-14 rounded-full object-cover" />
                 ) : (
                   <span className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><Camera size={20} aria-hidden /></span>

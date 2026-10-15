@@ -26,6 +26,7 @@ describe.skipIf(!hasCredentials)('data requests (export and deletion)', () => {
     eventId = newEvent(w.orgA, w.workerA1.staffId, w.siteA).id
     const path = `${w.orgA}/${eventId}/face.jpg`
     await w.workerA1.client.storage.from('event-photos').upload(path, jpeg())
+    await w.workerA1.client.storage.from('event-photos').upload(path.replace('face', 'face_thumb'), jpeg()) // deleted with it, not exported
     const { error } = await w.workerA1.client.from('attendance_events')
       .insert(newEvent(w.orgA, w.workerA1.staffId, w.siteA, { id: eventId, face_photo_path: path, site_photo_path: null }))
     if (error) throw error

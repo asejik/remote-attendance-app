@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { functionError, type Staff } from './staffAuth';
-import { shrinkPhoto } from './image';
+import { makeThumbnail, shrinkPhoto } from './image';
+import { forgetPhoto, thumbPathOf } from './photoUrls';
 
 type Result<T> = { ok: true; data: T } | { ok: false; message: string };
 
@@ -44,6 +45,10 @@ export const uploadReferencePhoto = async (staff: Staff, file: Blob): Promise<Re
     .from('reference-photos')
     .upload(path, photo, { contentType: 'image/jpeg', upsert: true });
   if (error) return { ok: false, message: 'The photo could not be uploaded. Please try again.' };
+  // Small copy for the lists (best effort: they fall back to the photo itself).
+  const thumb = await makeThumbnail(photo);
+  if (thumb) await supabase.storage.from('reference-photos').upload(thumbPathOf(path), thumb, { contentType: 'image/jpeg', upsert: true });
+  forgetPhoto('reference-photos', path);
   const result = await call<{ staff: Staff }>({ action: 'set_reference_photo', staff_id: staff.id, path });
   return result.ok ? { ok: true, data: result.data.staff } : result;
 };

@@ -6,6 +6,12 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## P02 photo traffic fixes (2026-10-15)
+- ☐ **New clock-in from the phone app:** after it uploads, open Review as admin. Its photos show at once (thumbnails). Tap one: the full, sharp photo opens.
+- ☐ **Older clock-ins** (from before this change) still show their photos in Review.
+- ☐ **Network tab (laptop, F12 → Network, filter `supabase`):** on Review, image requests are small (about 10–20 KB each). Go to Staff and back to Review: the images say "(memory cache)" or "(disk cache)". Leave Review open for 15 minutes: no new image downloads.
+- ☐ **Replace a worker's reference photo** (tap their photo circle on Staff): the new photo shows straight away, not the old one.
+
 ## P05 quality fixes (2026-10-14)
 - ☐ **Review:** approve one clock-in. The card disappears at once and the other photos don't reload. With several clock-ins without flags, tap **Approve N without flags**, confirm, and check they all leave "Needs review" while flagged ones stay.
 - ☐ **Review on a slow connection:** leave the Review page open for more than 10 minutes, then scroll and open a photo. It still loads.

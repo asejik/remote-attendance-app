@@ -16,6 +16,10 @@ const timingSafeEqual = (a: string, b: string) => {
   return diff === 0
 }
 
+// Each photo may have a thumbnail next to it (face.jpg -> face_thumb.jpg,
+// migration 20261015160000); removing one that doesn't exist is harmless.
+const withThumbs = (paths: string[]) => paths.flatMap((p) => [p, p.replace(/\.jpg$/, '_thumb.jpg')])
+
 Deno.serve(withCors(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405)
 
@@ -40,7 +44,7 @@ Deno.serve(withCors(async (req) => {
     if (error) { result.errors.push(`photos_to_purge: ${error.message}`); break }
     const rows = (data ?? []) as { event_id: string; face_photo_path: string | null; site_photo_path: string | null }[]
     if (!rows.length) break
-    const paths = rows.flatMap((r) => [r.face_photo_path, r.site_photo_path]).filter((p): p is string => !!p)
+    const paths = withThumbs(rows.flatMap((r) => [r.face_photo_path, r.site_photo_path]).filter((p): p is string => !!p))
     const removed = await svc.storage.from('event-photos').remove(paths)
     if (removed.error) { result.errors.push(`remove event photos: ${removed.error.message}`); break }
     result.event_photos += removed.data?.length ?? 0
@@ -55,7 +59,7 @@ Deno.serve(withCors(async (req) => {
     if (error) { result.errors.push(`reference_photos_to_purge: ${error.message}`); break }
     const rows = (data ?? []) as { staff_id: string; reference_photo_path: string }[]
     if (!rows.length) break
-    const removed = await svc.storage.from('reference-photos').remove(rows.map((r) => r.reference_photo_path))
+    const removed = await svc.storage.from('reference-photos').remove(withThumbs(rows.map((r) => r.reference_photo_path)))
     if (removed.error) { result.errors.push(`remove reference photos: ${removed.error.message}`); break }
     result.reference_photos += removed.data?.length ?? 0
     const marked = await svc.rpc('mark_reference_photo_deleted', { p_staff_ids: rows.map((r) => r.staff_id) })
