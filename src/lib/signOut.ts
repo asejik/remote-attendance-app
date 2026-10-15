@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { clearPhotoUrls } from './photoUrls';
 
 // Sign this device out. supabase-js keeps the session when the logout request
 // fails (offline, or a 403 with an empty body from the network edge), which
@@ -6,6 +7,7 @@ import { supabase } from './supabase';
 // forget it locally and reload so the in-memory client starts clean. Returns
 // true when it had to reload (callers then stop).
 export const signOut = async (): Promise<boolean> => {
+  clearPhotoUrls();
   const { error } = await supabase.auth.signOut();
   if (!error) return false;
   const { error: localError } = await supabase.auth.signOut({ scope: 'local' });

@@ -38,7 +38,7 @@ const adminLogin = async (page: Page) => {
   await page.getByLabel('Email').fill(adminEmail!)
   await page.getByLabel('Password').fill(adminPassword!)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page).toHaveURL(/\/admin\/verify/)
+  await expect(page).toHaveURL(/\/admin\/verify/, { timeout: 15_000 }) // password sign-in can take several seconds on dev
   if (!adminTotp) {
     // First login: the set-up screen shows a QR code and the key to type by hand.
     await expect(page.getByRole('heading', { name: 'Set up two-step login' })).toBeVisible()

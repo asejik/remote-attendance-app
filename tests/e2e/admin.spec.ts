@@ -113,7 +113,7 @@ const login = async (page: Page) => {
   await page.getByLabel('Email').fill(adminEmail)
   await page.getByLabel('Password').fill(adminPassword)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page).toHaveURL(/\/admin\/verify/)
+  await expect(page).toHaveURL(/\/admin\/verify/, { timeout: 15_000 }) // password sign-in can take several seconds on dev
   await page.getByLabel('6-digit code').fill(totp(adminTotp))
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page).toHaveURL(/\/admin\/review/)

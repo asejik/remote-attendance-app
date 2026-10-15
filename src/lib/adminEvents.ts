@@ -71,13 +71,5 @@ export const reviewEvent = async (eventId: string, decision: 'approved' | 'rejec
   return data;
 };
 
-// Short-lived (10 min) links for private photos; one request per bucket.
-export const signPhotoUrls = async (bucket: 'event-photos' | 'reference-photos', paths: string[]) => {
-  const unique = [...new Set(paths.filter(Boolean))];
-  if (!unique.length) return {} as Record<string, string>;
-  const { data } = await supabase.storage.from(bucket).createSignedUrls(unique, 600);
-  return Object.fromEntries((data ?? []).flatMap((s) => (s.signedUrl && s.path ? [[s.path, s.signedUrl]] : [])));
-};
-
 export const mapLink = (lat: number, lng: number) =>
   `https://www.openstreetmap.org/?mlat=${lat.toFixed(6)}&mlon=${lng.toFixed(6)}#map=17/${lat.toFixed(6)}/${lng.toFixed(6)}`;

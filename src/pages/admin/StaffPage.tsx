@@ -5,6 +5,7 @@ import { createStaff, resetPin, setStaffStatus, updateStaff, uploadReferencePhot
 import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
+import { renewPhotoUrl, signPhotoUrls } from '../../lib/photoUrls';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 
 const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
@@ -17,10 +18,7 @@ interface StaffList {
 const fetchStaffList = async (): Promise<StaffList | null> => {
   const { data, error } = await supabase.from('staff').select('*').order('full_name');
   if (error || !data) return null;
-  const paths = data.map((s) => s.reference_photo_path).filter((p): p is string => !!p);
-  if (!paths.length) return { staff: data, photos: {} };
-  const { data: signed } = await supabase.storage.from('reference-photos').createSignedUrls(paths, 600);
-  const photos = Object.fromEntries((signed ?? []).flatMap((s) => (s.signedUrl && s.path ? [[s.path, s.signedUrl]] : [])));
+  const photos = await signPhotoUrls('reference-photos', data.map((s) => s.reference_photo_path ?? ''));
   return { staff: data, photos };
 };
 
@@ -43,6 +41,14 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
     setPhotos(result.photos);
   }, []);
   const load = useCallback(async () => apply(await fetchStaffList()), [apply]);
+  // An expired link (photo scrolled into view after 10 minutes) gets a new one, once.
+  const [renewed] = useState(() => new Set<string>());
+  const renewOnce = async (path: string) => {
+    if (renewed.has(path)) return;
+    renewed.add(path);
+    const url = await renewPhotoUrl('reference-photos', path).catch(() => null);
+    if (url) setPhotos((p) => ({ ...p, [path]: url }));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -107,7 +113,8 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
             <li key={s.id} className={`bg-white rounded-xl border p-3 flex items-center gap-3 ${s.status === 'active' ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <label className="relative shrink-0 cursor-pointer" title="Take or choose a reference photo">
                 {s.reference_photo_path && photos[s.reference_photo_path] ? (
-                  <img src={photos[s.reference_photo_path]} alt={`Reference photo of ${s.full_name}`} className="h-14 w-14 rounded-full object-cover" />
+                  <img src={photos[s.reference_photo_path]} alt={`Reference photo of ${s.full_name}`} loading="lazy" decoding="async"
+                    onError={() => renewOnce(s.reference_photo_path!)} className="h-14 w-14 rounded-full object-cover" />
                 ) : (
                   <span className="h-14 w-14 rounded-full bg-gray-100 flex items-center justify-center text-gray-400"><Camera size={20} aria-hidden /></span>
                 )}

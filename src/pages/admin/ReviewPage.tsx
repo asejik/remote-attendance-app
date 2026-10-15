@@ -2,19 +2,18 @@ import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, Check, CheckCheck, ExternalLink, Loader2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
-  fetchReviewPage, mapLink, PAGE_SIZE, reviewEvent, signPhotoUrls, type EventFilter, type ReviewEvent, type ReviewStatus,
+  fetchReviewPage, mapLink, PAGE_SIZE, reviewEvent, type EventFilter, type ReviewEvent, type ReviewStatus,
 } from '../../lib/adminEvents';
 import { dayRangeUtc, flagLabel, localDay, localTime } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
 import { orSuspended } from '../../lib/support';
+import { renewPhotoUrl, signPhotoUrls, type PhotoBucket } from '../../lib/photoUrls';
 
 interface Option { id: string; label: string }
 type StatusFilter = ReviewStatus | 'all';
 type ReviewedRow = Awaited<ReturnType<typeof reviewEvent>>;
 
-// Signed photo links last 10 minutes; renew them before that while the page stays open.
-const RESIGN_MS = 8 * 60_000;
 // Bulk approvals sent at once.
 const BULK_CHUNK = 5;
 
@@ -95,18 +94,15 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
     };
   }, [load, apply, filter, page]);
 
-  // Keep photo links valid while the admin works through a long page.
-  useEffect(() => {
-    if (!result?.events.length) return;
-    const events = result.events;
-    const timer = window.setInterval(() => {
-      Promise.all([
-        signPhotoUrls('event-photos', events.flatMap((e) => [e.face_photo_path ?? '', e.site_photo_path ?? ''])),
-        signPhotoUrls('reference-photos', events.map((e) => e.staff?.reference_photo_path ?? '')),
-      ]).then(([a, b]) => setPhotos({ ...a, ...b })).catch(() => undefined);
-    }, RESIGN_MS);
-    return () => window.clearInterval(timer);
-  }, [result]);
+  // A photo that fails to load (its 10-minute link expired before it scrolled
+  // into view) gets a new link, once. Loaded photos are never downloaded again.
+  const [renewed] = useState(() => new Set<string>());
+  const renew = useCallback(async (bucket: PhotoBucket, path: string) => {
+    if (renewed.has(path)) return;
+    renewed.add(path);
+    const url = await renewPhotoUrl(bucket, path).catch(() => null);
+    if (url) setPhotos((p) => ({ ...p, [path]: url }));
+  }, [renewed]);
 
   // The page as the admin sees it: reviews applied, and cards that no longer match the status filter gone.
   const shown = (result?.events ?? [])
@@ -206,7 +202,7 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
       <ul className="space-y-3">
         {shown.map((e) => (
-          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox}
+          <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={setLightbox} onRenew={renew}
             onReviewed={(row) => onReviewed([row])} />
         ))}
       </ul>
@@ -243,11 +239,13 @@ const Lightbox = ({ photo, onClose }: { photo: { src: string; alt: string }; onC
   );
 };
 
-const Photo = ({ src, alt, label, onOpen }: { src?: string; alt: string; label: string; onOpen: (p: { src: string; alt: string }) => void }) => (
+const Photo = ({ src, alt, label, onOpen, onError }: {
+  src?: string; alt: string; label: string; onOpen: (p: { src: string; alt: string }) => void; onError: () => void;
+}) => (
   <figure className="text-center">
     {src ? (
       <button onClick={() => onOpen({ src, alt })} className="block">
-        <img src={src} alt={alt} loading="lazy" className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
+        <img src={src} alt={alt} loading="lazy" decoding="async" onError={onError} className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
       </button>
     ) : (
       <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
@@ -256,9 +254,9 @@ const Photo = ({ src, alt, label, onOpen }: { src?: string; alt: string; label: 
   </figure>
 );
 
-const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
+const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReviewed }: {
   event: ReviewEvent; tz: string; photos: Record<string, string>; recordedBy?: string;
-  onOpen: (p: { src: string; alt: string }) => void; onReviewed: (row: ReviewedRow) => void;
+  onOpen: (p: { src: string; alt: string }) => void; onRenew: (bucket: PhotoBucket, path: string) => void; onReviewed: (row: ReviewedRow) => void;
 }) => {
   const [rejecting, setRejecting] = useState(false);
   const [note, setNote] = useState('');
@@ -320,9 +318,12 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onReviewed }: {
       )}
 
       <div className="mt-3 flex gap-3 flex-wrap">
-        <Photo src={e.face_photo_path ? photos[e.face_photo_path] : undefined} alt={`Clock-in photo of ${name}`} label={e.photos_deleted_at ? 'Expired' : 'Clock-in'} onOpen={onOpen} />
-        <Photo src={e.staff?.reference_photo_path ? photos[e.staff.reference_photo_path] : undefined} alt={`Reference photo of ${name}`} label="Reference" onOpen={onOpen} />
-        <Photo src={e.site_photo_path ? photos[e.site_photo_path] : undefined} alt={`Site photo from ${name}`} label="Site" onOpen={onOpen} />
+        <Photo src={e.face_photo_path ? photos[e.face_photo_path] : undefined} alt={`Clock-in photo of ${name}`} label={e.photos_deleted_at ? 'Expired' : 'Clock-in'} onOpen={onOpen}
+          onError={() => e.face_photo_path && onRenew('event-photos', e.face_photo_path)} />
+        <Photo src={e.staff?.reference_photo_path ? photos[e.staff.reference_photo_path] : undefined} alt={`Reference photo of ${name}`} label="Reference" onOpen={onOpen}
+          onError={() => e.staff?.reference_photo_path && onRenew('reference-photos', e.staff.reference_photo_path)} />
+        <Photo src={e.site_photo_path ? photos[e.site_photo_path] : undefined} alt={`Site photo from ${name}`} label="Site" onOpen={onOpen}
+          onError={() => e.site_photo_path && onRenew('event-photos', e.site_photo_path)} />
       </div>
 
       {e.review_note && <p className="mt-2 text-sm text-gray-700"><span className="font-medium">Note:</span> {e.review_note}</p>}
