@@ -50,10 +50,16 @@ export const StaffLoginPage = () => {
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (authError || !data.user) {
       setBusy(false);
-      return setError(authError?.message === 'Invalid login credentials' ? 'Email or password is not correct.' : 'Could not log in. Please try again.');
+      return setError(authError?.message === 'Invalid login credentials' ? 'Email or password is not correct.'
+        : authError?.name === 'AuthRetryableFetchError' ? "Couldn't reach the server. Check your internet connection and try again."
+        : 'Could not log in. Please try again.');
     }
-    const { data: staff } = await supabase.from('staff').select('role').eq('user_id', data.user.id).maybeSingle();
+    const { data: staff, error: staffError } = await supabase.from('staff').select('role').eq('user_id', data.user.id).maybeSingle();
     setBusy(false);
+    if (staffError) {
+      await signOut();
+      return setError("Couldn't reach the server. Check your internet connection and try again.");
+    }
     if (staff?.role !== 'admin') {
       await signOut();
       setError('This login is for organisation admins. Workers log in with a staff code and PIN.');

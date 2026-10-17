@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
+import { fetchWithTimeout } from './fetchTimeout';
 
 // Access environment variables using Vite's syntax
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -12,4 +13,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // db.retry off: supabase-js (2.10x+) retries failed reads 3 times (1 + 2 + 4 s).
 // The app handles failures itself (offline cache fallback, sync backoff), and
 // those retries made an offline reopen sit on "Loading" for about 7 seconds.
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, { db: { retry: false } });
+// global.fetch: every request has a time limit (src/lib/fetchTimeout.ts).
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  db: { retry: false },
+  global: { fetch: fetchWithTimeout() },
+});

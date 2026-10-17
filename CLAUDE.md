@@ -100,6 +100,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
   6. `queue.add`.
 
   Clock in vs out comes from the newest of the local queue and the server's recent events.
+- **Request time limit** (`src/lib/fetchTimeout.ts`, the Supabase client's `global.fetch`): 30 s for every request, 120 s for photo uploads. A request with no answer fails like a dropped connection, so screens show their "check your connection" message instead of loading forever, and sync retries. `sync.ts` treats timeouts as network errors (not refusals, not reported).
 - **Offline queue** (`src/lib/queue/`): one `QueueStore` interface.
   - Web: IndexedDB (`AttendanceQueue`).
   - Native: `@capacitor/filesystem` in `Directory.Data`, as `queue/{id}/face.jpg|site.jpg|event.json`. event.json is written last, so partial writes are ignored.

@@ -6,6 +6,10 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## Request time limit (2026-10-17)
+- ☐ **Admin login on a bad connection:** on a laptop, F12 → Network → throttling "Offline" right after pressing Log in (or use a very weak signal on a phone). Within about 30 seconds the screen says "Couldn't reach the server. Check your internet connection and try again." and the Log in button works again.
+- ☐ **Worker clock-in with weak signal:** a clock-in made with a poor connection still uploads by itself later (it may take a few retries).
+
 ## P02 photo traffic fixes (2026-10-15)
 - ☐ **New clock-in from the phone app:** after it uploads, open Review as admin. Its photos show at once (thumbnails). Tap one: the full, sharp photo opens.
 - ☐ **Older clock-ins** (from before this change) still show their photos in Review.

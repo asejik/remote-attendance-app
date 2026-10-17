@@ -58,7 +58,7 @@ const REFUSALS_BEFORE_FAILED = 2;
 // A record that keeps failing for other reasons is reported once, at this attempt.
 const REPORT_AT_ATTEMPT = 3;
 const isNetworkError = (error: unknown) =>
-  error instanceof TypeError || /failed to fetch|network|load failed/i.test((error as ApiError)?.message ?? '');
+  error instanceof TypeError || /failed to fetch|network|load failed|timed out|abort/i.test((error as ApiError)?.message ?? '');
 
 const isDuplicate = (error: unknown) => {
   const e = error as { statusCode?: string | number; message?: string };
