@@ -1,141 +1,138 @@
-# Manual Test Checklist
+# Manual test checklist
 
-Things to click through yourself. Each task adds its steps here, newest first. For the final test run, work through every section that is still marked ☐ and tick each one off (☑) with the date.
+What a person has to check by hand: a real phone, the camera, GPS, being outdoors, emails, and how things look. Everything else (access rules, sync, reports, flags, offline queue, accessibility scans) is covered by the automated tests (`npm test`, `npm run test:rls`, `npm run test:e2e`).
 
-**Setup:** open a WSL terminal in the project folder and run `npm run dev`, then open http://localhost:5173. On a phone, use the installed Android app once it exists (from M1).
+**When:** before a client demo, before each release APK, and after go-live (section 5). Tick items **☑ with the date**. Anything that fails: note what you saw and tell me.
+
+Rewritten 2026-10-17 for SiteProof. The older milestone-by-milestone lists are in git history.
 
 ---
 
-## New design: "Field Ledger" (2026-10-17)
-- ☐ **Worker home (phone):** the site is chosen with large buttons (the selected one turns teal with a tick); the big teal **Clock in** button shows the steps underneath; recent clock-ins list times in one column.
-- ☐ **Clocking in:** "Getting your location…" shows the step chips and ring; the camera shows "Step 2 of 2 · Face photo" (or 3 if the site photo is on); with site photos on, the site-photo step shows step 3 in amber.
-- ☐ **Proof slip:** after saving, a receipt shows the time, date, site, distance, GPS accuracy, your code, the photos and "Saved on this phone" then "Sent to your organisation". At the site it shows a round **ON SITE** stamp. **Done** goes back. In airplane mode it says "Waiting to send".
-- ☐ **Outdoors in sunlight:** text and buttons stay readable; tapping sites and the clock button works with a gloved or dusty finger.
-- ☐ **Admin (laptop):** each tab has a page title; Review shows cards two per row on a wide screen; loading shows grey placeholder rows; buttons and badges look consistent.
-- ☐ **Large text:** set the phone's font size to the largest: the worker home still fits without sideways scrolling.
+## 1. Before you start
 
-## SiteProof brand, teal colour and link previews (2026-10-17)
-- ☐ **Phone:** uninstall the old "Attendance" test app, then install `siteproof-test.apk` from the android-test release. The home screen shows **SiteProof** with the teal pin-and-lens icon; on Android 13+ with themed icons on, it follows the phone's colours. The splash screen is teal.
-- ☐ **Screens:** buttons, the login hard-hat circle, admin tabs and links are teal (no blue left).
-- ☐ **Authenticator:** a newly set-up admin's code is listed as "SiteProof" in the authenticator app.
-- ☐ **After go-live:** send `https://siteproof.asejik.com` to yourself on WhatsApp: a teal SiteProof card appears. If not, Facebook Sharing Debugger → paste the URL → *Scrape Again*.
-- ☐ **After go-live:** `https://siteproof.asejik.com/robots.txt` shows plain text.
+**Links**
 
-## Security re-run fixes (2026-10-17)
-- ☐ **Wrong-code lock:** with a throwaway admin, enter about 20 wrong two-step codes (Supabase may pause you after ~30 quick tries; wait a minute). Within 5 minutes even the right code shows **"Admin access locked"**. Unlock it with the SQL in RUNBOOK "Admin locked out after wrong codes": the admin can log in again.
-- ☐ **Normal admin login** still works first time with the right code.
-- ☐ **Workers:** a worker who has accepted the privacy notice clocks in as before (online and offline).
-- ☐ **Sites page:** add a site straight after opening the page on a slow connection: it stays in the list.
+| What | Where |
+|---|---|
+| Test app for Android (dev data) | [Download siteproof-test.apk](https://github.com/asejik/remote-attendance-app/releases/download/android-test/siteproof-test.apk) · [release page](https://github.com/asejik/remote-attendance-app/releases/tag/android-test) |
+| Web app (dev data) | [Preview of `rebuild`](https://remote-attendance-app-git-rebuild-asejiks-projects.vercel.app) (sign in to Vercel when asked) or locally: `npm run dev` → http://localhost:5173 |
+| Logins (organisation `demo`) | [`docs/private/TEST_ACCOUNTS.md`](private/TEST_ACCOUNTS.md) (private repo): demo admin email/password; workers `WRK-01`, `WRK-02`, supervisor `SUP-01` and their PINs |
+| Dev database | [Supabase dashboard](https://supabase.com/dashboard/project/zcndgbyovxzppgmrimgs): Table Editor, Authentication → Users, SQL Editor |
+| Error reports and cron monitor | [Sentry](https://sentry.io) → Issues, Insights → Crons |
+| CI, APK builds, owner workflows | [GitHub Actions](https://github.com/asejik/remote-attendance-app/actions) |
+| How-tos | [RUNBOOK](deploy/RUNBOOK.md) · [GO_LIVE](deploy/GO_LIVE.md) · [Design guide](DESIGN.md) |
 
-## Request time limit (2026-10-17)
-- ☐ **Admin login on a bad connection:** on a laptop, F12 → Network → throttling "Offline" right after pressing Log in (or use a very weak signal on a phone). Within about 30 seconds the screen says "Couldn't reach the server. Check your internet connection and try again." and the Log in button works again.
-- ☐ **Worker clock-in with weak signal:** a clock-in made with a poor connection still uploads by itself later (it may take a few retries).
+**Setup**
+- ☐ On the phone, **uninstall the old "Attendance" test app** if it's there. SiteProof has a new app ID, so Android treats it as a different app. Then install `siteproof-test.apk`, allowing "install unknown apps" for your browser.
+- ☐ Install **Google Authenticator** or **Microsoft Authenticator** on your phone for admin logins (section 3.1).
 
-## P02 photo traffic fixes (2026-10-15)
-- ☐ **New clock-in from the phone app:** after it uploads, open Review as admin. Its photos show at once (thumbnails). Tap one: the full, sharp photo opens.
-- ☐ **Older clock-ins** (from before this change) still show their photos in Review.
-- ☐ **Network tab (laptop, F12 → Network, filter `supabase`):** on Review, image requests are small (about 10–20 KB each). Go to Staff and back to Review: the images say "(memory cache)" or "(disk cache)". Leave Review open for 15 minutes: no new image downloads.
-- ☐ **Replace a worker's reference photo** (tap their photo circle on Staff): the new photo shows straight away, not the old one.
+---
 
-## P05 quality fixes (2026-10-14)
-- ☐ **Review:** approve one clock-in. The card disappears at once and the other photos don't reload. With several clock-ins without flags, tap **Approve N without flags**, confirm, and check they all leave "Needs review" while flagged ones stay.
-- ☐ **Review on a slow connection:** leave the Review page open for more than 10 minutes, then scroll and open a photo. It still loads.
-- ☐ **Admin on a phone:** all six tabs (Review, Absent, Sites, Staff, Reports, Settings) are visible as two rows, with no sideways scrolling.
-- ☐ **Staff:** tap the pencil next to a worker, fix the name, switch to Supervisor and add a phone number, then save. The list shows the new name. The staff code is unchanged and the worker can still log in with it.
-- ☐ **Staff photo on a phone:** tapping a worker's photo circle (or the photo field in Add worker) opens the back camera.
-- ☐ **Worker home:** clock out in airplane mode. The orange box shows "Oldest: … ago". Turn the network back on: the message changes by itself to "Clocked out. Uploaded."
-- ☐ **Large text:** set the phone's font size to the largest setting. The worker home still fits the screen (no sideways scrolling), and "CLOCKED IN/OUT" is not split mid-word.
-- ☐ **Two-step login:** log in as admin several times in a row (also on mobile data). The code is accepted each time, with no "Could not check the code".
+## 2. Worker app (Android phone)
 
-## P03 audit fixes (2026-10-14)
-- ☐ Demo worker PIN login: organisation `demo`, staff code `WRK-01`, PIN from `docs/private/TEST_ACCOUNTS.md`.
-- ☐ Worker: deactivate a worker (admin → Staff), then on that worker's phone clock in while still logged in. Within about a minute the screen shows **"1 record not accepted"** with a reason, the history row says *Not accepted*, and the status stays CLOCKED OUT. Reactivate the worker, tap **Try again**: *All records uploaded*. (If Sentry is on, an *Upload refused by the server* issue appears.)
-- ☐ Admin → Sites: change a site's radius. (Owner, Supabase SQL: `select action, details from audit_log where action like '%site%' order by id desc limit 3;` shows the before/after.)
-- ☐ Suspension (dev, Supabase table editor → organizations → demo → status `suspended`): admin sees the red banner, Review/Reports still work, saving Settings says *Changes are turned off…*. Worker can still clock in. Set status back to `active`.
-- ☐ Sentry → Crons: a `purge-expired-photos` monitor exists (environment *development*). Set up its alert for *production* at go-live.
-- ☐ Night shift: a worker clocks in late evening and out after midnight. Reports → summary CSV shows 1 day present, 0 days without clock-out, and the hours; Absent for that evening doesn't list them under "never clocked out".
-- ☐ Admin screens still open quickly after first load (they now load on demand); Reports → Excel and Sites map still work.
-- ☐ Login screen shows *Privacy notice* and *Help: info@asejik.com*; the notice opens without logging in and reads well on a phone.
-- ☐ Existing demo worker: on next login (online) they see **"Our privacy notice has changed"** with the number of days photos are kept; after agreeing, it doesn't come back. While offline it never blocks clock-in.
-- ☐ Worker phone: turn on airplane mode, tap Log out: you land on the login screen and stay logged out after turning the network back on.
-- ☐ Data request (dev rehearsal, optional): `ACTION=export ORG_SLUG=demo STAFF_CODE=WRK-02 node scripts/data-request.mjs` writes a folder in `data-export/` with that worker's records and photos. (Don't run `delete` on demo unless you mean it; without `CONFIRM` it is only a dry run.)
-- ☐ Native crash reporting: install the new test APK and open it once. Sentry → *Releases* (or Insights → Sessions) shows a session from `com.asejik.siteproof` (before 2026-10-17: `com.asejik.attendance`) in environment `test-apk`. Any Android-side crash or freeze later appears as an issue there.
-- ☐ **Two-step login (admins):** install Google or Microsoft Authenticator on your phone. Log in as the demo admin: you see *Set up two-step login* with a QR code. Scan it, type the code: you land on Review. Log out and in again: it asks only for the code. A wrong code says so. (To reset it on dev: Supabase → Authentication → Users → demo.admin → remove the MFA factor.)
-- ☐ Release APK (first production release): set `public/version.json` `latest` above the installed version; reopen the app: a blue *A new version is available* bar with **Update** opens the download. Set `minimum` above it: the bar turns red. Clock-in still works.
+### 2.1 Install and log in
+- ☐ The home screen shows **SiteProof** with the teal pin-and-lens icon; the splash screen is teal. On Android 13+ with *themed icons* on, the icon follows the phone's colours.
+- ☐ Log in with organisation `demo`, staff code `WRK-01` and its PIN. On first login, or when the notice has changed, the privacy notice appears. **I understand and agree** → the worker home with your name.
+- ☐ Close the app fully and reopen it, online and in airplane mode: you go straight back to the home screen without logging in again.
+- ☐ Logged out and offline, try to log in: a clear "can't reach the server" message, no endless spinner.
+- ☐ Wrong PIN 5 times: the account locks. The admin resets the PIN (Staff → key icon) and the new PIN works.
 
-## M6 Production readiness (2026-10-15). Mostly checked during go-live (docs/deploy/GO_LIVE.md)
-- ☐ Android test APK: the home-screen icon is the blue pin (not the Capacitor default), and the splash screen is blue.
-- ☐ Worker clock-in still works end to end (the camera now loads on demand, so the first time may take a second).
-- ☐ Production web app: the browser's Network tab shows the `content-security-policy` header. Admin map tiles, photos and login all work under it.
-- ☐ After go-live: the next morning, Supabase → Cron shows `purge-expired-photos` ran successfully.
-- ☐ Release APK (tag `v1.0.0`) installs on a phone (after uninstalling the test app) and talks to production.
+### 2.2 Clock in and out (online)
+- ☐ Choose your site with the **large site buttons**: the chosen one turns teal with a tick.
+- ☐ Tap the teal **Clock in** button (the demo organisation asks for a site photo, so there are 3 steps):
+  - "Getting your location…" shows the step chips and ring.
+  - The camera shows **Step 2 of 3 · Face photo**; smiling takes the photo automatically.
+  - **Photo of the site** shows step 3 in amber → **Open camera** → take the photo. (**Cancel** here saves nothing.)
+- ☐ In poor light, after about 20 seconds **Take photo without smile check** appears and works. Review later shows "No smile check".
+- ☐ The **proof slip** appears with:
+  - time, date, site, distance and GPS accuracy;
+  - your code and both photos;
+  - an **ON SITE** stamp when you're at the site;
+  - "Saved on this phone" → **"Sent to your organisation"** within seconds.
 
-## M5 Admin review and reporting (2026-10-14). Log in as the demo admin; you land on Review
-- ☐ Review: today's clock-ins appear, unreviewed and flagged ones first. Each card shows the clock-in photo next to the reference photo, plus the site photo. Tap a photo to enlarge it; Escape or a tap closes it.
-- ☐ Reject without a reason is refused. With a reason, the card leaves "Needs review". The Status filter "Rejected" shows it with the note. Approve works the same way.
-- ☐ Filters: date range, worker, site, flagged only. "Map" opens OpenStreetMap at the clock-in location.
-- ☐ Absent: pick today. Workers who didn't clock in, and those who never clocked out, are listed separately.
-- ☐ Sites → Add site: try all three ways (tap the map, "Use my current location" on a phone at the site, typed coordinates). The radius slider changes the blue circle. Edit a site. Deactivate it, and it disappears from the workers' site list.
-- ☐ Reports: download Excel and CSV for this month. Both open in Excel or Google Sheets, with times in Nigerian time and a per-worker summary.
-- ☐ Settings: turn "Require a site photo" off, and the worker's next clock-in skips the site photo. Switch to "Block", and a worker far from the site is refused.
+  **Done** returns home.
+- ☐ Home now says **Clocked in** with the time and site. The button turns dark: **Clock out**. Recent clock-ins list the times in one column with "Uploaded".
+- ☐ Site photo off (admin → Settings → untick *Require a site photo*): the next clock-in has only 2 steps (*Step 2 of 2*). Tick it again afterwards.
+- ☐ Far from the site (more than its radius): the slip shows **AWAY** with the distance, and Recent clock-ins / Review show *Outside site*.
 
-## M4 Clock-in on the new system (2026-10-14). The app now opens at `/` with the new login
-- ☐ Android: install the new APK over the old one. Log in with a worker code + PIN (create one as the demo admin first).
-- ☐ Choose a site, then tap clock IN: "Getting location…" → face camera (smile) → site photo (if your organisation requires it) → "Clocked in. Uploaded."
-- ☐ In airplane mode: clock out → "Saved on this phone…", plus the waiting count. Close the app fully and restart the phone: still waiting. Airplane mode off: it uploads within about a minute without tapping anything.
-- ☐ Recent activity shows "Uploaded" or "Waiting", and flags such as "Outside site" (try clocking in far from the site).
-- ☐ Face camera in poor light: after about 20 seconds, "Take photo without smile check" appears and works. The record shows "No smile check".
-- ☐ Admin: in Supabase, set the demo organisation's `geofence_mode` to `block`. A clock-in far from the site is refused with the distance shown.
-- ☐ Logging out with waiting records asks for confirmation first.
+### 2.3 Offline (the core promise)
+- ☐ Airplane mode on → clock out. The slip says **"Waiting to send"**. Home shows *Offline* and **"1 waiting to upload · Oldest: … ago"**.
+- ☐ **Restart the phone** (still in airplane mode). Open the app: the record is still waiting.
+- ☐ Airplane mode off and keep the app open: it uploads by itself within about a minute, with no tapping. The box changes to **All records uploaded**.
+- ☐ Logging out with records waiting asks for confirmation first. Logging out offline really logs you out (you stay logged out when the network returns).
+- ☐ On a very weak signal: clock-ins still save at once and upload later; nothing spins forever.
 
-## M3 Accounts (2026-10-14). Since M4 these screens are at `/`
-- ☐ Admin: "Organisation admin? Log in here" → log in with the demo admin from `docs/private/TEST_ACCOUNTS.md` → the Staff list shows.
-- ☐ Add worker on the phone: the reference photo field opens the camera. After saving, the organisation, staff code and PIN are shown once.
-- ☐ Worker login with organisation `demo`, staff code and PIN → privacy notice → "I understand and agree" → worker home with name.
-- ☐ Close and reopen the app: you go straight back to the worker home, with no second notice.
-- ☐ Enter the wrong PIN 5 times: the account locks ("Too many wrong PINs"). The admin taps the key icon (Reset PIN) and the new PIN works.
-- ☐ Admin deactivates the worker (person-x icon): their next login says the account is deactivated. Reactivate restores it.
-- ☐ Admin "Forgot password?" sends an email whose link opens "Choose a new password". (The built-in mailer allows about 2 emails per hour.)
-- ☐ Tap a staff member's photo circle to add or replace their reference photo.
+### 2.4 When the server says no
+- ☐ Admin **deactivates** the worker while they're still logged in. The worker clocks in: within about a minute **"1 record not accepted"** appears with the reason, and the row says *Not accepted*. Reactivate, tap **Try again**: *All records uploaded*.
+- ☐ **Block mode** (admin → Settings → *Block*): a clock-in far from the site is refused before any photo, with the distance shown. Set it back to *Allow and flag*.
 
-## M2 Secure database foundation (2026-10-13)
-- No manual steps. The new tables aren't used by the app until M3/M4. They are covered by `npm run test:rls` (30 automated access checks).
-- ☐ (Optional) Supabase dashboard → Table Editor: the new tables `organizations`, `staff`, `work_sites`, `attendance_events` and `audit_log` exist. The demo organisation "Demo Construction Ltd" has 3 sites and 4 staff.
+### 2.5 Real conditions
+- ☐ **Outdoors in bright sun:** text and buttons are readable; site buttons and the clock button work with a dusty or gloved finger.
+- ☐ **Largest font size** (phone settings → display → font size): the home screen still fits, with no sideways scrolling.
+- ☐ **On a low-end phone:** a whole clock-in (location, smile, save) takes about 20 seconds or less.
 
-## Final spike fixes: photo size, mirrored preview, Android upload timing (2026-10-13)
-- ☐ Web app: take a clock-in. Diagnostics shows the site photo at about 150–300 KB (was 3.9 MB).
-- ☐ Face camera: moving your head left moves the preview left, like a mirror. On the admin page, the saved face photo is the normal (non-mirrored) way round.
-- ☐ Android: after offline clock-ins, turn airplane mode off and keep the app open. Uploads finish within about 1 minute without tapping Sync. Diagnostics "Last upload trigger" shows what started it.
+---
 
-## Re-test fixes: signing, upload retry, photo size (2026-10-13)
-- ☐ Android: a new APK installs over the previous one (after the one-time uninstall), and queued records survive the update.
-- ☐ Reconnect after offline clock-ins: everything uploads within about 1 minute, with no Sync tap needed.
-- ☐ Site photo size on Device diagnostics is about 150–300 KB, and the photo is still clear on the admin page.
+## 3. Admin (laptop, and once on a phone)
 
-## Bug fixes from the first phone run (2026-10-13)
-- ☐ Android app: Device diagnostics → Test face model load shows "loaded in … ms" (not FAILED).
-- ☐ Log in, close the app completely, then reopen it. You go straight to the dashboard, with no login screen.
-- ☐ Same as above in airplane mode.
-- ☐ Logged out, in airplane mode: try to log in. You see "You're offline. Connect to the internet to log in."
-- ☐ Staff account on the Admin Portal login shows "Access Denied", and you stay on the login page.
+### 3.1 Log in and two-step login
+- ☐ **Organisation admin? Log in here** → demo admin email and password. First time: **Set up two-step login** shows a QR code. Scan it with the authenticator: the entry is named **SiteProof**. Type the code → you land on **Review**.
+- ☐ Log out and in again: only the 6-digit code is asked. A wrong code says so. Several logins in a row, including on mobile data, all work.
+- ☐ **Forgot password?** sends an email; its link opens *Choose a new password* and asks for your code. (The dev mailer allows about 2 emails an hour.)
+- ☐ Laptop: F12 → Network → set to *Offline* just after pressing **Log in**: within about 30 seconds, "Couldn't reach the server…", and the button works again.
+- ☐ *(Optional)* **Wrong-code lock:** with a throwaway admin, about 20 wrong codes → within 5 minutes even the right code shows **Admin access locked**. Unlock with [RUNBOOK: Admin locked out after wrong codes](deploy/RUNBOOK.md#admin-locked-out-after-wrong-codes).
 
-## M1 Offline spike (2026-10-12)
-- ☐ Run the full phone test script in `docs/spikes/M1.md` (web app and Android app) and fill in its results table.
-- ☐ Web app on a laptop: install it from Chrome (install icon in the address bar). It opens from its own window with the blue pin icon.
-- ☐ Staff dashboard → "Device diagnostics" opens, and the back arrow returns to the dashboard.
+### 3.2 Review
+- ☐ Today's clock-ins: flagged ones first (amber border, plain-word flags such as *Outside site (2.2 km)*, *Weak GPS*, *Recorded by …*). On a laptop the cards sit two per row.
+- ☐ Photos show at once (small previews). Tap one: the full photo opens; Escape or a tap closes it.
+- ☐ **Reject** without a reason is refused; with a reason the card leaves *Needs review*. **Approve** removes the card instantly, without reloading the others.
+- ☐ **Approve N without flags** approves only the unflagged ones; flagged ones stay.
+- ☐ Filters (dates, worker, site, status, flagged only) work. **Map** opens the clock-in location.
+- ☐ On a phone, all six tabs show as two rows, with no sideways scrolling.
 
-## Task 2: lint fixes and camera cleanup (2026-10-12)
-- ☐ Staff: tap Clock IN, smile, and the photo is taken automatically. The "Step 2: Site Photo" prompt appears.
-- ☐ Staff: tap Clock IN, then close the camera with ✕ before smiling. Wait 5 seconds: no beep, and no "Step 2" prompt appears.
-- ☐ Login with a wrong password shows a readable error message.
-- ☐ Sync Now still works when there are pending records.
+### 3.3 Staff
+- ☐ **Add worker** with a reference photo: on a phone, the photo opens the **back** camera. After saving, the organisation code, staff code and PIN are shown once.
+- ☐ The pencil icon: change the name, switch to Supervisor, add a phone, then save. The list updates; the staff code is unchanged and still logs in.
+- ☐ Tap a photo circle to replace a reference photo: the new photo shows straight away.
+- ☐ Deactivate (person-x icon): that worker's next login says the account is deactivated. Reactivate restores it.
 
-## Hotfix 001: profiles access rules (2026-10-12)
-- ☐ Staff login still reaches the staff dashboard and shows your name.
-- ☐ Admin login still reaches the admin dashboard, and records show staff names, not "Unknown User".
-- ☐ Signing up a new staff account still works, and the new user can log in.
+### 3.4 Sites, Absent, Reports, Settings
+- ☐ **Sites → Add site** three ways: tap the map, *Use my current location* (on a phone at the site), typed coordinates. The radius slider changes the circle. Edit a site; deactivate one, and it disappears from the workers' site buttons.
+- ☐ **Absent** for today: "Did not clock in" and "Clocked in, never clocked out" are listed separately.
+- ☐ **Reports:** Excel and CSV for this month open in Excel or Google Sheets, with Nigerian times and a per-worker summary.
+- ☐ **Night shift:** clock in late evening and out after midnight. The summary shows 1 day present with the hours, and Absent doesn't call it "never clocked out".
+- ☐ **Settings:** each change shows *Saved* and takes effect on workers' phones the next time they connect.
 
-## M0 Groundwork (2026-10-12)
-- ☐ The Staff Access login page loads and looks the same as before.
-- ☐ Log in as a staff user and clock in (face smile, site photo, location). The record appears under Recent Activity.
-- ☐ Log in through the Admin Portal. The admin dashboard loads with filters and records.
+---
+
+## 4. Owner operations (dev rehearsal)
+
+- ☐ **Suspension** ([RUNBOOK](deploy/RUNBOOK.md#suspending-an-organisation-for-example-unpaid-invoice)): Supabase → Table Editor → `organizations` → demo → status `suspended`.
+  - Admins see a red banner; Review and Reports still work; saving says changes are turned off.
+  - Workers can still clock in (7-day grace).
+
+  Set it back to `active`.
+- ☐ **Audit trail:** after editing a site or a worker, SQL Editor: `select action, details, at from audit_log order by id desc limit 5;` shows who changed what, with before/after values.
+- ☐ **Data export rehearsal** ([RUNBOOK](deploy/RUNBOOK.md#a-worker-or-client-asks-for-their-data)):
+  ```bash
+  ACTION=export ORG_SLUG=demo STAFF_CODE=WRK-02 node scripts/data-request.mjs
+  ```
+  It writes that worker's records and photos to `data-export/`. Never run `delete` on demo by accident; without `CONFIRM` it's only a dry run.
+- ☐ **Crash reporting:** open the test app once. Sentry → Releases or Sessions shows `com.asejik.siteproof`, environment `test-apk`.
+- ☑ **Sentry alert for the nightly photo purge:** monitor `purge-expired-photos` with the "Nightly photo purge failed" alert; test email received (2026-10-17).
+- ☑ **EXPORT_PASSPHRASE** set in the GitHub `production` environment (2026-10-17).
+
+---
+
+## 5. After go-live (production)
+
+Do these once [GO_LIVE](deploy/GO_LIVE.md) is complete.
+
+- ☐ [siteproof.asejik.com](https://siteproof.asejik.com) loads the login screen, and [siteproof.asejik.com/robots.txt](https://siteproof.asejik.com/robots.txt) shows plain text.
+- ☐ Laptop: F12 → Network → reload: the page has a `content-security-policy` header. Login, photos and the Sites map all work.
+- ☐ Send `https://siteproof.asejik.com` to yourself on WhatsApp: a teal **SiteProof** card appears. If not, [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) → paste the URL → *Scrape Again*.
+- ☐ **Release APK** ([RUNBOOK: Releasing the Android app](deploy/RUNBOOK.md#releasing-the-android-app)): the `v1.0.0` APK installs (after uninstalling the test app) and talks to production. Repeat sections 2.1–2.3 with a real worker account.
+- ☐ **Update notice:** raise `latest` in `public/version.json` above the installed version, then reopen the app: *A new version is available* with **Update**. Raise `minimum` above it: the bar turns red, and clock-in still works.
+- ☐ **The next morning:** Supabase (production) → Integrations → Cron shows `purge-expired-photos` succeeded, and Sentry → Crons shows a **production** check-in.
+- ☐ The client's first admin completes two-step login, and their first workers clock in at a real site.
+- ☐ Lawyer's review of the privacy notice, consent screen and DPA done (owner).
