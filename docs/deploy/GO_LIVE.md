@@ -2,13 +2,13 @@
 
 Step-by-step, in order. Each step says **who** does it. Nothing here gives a developer tool write access to production: the backend is deployed by a GitHub workflow that only the owner triggers.
 
-Target web address: **https://attendance.asejik.com**
+Target web address: **https://siteproof.asejik.com**
 
 ---
 
 ## 1. Production Supabase project (owner, ~10 min, starts the $25/month bill)
 
-1. supabase.com → **New organization** (e.g. "Attendance Production") → plan **Pro**.
+1. supabase.com → **New organization** (e.g. "SiteProof Production") → plan **Pro**.
 2. **New project** in that organization: name `attendance-prod`, region **West EU (Ireland)**, strong database password (save it in your password manager).
 3. Project Settings → **API**: note the **Project URL**, the **anon / publishable key**, and the project **reference** (the `xxxx` in `https://xxxx.supabase.co`).
 4. Account → **Access Tokens** → generate a token named `github-deploy-prod`.
@@ -32,7 +32,7 @@ Repo → **Settings → Environments → New environment** → `production`.
 | `ANDROID_RELEASE_KEYSTORE_B64` | from the private repo, `docs/private/android-release/` |
 | `ANDROID_RELEASE_KEYSTORE_PASSWORD` | from the same folder |
 
-- **Environment variables:** `PROD_SITE_URL` = `https://attendance.asejik.com`, `PROD_REDIRECT_URLS` = `https://attendance.asejik.com/**,https://localhost/**`
+- **Environment variables:** `PROD_SITE_URL` = `https://siteproof.asejik.com`, `PROD_REDIRECT_URLS` = `https://siteproof.asejik.com/**,https://localhost/**`
 - Optional repository secret `VITE_SENTRY_DSN` (Sentry project DSN) for error reports.
 
 ## 3. Deploy the backend (owner clicks; ~5 min)
@@ -48,7 +48,7 @@ First, while in Supabase (production) → **Authentication → Providers → Ema
 Supabase's built-in mailer is limited (~2 emails/hour) and not for production.
 1. resend.com → sign up (free: 3,000 emails/month, 100/day) → **Domains → Add** `asejik.com` (or a subdomain such as `mail.asejik.com`).
 2. Add the DNS records Resend shows at your DNS host (where asejik.com's DNS is managed, currently Vercel) and wait until Resend shows **Verified**.
-3. Supabase (production) → **Authentication → Emails → SMTP Settings** → enable custom SMTP: host `smtp.resend.com`, port `465`, user `resend`, password = a Resend API key, sender `no-reply@asejik.com`, sender name `Attendance`.
+3. Supabase (production) → **Authentication → Emails → SMTP Settings** → enable custom SMTP: host `smtp.resend.com`, port `465`, user `resend`, password = a Resend API key, sender `no-reply@asejik.com`, sender name `SiteProof`.
 
 ## 5. Web app on Cloudflare: see [CLOUDFLARE.md](CLOUDFLARE.md) (owner, ~20 min)
 

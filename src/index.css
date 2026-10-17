@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* SiteProof brand colour (deep teal; scripts/generate-brand-assets.mjs uses the same). */
+@theme {
+  --color-brand: #0f6b63;
+}

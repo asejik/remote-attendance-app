@@ -54,7 +54,7 @@ After 20 wrong two-step codes in 24 hours, an admin loses all admin power: even 
 4. Deactivated workers' unsent records are refused by design (decision D-22).
 
 ## Releasing the Android app
-Installed apps read `https://attendance.asejik.com/version.json` at start and show *A new version is available* (or *too old, please update now* below `minimum`). Clock-in is never blocked.
+Installed apps read `https://siteproof.asejik.com/version.json` at start and show *A new version is available* (or *too old, please update now* below `minimum`). Clock-in is never blocked.
 1. In a commit on `main`, edit `public/version.json`: `latest` = the new version (e.g. `1.1.0`), `url` = `https://github.com/asejik/remote-attendance-app/releases/download/v1.1.0/attendance-v1.1.0.apk`. Raise `minimum` only when old apps would break (for example a database change they can't handle).
 2. Tag that commit `v1.1.0` and push the tag. **Android release APK** refuses to build if `version.json` doesn't match the tag.
 3. Publish the draft release, **then** deploy the web app so `version.json` goes live (otherwise apps would be sent to a link that doesn't exist yet).

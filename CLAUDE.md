@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Proof-of-presence attendance app (working name TBD), sold as a per-worker subscription to field and project organisations in Nigeria. Workers clock in with a face photo (smile check), GPS and an optional site photo, offline-first. Admins review flagged clock-ins against each worker's registered photo and export reports.
+**SiteProof**: a proof-of-presence attendance app, sold as a per-worker subscription to field and project organisations in Nigeria. Workers clock in with a face photo (smile check), GPS and an optional site photo, offline-first. Admins review flagged clock-ins against each worker's registered photo and export reports.
 
 - **Owner:** asejik (solo builder directing AI coding tools). Clients licence the product and own their data.
 - **Rigor level: STRICT.** The app handles face photos (sensitive under the Nigeria Data Protection Act 2023) and precise worker locations.
@@ -53,7 +53,7 @@ npx cap sync android   # copy dist/ into the Android project after a build
 - CI (`.github/workflows/ci.yml`) runs typecheck, test, build, check:secrets, lint, check:workflows and check:migrations on every push, using placeholder env values.
 - **`db-fresh.yml`** proves production can be built from nothing. On changes to `supabase/`, `tests/rls/` and related files, it starts an empty local Supabase in Docker on the runner, checks that every migration applied, serves the Edge Functions, runs `test:rls` with `REQUIRE_RLS_TESTS=1` (it fails if anything skips), and runs the onboarding script.
 - **CI logs:** `GITHUB_LOGS_TOKEN` in `.env` is a read-only, fine-grained token (Actions read on this repo only). Use it as `Authorization: Bearer` with `GET /repos/asejik/remote-attendance-app/actions/jobs/{id}/logs` to read failing runs.
-- **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `attendance-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.attendance`.
+- **Android APKs are built in the cloud** (`.github/workflows/android.yml`, JDK 21, Capacitor 8, minSdk 24). There's no local Android SDK. Each push to `rebuild` that touches app files publishes `siteproof-test.apk` to the `android-test` GitHub pre-release. It needs the repo secrets `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` and `ANDROID_DEBUG_KEYSTORE_B64` (a shared debug key, so updates install over old versions without wiping offline data). App ID: `com.asejik.siteproof` (changed from `com.asejik.attendance` on 2026-10-17, before any real release; an old test APK must be uninstalled first).
 - The web app is a PWA (vite-plugin-pwa, `registerType: autoUpdate`). The service worker is registered manually in `main.tsx` and skipped on native. It precaches the app shell and `public/models/`. **Every file served from `public/` needs a file extension.** Capacitor's Android server returns index.html for extensionless paths (`src/lib/models.test.ts` guards the models).
 - `.env` also holds `SUPABASE_URL` and `SUPABASE_SECRET_KEY` for server-side tooling only. The secret key bypasses RLS: use it read-only, against dev only, and **never** give it a `VITE_` prefix.
 - The legacy prototype schema, policies and security findings are recorded in `supabase/legacy/README.md` (private).
@@ -128,12 +128,12 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - `android-release.yml`: on a `v*.*.*` tag, a release-key-signed APK as a draft release.
 - **Guides:**
   - `docs/deploy/GO_LIVE.md`: the step-by-step order.
-  - `docs/deploy/CLOUDFLARE.md`: hosting at `attendance.asejik.com` with `wrangler.jsonc` (static assets + SPA fallback).
+  - `docs/deploy/CLOUDFLARE.md`: hosting at `siteproof.asejik.com` with `wrangler.jsonc` (static assets + SPA fallback).
   - `docs/deploy/RUNBOOK.md`: operations, breach response, data requests.
 - **Security headers** live in `public/_headers` (CSP etc.). `vite preview` applies the same headers, and `tests/e2e/fixtures.ts` fails any E2E test that logs a CSP violation. Use `dataUrlToBlob`, never `fetch(data:...)`. Adding an external host means updating the CSP.
 - **Organisation suspension** (migration `20261015100000`): the owner sets `organizations.status = 'suspended'` (stamped `suspended_at`, audited). Admins become read-only (sites, reviews, settings, admin-staff refused; reads and exports work). Workers can sign in and clock in for 7 days, then are refused (`private.org_accepts_clockins`). The UI mirrors it in `src/lib/support.ts` (also `SUPPORT_EMAIL`).
 - **Audit:** `work_sites` inserts/updates are audited by trigger with before/after values; organisation status changes too.
-- **API surface (P04):** `pg_graphql` is dropped (unused). Signed-in users can't read `organizations.seats`/`price_per_seat_ngn` (column grants, migration `20261015140000`). Edge Functions answer CORS only for the app's origins (`_shared/http.ts` `withCors`; defaults: `https://attendance.asejik.com`, `https://localhost` (Android), local dev/preview; secret `ALLOWED_ORIGINS` adds more, dev has the Vercel preview). HSTS is in `public/_headers`.
+- **API surface (P04):** `pg_graphql` is dropped (unused). Signed-in users can't read `organizations.seats`/`price_per_seat_ngn` (column grants, migration `20261015140000`). Edge Functions answer CORS only for the app's origins (`_shared/http.ts` `withCors`; defaults: `https://siteproof.asejik.com`, `https://localhost` (Android), local dev/preview; secret `ALLOWED_ORIGINS` adds more, dev has the Vercel preview). HSTS is in `public/_headers`.
 - **Photo retention:**
   - The `purge-expired-photos` Edge Function is called daily at 02:15 UTC by pg_cron, using `x-cron-secret` (Vault `project_url`/`cron_secret`, plus function secret `CRON_SECRET`, also in local `.env` for tests).
   - Service-role-only SQL helpers are in migration `20261015090000`.
@@ -149,7 +149,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **Android signing:**
   - Debug/test APK: the shared debug key (`ANDROID_DEBUG_KEYSTORE_B64`).
   - Release: the release key, kept in the private repo (`docs/private/android-release/`) plus offline. Gradle reads `RELEASE_KEYSTORE*`, `VERSION_CODE` and `VERSION_NAME` from the environment.
-  - Launcher icons are generated from `assets/` with `npx @capacitor/assets generate --android`.
+  - **Brand** (SiteProof, deep teal `#0F6B63`, icon "photo at a place": a pin whose head is a camera lens): `scripts/generate-brand-assets.mjs` draws every icon and the link-preview image (`public/og-image.png`) from one SVG; then `npx @capacitor/assets generate --android` (flags in the script header) makes the Android launcher icons and splash. The adaptive icon XMLs add a `<monochrome>` layer for Android 13 themed icons (re-add it if the tool rewrites them). Tailwind token `brand` (`src/index.css`).
 
 ## Conventions (from .cursorrules)
 

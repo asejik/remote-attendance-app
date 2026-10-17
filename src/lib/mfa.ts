@@ -30,7 +30,7 @@ export const startTotpEnrolment = async () => {
   for (const f of list.all.filter((x) => x.factor_type === 'totp' && x.status === 'unverified')) {
     await supabase.auth.mfa.unenroll({ factorId: f.id });
   }
-  const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Authenticator app' });
+  const { data, error } = await supabase.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Authenticator app', issuer: 'SiteProof' });
   if (error) throw error;
   return { factorId: data.id, qrCode: data.totp.qr_code, secret: data.totp.secret };
 };

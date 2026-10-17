@@ -35,10 +35,10 @@ export default defineConfig({
       injectRegister: null, // registered in main.tsx, skipped inside the native app
       includeAssets: ['favicon.ico', 'icon.svg', 'apple-touch-icon-180x180.png'],
       manifest: {
-        name: 'Attendance',
-        short_name: 'Attendance',
+        name: 'SiteProof',
+        short_name: 'SiteProof',
         description: 'Clock in and out with photo and location proof, even offline.',
-        theme_color: '#2563eb',
+        theme_color: '#0F6B63',
         background_color: '#f9fafb',
         display: 'standalone',
         orientation: 'portrait',

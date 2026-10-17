@@ -88,9 +88,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk attendance-test.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk siteproof-test.apk
           gh release view android-test >/dev/null 2>&1 || \
-            gh release create android-test --prerelease --title "Android test build" \
+            gh release create android-test --prerelease --title "SiteProof Android test build" \
               --notes "Test build for field testing only. Talks to the dev database."
-          gh release upload android-test attendance-test.apk --clobber
+          gh release upload android-test siteproof-test.apk --clobber
+          gh release delete-asset android-test attendance-test.apk -y 2>/dev/null || true # pre-SiteProof name (2026-10)
           gh release edit android-test --notes "Test build from ${GITHUB_SHA::7} ($(date -u +'%Y-%m-%d %H:%M UTC')). Talks to the dev database."

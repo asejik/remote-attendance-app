@@ -86,6 +86,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp android/app/build/outputs/apk/release/app-release.apk "attendance-${GITHUB_REF_NAME}.apk"
-          gh release create "$GITHUB_REF_NAME" "attendance-${GITHUB_REF_NAME}.apk" --draft \
-            --title "Attendance ${GITHUB_REF_NAME}" --notes "Production build ${GITHUB_REF_NAME} (versionCode ${GITHUB_RUN_NUMBER})."
+          cp android/app/build/outputs/apk/release/app-release.apk "siteproof-${GITHUB_REF_NAME}.apk"
+          gh release create "$GITHUB_REF_NAME" "siteproof-${GITHUB_REF_NAME}.apk" --draft \
+            --title "SiteProof ${GITHUB_REF_NAME}" --notes "Production build ${GITHUB_REF_NAME} (versionCode ${GITHUB_RUN_NUMBER})."

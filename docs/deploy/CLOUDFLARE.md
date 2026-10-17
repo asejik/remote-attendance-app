@@ -1,6 +1,6 @@
 # Hosting the web app on Cloudflare (step by step)
 
-Result: the app at **https://attendance.asejik.com**, rebuilt automatically on every push to `main`, free plan. `asejik.com` itself stays on Vercel; only the `attendance` subdomain points to Cloudflare.
+Result: the app at **https://siteproof.asejik.com**, rebuilt automatically on every push to `main`, free plan. `asejik.com` itself stays on Vercel; only the `siteproof` subdomain points to Cloudflare.
 
 The repo already contains what Cloudflare needs:
 - `wrangler.jsonc`: serves `dist/` as a single-page app.
@@ -11,7 +11,7 @@ The repo already contains what Cloudflare needs:
 1. Sign up at **dash.cloudflare.com** (free).
 2. **Workers & Pages → Create → Import a repository** → connect GitHub → choose `asejik/remote-attendance-app`.
 3. Settings:
-   - **Project name:** `attendance`
+   - **Project name:** `siteproof`
    - **Production branch:** `main`
    - **Build command:** `npm run build`
    - **Deploy command:** `npx wrangler@4 deploy`
@@ -20,17 +20,17 @@ The repo already contains what Cloudflare needs:
    - `VITE_SUPABASE_ANON_KEY` = production anon / publishable key
    - `VITE_SENTRY_DSN` = Sentry DSN (optional)
    - `NODE_VERSION` = `24`
-5. **Save and deploy.** The first build takes a few minutes. You get a temporary address like `attendance.<your-account>.workers.dev`. Open it: the login page should load.
+5. **Save and deploy.** The first build takes a few minutes. You get a temporary address like `siteproof.<your-account>.workers.dev`. Open it: the login page should load.
 
-## 2. Use attendance.asejik.com (~10 min)
+## 2. Use siteproof.asejik.com (~10 min)
 
 Because asejik.com's DNS is managed at Vercel (not Cloudflare), use a CNAME at Vercel:
 
-1. Cloudflare → your `attendance` worker → **Settings → Domains & Routes → Add → Custom domain** → `attendance.asejik.com`. Cloudflare shows the DNS record it needs.
+1. Cloudflare → your `siteproof` worker → **Settings → Domains & Routes → Add → Custom domain** → `siteproof.asejik.com`. Cloudflare shows the DNS record it needs.
    - If Cloudflare insists the zone must be on Cloudflare, add **asejik.com** to Cloudflare as a *free* zone **only for verification**, or use the alternative in step 3.
-2. Vercel → **Domains → asejik.com → DNS Records → Add**: type `CNAME`, name `attendance`, value as shown by Cloudflare (e.g. `attendance.<your-account>.workers.dev`).
+2. Vercel → **Domains → asejik.com → DNS Records → Add**: type `CNAME`, name `siteproof`, value as shown by Cloudflare (e.g. `siteproof.<your-account>.workers.dev`).
 3. Alternative if the custom-domain step can't complete with external DNS: keep the `*.workers.dev` address for the pilot, or move asejik.com's DNS to Cloudflare (free; Vercel keeps hosting the main site via a CNAME to Vercel). Ask the developer before moving DNS.
-4. Wait for HTTPS to show **Active** (usually minutes), then open https://attendance.asejik.com.
+4. Wait for HTTPS to show **Active** (usually minutes), then open https://siteproof.asejik.com.
 
 ## 3. Check it
 

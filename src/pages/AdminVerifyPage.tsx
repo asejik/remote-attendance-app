@@ -97,7 +97,7 @@ export const AdminVerifyPage = () => {
             </details>
           </div>
         )}
-        {mode.kind === 'code' && <p className="text-sm text-gray-700">Open your authenticator app and type the 6-digit code for Attendance.</p>}
+        {mode.kind === 'code' && <p className="text-sm text-gray-700">Open your authenticator app and type the 6-digit code for SiteProof.</p>}
 
         {(mode.kind === 'code' || mode.kind === 'enrol') && (
           <form onSubmit={submit} className="space-y-3">

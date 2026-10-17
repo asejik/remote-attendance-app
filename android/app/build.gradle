@@ -1,10 +1,10 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace = "com.asejik.attendance"
+    namespace = "com.asejik.siteproof"
     compileSdk = rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.asejik.attendance"
+        applicationId "com.asejik.siteproof"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // Set by the release workflow; every release must have a higher versionCode.

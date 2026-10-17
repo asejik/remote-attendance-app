@@ -5,7 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 // servers. ALLOWED_ORIGINS (comma-separated) adds more, e.g. a preview URL.
 // Auth is by bearer token, not cookies, so this is defence in depth (P04 L2).
 const DEFAULT_ORIGINS = [
-  'https://attendance.asejik.com', 'https://localhost',
+  'https://siteproof.asejik.com', 'https://localhost',
   'http://localhost:5173', 'http://[::1]:5173', 'http://localhost:4173', 'http://[::1]:4173',
 ]
 const allowedOrigin = (req: Request) => {

@@ -1,57 +1,25 @@
-# Remote Staff Attendance & Verification System
+# SiteProof
 
-An offline-first Progressive Web App (PWA) designed to track remote staff attendance with biometric security and GPS verification.
+Proof-of-presence attendance for field and project teams. Workers clock in and out on an Android phone with a face photo, GPS location and an optional site photo, even with no network; records upload by themselves later. Admins review flagged clock-ins next to each worker's reference photo and export attendance for payroll.
 
-## 🚀 Key Features
+## What it does
 
-* **Offline-First:** Works entirely without internet. Data is stored locally on the device and syncs automatically when connectivity returns.
-* **Biometric Liveness Detection:** Uses AI to detect a "live smile" before allowing a Clock In/Out to prevent photo spoofing.
-* **Geolocation Tracking:** Captures precise GPS coordinates for every attendance record.
-* **Smart Toggling:** Automatically handles Clock In vs. Clock Out states with a 5-minute safety cooldown.
-* **Admin Dashboard:** A central view for managers to see staff photos, timestamps, and map locations.
+- **Offline-first:** clock-ins are saved on the phone first and upload automatically when a connection returns. Retries never create duplicates.
+- **Evidence the server checks:** distance from the site, GPS accuracy, phone-clock drift and missing photos are computed by the database and shown as flags. Flags never reject a record.
+- **Smile check:** a liveness deterrent against holding up a printed photo. It is not face recognition and does not identify anyone.
+- **Admin review:** flagged clock-ins first, photos side by side, approve or reject with a note, absent list, site management on a map, CSV and Excel reports.
+- **Private by design:** every table has row-level security, photos are in private storage behind 10-minute links and deleted after a retention period, and admins need two-step login.
 
-## 🛠 Tech Stack
+## Tech
 
-* **Frontend:** React 19 + TypeScript + Vite
-* **Styling:** Tailwind CSS v4
-* **Mobile Capabilities:** Capacitor 7 (Camera, Geolocation)
-* **AI/ML:** face-api.js (On-device face detection)
-* **Local Database:** Dexie.js (IndexedDB wrapper)
-* **Cloud Backend:** Supabase (PostgreSQL + Storage)
-* **Deployment:** Vercel
+React + TypeScript + Vite (PWA), Tailwind CSS, Capacitor (Android), face-api.js (on-device smile check), Supabase (Postgres, Auth, Storage, Edge Functions), Cloudflare (hosting). Tests: Vitest, Playwright, and an access-rule suite run against Supabase.
 
-## ⚙️ Setup & Installation
+## Develop
 
-1.  **Clone the repository**
-    ```bash
-    git clone <repository-url>
-    cd remote-attendance-app
-    ```
+```bash
+npm install
+cp .env.example .env   # then fill in the dev Supabase URL and anon key
+npm run dev
+```
 
-2.  **Install dependencies**
-    ```bash
-    npm install
-    ```
-
-3.  **Environment Variables**
-    Create a `.env` file in the root directory and add your Supabase credentials:
-    ```env
-    VITE_SUPABASE_URL=your_project_url
-    VITE_SUPABASE_ANON_KEY=your_anon_key
-    ```
-
-4.  **Run Locally**
-    ```bash
-    npm run dev
-    ```
-
-## 📱 Mobile Testing
-
-Since this is a PWA, it can be installed on mobile devices directly from the browser:
-* **iOS:** Share -> Add to Home Screen.
-* **Android:** Menu -> Add to Home Screen.
-
-## 🔐 Security Notes
-
-* **Liveness:** The app requires a high-confidence "Happy" expression to trigger the shutter.
-* **Storage:** Photos are stored in a public Supabase bucket for Admin visibility, but file paths are obfuscated using UUIDs.
+`CLAUDE.md` has the full guide: commands, architecture, database rules and deployment.

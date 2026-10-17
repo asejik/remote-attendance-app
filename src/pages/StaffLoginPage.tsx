@@ -78,6 +78,10 @@ export const StaffLoginPage = () => {
 
   return (
     <main className="min-h-screen flex flex-col justify-center px-6 py-12 bg-gray-50">
+      <p className="mb-6 flex items-center justify-center gap-2.5">
+        <img src="/icon.svg" alt="" className="h-10 w-10" />
+        <span className="text-2xl font-extrabold tracking-tight text-gray-900">Site<span className="text-brand">Proof</span></span>
+      </p>
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl">
         <div className="text-center mb-6">
           <div className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center text-white mb-3 ${mode === 'admin' ? 'bg-gray-800' : 'bg-blue-600'}`}>

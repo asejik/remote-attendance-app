@@ -1,4 +1,4 @@
-package com.asejik.attendance;
+package com.asejik.siteproof;
 
 import com.getcapacitor.BridgeActivity;
 
