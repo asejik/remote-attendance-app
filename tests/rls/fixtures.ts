@@ -119,6 +119,8 @@ export const buildWorld = async (): Promise<World> => {
     const { data: staff, error: staffError } = await svc.from('staff').insert({
       organization_id: org, user_id: user.id, full_name: `RLS ${code}`, staff_code: `${code}-${run}`, role,
       status: active ? 'active' : 'deactivated', deactivated_at: active ? null : new Date().toISOString(),
+      // Workers and supervisors have accepted the privacy notice, as the app requires (migration 20261015180000).
+      consent_accepted_at: role === 'admin' ? null : new Date().toISOString(), consent_version: role === 'admin' ? null : 2,
     }).select('id').single()
     if (staffError || !staff) throw new Error(`create staff ${code}: ${staffError?.message}`)
     const client = anon()

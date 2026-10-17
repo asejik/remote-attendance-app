@@ -10,6 +10,8 @@ export interface StaffContext {
     id: string; name: string; slug: string; timezone: string;
     status?: string; suspended_at?: string | null; photo_retention_days?: number;
   };
+  // Admins only: locked after repeated wrong two-step codes (migration 20261015170000).
+  adminLocked?: boolean;
 }
 
 const CACHE_PREFIX = 'staffContext:';
@@ -47,7 +49,11 @@ const fetchStaffContext = async (userId: string): Promise<StaffContext | null> =
       return null;
     }
   }
-  const context = data?.organizations ? { staff: data, organization: data.organizations } : null;
+  let context: StaffContext | null = data?.organizations ? { staff: data, organization: data.organizations } : null;
+  if (context && data?.role === 'admin') {
+    const { data: locked } = await supabase.rpc('my_admin_lockout');
+    context = { ...context, adminLocked: locked === true };
+  }
   try {
     if (context) localStorage.setItem(cacheKey(userId), JSON.stringify(context));
     else localStorage.removeItem(cacheKey(userId));

@@ -3,7 +3,9 @@
 //   - Vault: project_url and cron_secret for the daily photo-retention job
 // Usage (dev):  node scripts/configure-supabase.mjs --dry-run
 // Env: PROJECT_REF (or SUPABASE_URL), SUPABASE_ACCESS_TOKEN, SITE_URL,
-//      REDIRECT_URLS (comma-separated), CRON_SECRET, DISABLE_SIGNUP=true|false
+//      REDIRECT_URLS (comma-separated), CRON_SECRET, DISABLE_SIGNUP=true|false,
+//      SESSION_INACTIVITY_HOURS (default 720 = 30 days; a Pro plan setting, so
+//      pass 0 on a Free project)
 import { existsSync } from 'node:fs'
 
 if (existsSync('.env') && !process.env.CI) process.loadEnvFile('.env')
@@ -34,6 +36,12 @@ const wanted = {
   // Admins must use two-step login (migration 20261015150000); a new project has it off.
   mfa_totp_enroll_enabled: true,
   mfa_totp_verify_enabled: true,
+  // Sign out sessions unused for 30 days (P04 2026-10-17 L3): a lost admin laptop
+  // doesn't stay signed in for ever. Workers just sign in again with their PIN.
+  sessions_inactivity_timeout: Number(env('SESSION_INACTIVITY_HOURS', '720')),
+}
+if (!Number.isInteger(wanted.sessions_inactivity_timeout) || wanted.sessions_inactivity_timeout < 0 || wanted.sessions_inactivity_timeout > 8760) {
+  throw new Error('SESSION_INACTIVITY_HOURS must be a whole number of hours from 0 to 8760')
 }
 const current = await api('GET', '/config/auth')
 const changes = Object.fromEntries(Object.entries(wanted).filter(([k, v]) => current[k] !== v))

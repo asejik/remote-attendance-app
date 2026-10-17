@@ -78,6 +78,15 @@ Deno.serve(withCors(async (req) => {
     if (names.length < BATCH) break
   }
 
+  // Admins locked by the wrong-code job since the last run (migration 20261015170000).
+  const { data: lockouts, error: lockError } = await svc.rpc('admin_lockouts_to_report')
+  if (lockError) result.errors.push(`admin_lockouts_to_report: ${lockError.message}`)
+  for (const l of (lockouts ?? []) as { organization_id: string | null; failures: number; locked_at: string }[]) {
+    await reportError('admin-lockout', 'admin locked after repeated wrong two-step codes', {
+      message: `organization ${l.organization_id ?? 'unknown'}: ${l.failures} wrong codes in 24 h, locked at ${l.locked_at}`,
+    })
+  }
+
   console.log('purge-expired-photos', JSON.stringify(result))
   // Sentry alerts when a nightly run fails or never arrives (schedule as in migration 20261015090000).
   if (result.errors.length) await reportError('purge-expired-photos', 'purge finished with errors', { message: result.errors.join('; ') })

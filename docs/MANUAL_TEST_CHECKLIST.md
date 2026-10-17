@@ -6,6 +6,12 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## Security re-run fixes (2026-10-17)
+- ☐ **Wrong-code lock:** with a throwaway admin, enter about 20 wrong two-step codes (Supabase may pause you after ~30 quick tries; wait a minute). Within 5 minutes even the right code shows **"Admin access locked"**. Unlock it with the SQL in RUNBOOK "Admin locked out after wrong codes": the admin can log in again.
+- ☐ **Normal admin login** still works first time with the right code.
+- ☐ **Workers:** a worker who has accepted the privacy notice clocks in as before (online and offline).
+- ☐ **Sites page:** add a site straight after opening the page on a slow connection: it stays in the list.
+
 ## Request time limit (2026-10-17)
 - ☐ **Admin login on a bad connection:** on a laptop, F12 → Network → throttling "Offline" right after pressing Log in (or use a very weak signal on a phone). Within about 30 seconds the screen says "Couldn't reach the server. Check your internet connection and try again." and the Log in button works again.
 - ☐ **Worker clock-in with weak signal:** a clock-in made with a poor connection still uploads by itself later (it may take a few retries).

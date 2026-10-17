@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { functionError, type Staff } from './staffAuth';
 import { makeThumbnail, shrinkPhoto } from './image';
+import { SUPPORT_EMAIL } from './support';
 import { forgetPhoto, thumbPathOf } from './photoUrls';
 
 type Result<T> = { ok: true; data: T } | { ok: false; message: string };
@@ -13,6 +14,7 @@ const MESSAGES: Record<string, string> = {
   cannot_change_self: "You can't deactivate your own account.",
   forbidden: 'Not allowed. Only organisation admins can do this, and not while the subscription is suspended.',
   mfa_required: 'Please log in again and enter the code from your authenticator app.',
+  mfa_locked: `Admin access is locked after too many wrong two-step codes. Email ${SUPPORT_EMAIL} to unlock it.`,
   network: "Can't reach the server. Check your internet connection.",
 };
 

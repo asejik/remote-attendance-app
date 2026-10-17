@@ -43,7 +43,7 @@ Repo → **Settings → Environments → New environment** → `production`.
 
 ## 4. Email for password resets (owner, ~15 min)
 
-First, while in Supabase (production) → **Authentication → Providers → Email** (Pro plan): turn on **Prevent use of leaked passwords**. Admin passwords must be 12+ characters (set by the deploy workflow).
+First, while in Supabase (production) → **Authentication → Providers → Email** (Pro plan): turn on **Prevent use of leaked passwords**. Admin passwords must be 12+ characters, and sessions unused for 30 days are signed out (both set by the deploy workflow; the session setting needs the Pro plan, so deploy fails on Free).
 
 Supabase's built-in mailer is limited (~2 emails/hour) and not for production.
 1. resend.com → sign up (free: 3,000 emails/month, 100/day) → **Domains → Add** `asejik.com` (or a subdomain such as `mail.asejik.com`).

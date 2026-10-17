@@ -6,6 +6,7 @@ import { mapLink } from '../../lib/adminEvents';
 import type { StaffContext } from '../../context/useStaff';
 import type { Database } from '../../lib/database.types';
 import { useEscape } from '../../hooks/useEscape';
+import { useLatestOnly } from '../../hooks/useLatestOnly';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 import { orSuspended } from '../../lib/support';
 
@@ -34,21 +35,16 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
     setError(list ? '' : "Couldn't load sites. Check your connection and try again.");
   }, []);
 
+  const latest = useLatestOnly();
   useEffect(() => {
-    let cancelled = false;
-    fetchSites().then((list) => {
-      if (!cancelled) apply(list);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [apply]);
+    latest(fetchSites(), apply);
+  }, [latest, apply]);
 
   const setActive = async (site: Site, active: boolean) => {
     if (!active && !window.confirm(`Deactivate ${site.name}? Workers will no longer see it. Past clock-ins keep the site name.`)) return;
     const { error: updateError } = await supabase.from('work_sites').update({ active }).eq('id', site.id);
     if (updateError) setError(orSuspended(updateError, 'Could not update the site. Please try again.'));
-    apply(await fetchSites());
+    await latest(fetchSites(), apply);
   };
 
   return (
@@ -90,7 +86,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
           onClose={() => setDraft(null)}
           onSaved={async () => {
             setDraft(null);
-            apply(await fetchSites());
+            await latest(fetchSites(), apply);
           }}
         />
       )}

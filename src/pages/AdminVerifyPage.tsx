@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-import { KeyRound, Loader2, ShieldCheck } from 'lucide-react';
+import { KeyRound, Loader2, ShieldAlert, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useStaff } from '../context/useStaff';
 import { startTotpEnrolment, verifiedTotpFactor, verifyTotp } from '../lib/mfa';
@@ -27,7 +27,7 @@ export const AdminVerifyPage = () => {
   const isAdmin = context?.staff.role === 'admin';
 
   useEffect(() => {
-    if (!isAdmin || aal === 'aal2') return;
+    if (!isAdmin || aal === 'aal2' || context?.adminLocked) return;
     let cancelled = false;
     (async () => {
       try {
@@ -41,11 +41,12 @@ export const AdminVerifyPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [isAdmin, aal]);
+  }, [isAdmin, aal, context?.adminLocked]);
 
   if (!user) return <Navigate to="/" replace />;
   if (loading) return <div className="h-screen flex items-center justify-center" role="status" aria-label="Loading"><Loader2 className="animate-spin text-gray-400" /></div>;
   if (!isAdmin) return <Navigate to="/" replace />;
+  if (context.adminLocked) return <LockedNotice />;
   if (aal === 'aal2') return <Navigate to="/admin/review" replace />;
 
   const submit = async (e: FormEvent) => {
@@ -117,6 +118,34 @@ export const AdminVerifyPage = () => {
 
         <p className="text-xs text-gray-500">
           Lost your phone? Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> to have two-step login reset.
+        </p>
+        <button type="button" onClick={logOut} className="w-full min-h-11 text-sm text-gray-600 underline">Log out</button>
+      </div>
+    </main>
+  );
+};
+
+// Too many wrong codes (migration 20261015170000): admin access stays off until
+// the platform owner unlocks it, even if a later code is right.
+const LockedNotice = () => {
+  const navigate = useNavigate();
+  const logOut = async () => {
+    if (await signOut()) return;
+    navigate('/', { replace: true });
+  };
+  return (
+    <main className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
+      <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
+        <div className="flex items-center gap-3">
+          <ShieldAlert className="text-red-600" size={28} aria-hidden />
+          <h1 className="text-xl font-bold text-gray-900">Admin access locked</h1>
+        </div>
+        <p role="alert" className="text-sm text-red-800 bg-red-50 rounded-lg p-3">
+          Too many wrong two-step codes were entered for this account, so admin access is locked to protect your workers&apos; data.
+        </p>
+        <p className="text-sm text-gray-700">
+          Email <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> to unlock it. If you didn&apos;t enter those codes,
+          someone may know your password: you will be asked to change it.
         </p>
         <button type="button" onClick={logOut} className="w-full min-h-11 text-sm text-gray-600 underline">Log out</button>
       </div>

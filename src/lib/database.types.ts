@@ -455,7 +455,20 @@ export type Database = {
       accept_consent:
         | { Args: never; Returns: string }
         | { Args: { p_version: number }; Returns: string }
+      admin_locked: { Args: { p_user_id: string }; Returns: boolean }
+      admin_lockouts_to_report: {
+        Args: never
+        Returns: {
+          failures: number
+          locked_at: string
+          organization_id: string
+        }[]
+      }
       is_admin: { Args: never; Returns: boolean }
+      lock_guessed_admins: {
+        Args: { p_only_user?: string; p_threshold?: number }
+        Returns: number
+      }
       login_throttle_blocked: { Args: { p_key: string }; Returns: string }
       login_throttle_record_failure: {
         Args: {
@@ -471,6 +484,7 @@ export type Database = {
         Args: { p_staff_ids: string[] }
         Returns: number
       }
+      my_admin_lockout: { Args: never; Returns: boolean }
       orphan_event_photos: {
         Args: { p_limit?: number; p_min_age?: string }
         Returns: {

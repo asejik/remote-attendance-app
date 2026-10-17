@@ -281,3 +281,48 @@ test('staff: an admin corrects a worker’s name and role (audited)', async ({ p
   const { data: log } = await svc().from('audit_log').select('details').eq('target_id', absentStaffId).eq('action', 'update_staff')
   expect(log?.[0].details).toEqual({ before: { full_name: ABSENT, role: 'worker' }, after: { full_name: 'Corrected Name', role: 'supervisor' } })
 })
+
+test('sites: a slow first load cannot hide a site added meanwhile', async ({ page }) => {
+  await login(page)
+  let first = true
+  await page.route('**/rest/v1/work_sites?select=*', async (route) => {
+    if (route.request().method() === 'GET' && first) {
+      first = false
+      const old = await route.fetch() // the list as it is now...
+      await new Promise((r) => setTimeout(r, 4000))
+      return route.fulfill({ response: old }) // ...delivered after the new site was saved
+    }
+    await route.continue()
+  })
+  await page.getByRole('link', { name: 'Sites' }).click()
+  await page.getByRole('button', { name: 'Add site' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByLabel('Site name').fill('Race Site')
+  await dialog.getByLabel('Latitude').fill('11.85')
+  await dialog.getByLabel('Longitude').fill('13.17')
+  await dialog.getByRole('button', { name: 'Save site' }).click()
+  await expect(page.getByText('Race Site', { exact: true })).toBeVisible()
+  await page.waitForTimeout(5000) // after the late answer arrives
+  await expect(page.getByText('Race Site', { exact: true })).toBeVisible()
+})
+
+// Last in this file: it locks the shared test admin.
+test('an admin locked after wrong two-step codes sees "Admin access locked", even with the right code', async ({ page }) => {
+  await page.clock.setFixedTime(pageNow)
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Organisation admin? Log in here' }).click()
+  await page.getByLabel('Email').fill(adminEmail)
+  await page.getByLabel('Password').fill(adminPassword)
+  await page.getByRole('button', { name: 'Log in', exact: true }).click()
+  await expect(page).toHaveURL(/\/admin\/verify/, { timeout: 15_000 })
+  await page.getByLabel('6-digit code').fill(totp(adminTotp) === '000000' ? '111111' : '000000')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('alert')).toContainText('That code is not correct')
+  // The 5-minute job, run now with a threshold of 1 for this admin only.
+  expect((await svc().rpc('lock_guessed_admins', { p_threshold: 1, p_only_user: adminUserId })).data).toBe(1)
+  await page.getByLabel('6-digit code').fill(totp(adminTotp))
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Admin access locked' })).toBeVisible({ timeout: 15_000 })
+  await page.goto('/admin/review') // no way around it
+  await expect(page.getByRole('heading', { name: 'Admin access locked' })).toBeVisible({ timeout: 15_000 })
+})

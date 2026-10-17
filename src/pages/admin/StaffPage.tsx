@@ -5,6 +5,7 @@ import { createStaff, resetPin, setStaffStatus, updateStaff, uploadReferencePhot
 import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
+import { useLatestOnly } from '../../hooks/useLatestOnly';
 import { renewPhotoUrl, signListPhotos, type ListPhoto } from '../../lib/photoUrls';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 
@@ -40,7 +41,8 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
     setStaff(result.staff);
     setPhotos(result.photos);
   }, []);
-  const load = useCallback(async () => apply(await fetchStaffList()), [apply]);
+  const latest = useLatestOnly();
+  const load = useCallback(() => latest(fetchStaffList(), apply), [latest, apply]);
   // An expired link (photo scrolled into view after 10 minutes) gets a new one, once.
   const [renewed] = useState(() => new Set<string>());
   const renewOnce = async (path: string) => {
@@ -52,14 +54,8 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
   };
 
   useEffect(() => {
-    let cancelled = false;
-    fetchStaffList().then((result) => {
-      if (!cancelled) apply(result);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [apply]);
+    load();
+  }, [load]);
 
 
   const onReset = async (s: Staff) => {

@@ -77,6 +77,8 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - `admin-staff` (actions `create`, `update` (name, phone, role; not the staff code), `reset_pin`, `set_status`, `set_reference_photo`) checks that the caller is an active admin and scopes everything to their org.
   - Admins themselves use email + password and are created by the platform owner (seed/script), never through `admin-staff`.
   - **Admins need two-step login** (TOTP, Supabase MFA; migration `20261015150000`): `private.current_staff_role()` returns no role for an admin whose session isn't AAL2, so every admin policy and RPC refuses them, and `admin-staff` answers `mfa_required`. The app sends them to `/admin/verify` (set up the authenticator app, or enter the code); the password-reset screen asks for the code too (Supabase requires AAL2 to change a password). Tests: `tests/support/totp.ts` + `tests/support/mfa.ts` (RLS fixtures enrol admins; the accounts E2E goes through the real set-up screen). Supabase refuses a check whose challenge and verify requests arrive from different IPs (`mfa_ip_address_mismatch`); `verifyTotp` and the test helper retry it. Recovery is by the owner (RUNBOOK).
+  - **Wrong-code lock** (migration `20261015170000`; Supabase limits guesses per IP only): pg_cron `lock-guessed-admins` every 5 min counts unverified `auth.mfa_challenges`; 20 in 24 h → a row in `private.admin_lockouts`, so `current_staff_role()` gives no role (even after a right code) and `admin-staff` answers `mfa_locked`; `/admin/verify` shows "Admin access locked" (`my_admin_lockout()`); audited; the nightly purge run reports new locks to Sentry. The owner unlocks with one SQL statement (RUNBOOK).
+  - Password-only admin sessions can't read sites either; clock-ins are accepted only from staff who accepted the privacy notice (migration `20261015180000`).
   - Deactivation sets `staff.status` and bans the Auth user.
   - Workers accept the privacy notice via the `accept_consent()` RPC.
   - Client helpers: `src/lib/staffAuth.ts`, `src/lib/adminStaff.ts`, `src/context/useStaff.ts`.
@@ -113,14 +115,14 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Report logic is pure and unit-tested in `src/lib/reports.ts`: organisation-time-zone days, summary, absent list. **CSV cells are escaped against formula injection** (`= + - @` prefix → `'`). Excel export uses SheetJS (installed from the official CDN tarball `cdn.sheetjs.com`, because the npm `xlsx` is stale and vulnerable) and writes text cells, never formulas.
   - Leaflet (`react-leaflet`, OSM tiles, attribution kept) and SheetJS are lazy-loaded, so they never reach the worker bundle.
   - Sites can be placed by map tap, current location, or typed coordinates.
-  - Dialogs close on Escape (`src/hooks/useEscape.ts`).
+  - Dialogs close on Escape (`src/hooks/useEscape.ts`). Lists reload through `useLatestOnly` so a slow earlier load can't overwrite a newer one.
 - **Test-only liveness bypass:** `import.meta.env.VITE_E2E === '1'` auto-captures in `LivenessCamera`. Playwright builds with it into `dist-e2e/`. `check:secrets` fails if the marker `E2E_LIVENESS_BYPASS` appears in `dist/`.
 - **Legacy:** the prototype pages and Dexie queue were removed in M4. `src/lib/legacyCleanup.ts` deletes the old on-device DB once. Legacy DB objects (`profiles`, `sites`, `attendance_logs`, the private `attendance-photos` bucket) still serve `main` and are dropped at go-live (GO_LIVE step 8).
 
 ## Production and deployment (M6)
 
 - **Rule: no developer tool has production credentials.** Production lives only in the GitHub `production` environment (required reviewer: the owner). Everything that touches prod is a workflow the owner triggers:
-  - `deploy-prod.yml`: migrations, the 3 Edge Functions, `CRON_SECRET`, and auth/Vault settings via `scripts/configure-supabase.mjs`.
+  - `deploy-prod.yml`: migrations, the 3 Edge Functions, `CRON_SECRET`, and auth/Vault settings via `scripts/configure-supabase.mjs` (signup off, 12-character passwords, TOTP, 30-day session inactivity timeout: a Pro setting, `SESSION_INACTIVITY_HOURS=0` on Free).
   - `onboard-org.yml` → `scripts/onboard-org.mjs`: a new organisation plus its first admin.
   - `data-request.yml` → `scripts/data-request.mjs`: export (encrypted artifact, `EXPORT_PASSPHRASE`) or delete one organisation or one worker. Deletion is a dry run unless `CONFIRM` repeats the target. Tested by `tests/rls/data-request.test.ts`.
   - `android-release.yml`: on a `v*.*.*` tag, a release-key-signed APK as a draft release.

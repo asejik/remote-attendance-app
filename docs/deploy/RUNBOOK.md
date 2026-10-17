@@ -31,6 +31,17 @@ Admins must enter a code from an authenticator app after their password. If the 
 3. Ask them to log in again: they set up the authenticator on the new phone (QR code) before they can see anything.
 4. If they also forgot the password: do steps 1–2 first, then they use **Forgot password?**.
 
+## Admin locked out after wrong codes
+After 20 wrong two-step codes in 24 hours, an admin loses all admin power: even the right code then shows **"Admin access locked"**. A Sentry alert ("admin locked after repeated wrong two-step codes") arrives with the next nightly run, and the organisation's audit log has an `admin_locked_wrong_codes` entry. Someone may know their password.
+1. Contact the admin outside the app (as above). Ask whether they were the one entering wrong codes.
+2. If it wasn't them, or they're unsure: they change their password first (**Forgot password?**, which needs their code). If they've lost the phone too, follow "An admin lost their phone" first.
+3. Supabase (production) → *SQL editor* → run, with their email:
+   ```sql
+   update private.admin_lockouts set cleared_at = now()
+    where cleared_at is null and user_id = (select id from auth.users where email = 'admin@example.com');
+   ```
+   It should report 1 row. They can log in straight away; wrong codes from before the unlock no longer count.
+
 ## A worker can't log in
 - "not correct": check organisation code and staff code (admin → Staff); reset the PIN.
 - "Too many wrong PINs": wait 15 minutes, or the admin resets the PIN (unlocks immediately).

@@ -112,6 +112,17 @@ describe.skipIf(!hasCredentials)('access rules (RLS) on the new schema', () => {
       expect(DENIED).toContain((await c.insert({ ...newEvent(w.orgA, w.workerA1.staffId, w.siteA), captured_by: w.workerA2.userId })).error?.code)
     })
 
+    it('cannot record clock-ins before accepting the privacy notice (migration 20261015180000)', async () => {
+      const svc = service()
+      await svc.from('staff').update({ consent_accepted_at: null }).eq('id', w.workerA2.staffId)
+      try {
+        expect(DENIED).toContain((await w.workerA2.client.from('attendance_events').insert(newEvent(w.orgA, w.workerA2.staffId, w.siteA))).error?.code)
+      } finally {
+        await svc.from('staff').update({ consent_accepted_at: new Date().toISOString() }).eq('id', w.workerA2.staffId)
+      }
+      expect((await w.workerA2.client.from('attendance_events').insert(newEvent(w.orgA, w.workerA2.staffId, w.siteA))).error).toBeNull()
+    })
+
     it('sees only their own events and cannot change or delete them', async () => {
       await w.workerA2.client.from('attendance_events').insert(newEvent(w.orgA, w.workerA2.staffId, w.siteA))
       const { data } = await w.workerA1.client.from('attendance_events').select('staff_id')

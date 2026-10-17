@@ -187,6 +187,9 @@ Deno.serve(withCors(async (req) => {
   // Admins must have completed two-step login (migration 20261015150000). The
   // token was just validated by getUser, so its claims can be trusted.
   if (jwtClaims(jwt).aal !== 'aal2') return json({ error: 'mfa_required' }, 403)
+  // Locked after repeated wrong two-step codes (migration 20261015170000).
+  const { data: locked } = await svc.rpc('admin_locked', { p_user_id: auth.user.id })
+  if (locked !== false) return json({ error: 'mfa_locked' }, 403)
   const admin: Admin = { userId: auth.user.id, staffId: me.id, orgId: me.organization_id, orgSlug: me.organizations.slug }
 
   let body: Record<string, unknown>
