@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, CloudOff, XCircle } from 'lucide-react';
+import { AlertTriangle, Check, CheckCheck, CloudOff, XCircle } from 'lucide-react';
 import { flagLabel } from '../../lib/reports';
 import { card } from '../classes';
 
@@ -9,6 +9,8 @@ export interface HistoryItem {
   site: string | null;
   flags: string[];
   state: 'pending' | 'synced' | 'failed';
+  review?: 'pending' | 'approved' | 'rejected' | null; // the admin's decision, once uploaded
+  note?: string | null;
 }
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -28,6 +30,7 @@ export const RecentList = ({ items }: { items: HistoryItem[] }) => (
             <span className="min-w-[8rem] flex-1">
               <span className="block font-semibold">{h.type === 'CLOCK_IN' ? 'Clock in' : 'Clock out'}</span>
               <span className="block text-sm text-gray-600">{day(h.at)} · {h.site ?? 'No site'}</span>
+              {h.review === 'rejected' && h.note && <span className="mt-1 block text-sm text-red-900">Admin&apos;s note: {h.note}</span>}
               {h.flags.length > 0 && (
                 <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-950">
                   <AlertTriangle size={12} aria-hidden /> {h.flags.map(flagLabel).join(', ')}
@@ -37,6 +40,8 @@ export const RecentList = ({ items }: { items: HistoryItem[] }) => (
             <span className={`ml-auto flex items-center gap-1 whitespace-nowrap text-sm font-semibold ${h.state === 'failed' ? 'text-red-800' : h.state === 'pending' ? 'text-amber-900' : 'text-brand-700'}`}>
               {h.state === 'failed' ? <><XCircle size={15} aria-hidden /> Not accepted</>
                 : h.state === 'pending' ? <><CloudOff size={15} aria-hidden /> Waiting</>
+                : h.review === 'rejected' ? <span className="flex items-center gap-1 text-red-800"><XCircle size={15} aria-hidden /> Rejected</span>
+                : h.review === 'approved' ? <><CheckCheck size={15} aria-hidden /> Approved</>
                 : <><Check size={15} strokeWidth={2.5} aria-hidden /> Uploaded</>}
             </span>
           </li>

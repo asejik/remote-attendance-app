@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, Check, CheckCheck, ExternalLink, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Check, CheckCheck, ExternalLink, Loader2, RefreshCw, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   fetchReviewPage, mapLink, PAGE_SIZE, reviewEvent, type EventFilter, type ReviewEvent, type ReviewStatus,
@@ -8,7 +8,7 @@ import { dayRangeUtc, flagLabel, localDay, localTime } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
 import { orSuspended } from '../../lib/support';
-import { Badge, PageHeader, SkeletonList } from '../../components/ui';
+import { Alert, Badge, PageHeader, SkeletonList } from '../../components/ui';
 import { button, card, field } from '../../components/classes';
 import { renewPhotoUrl, signListPhotos, signPhotoUrls, type ListPhoto, type PhotoBucket } from '../../lib/photoUrls';
 
@@ -44,6 +44,9 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const [reviewed, setReviewed] = useState<Record<string, ReviewedRow>>({});
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMessage, setBulkMessage] = useState('');
+  // What just happened (a decision moves a card out of "Needs review"; it is never deleted).
+  const [notice, setNotice] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,6 +126,14 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
   const onReviewed = (rows: ReviewedRow[]) => setReviewed((r) => ({ ...r, ...Object.fromEntries(rows.map((row) => [row.id, row])) }));
 
+  // New clock-ins arrive all day: load the list again on request.
+  const refresh = async () => {
+    setRefreshing(true);
+    apply(await load(filter(), page));
+    setNotice('');
+    setRefreshing(false);
+  };
+
   // After the last card on a page is reviewed, load what's left.
   const showMore = async () => {
     const last = pages - 1;
@@ -148,6 +159,7 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
       }
     }
     setBulkBusy(false);
+    if (n - failed > 0) setNotice(`Approved ${n - failed} clock-in${n - failed === 1 ? '' : 's'} without flags.`);
     if (failed) setBulkMessage(suspendedMessage || `${failed} could not be approved. Please try again.`);
   };
 
@@ -158,7 +170,11 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Review" subtitle="Flagged clock-ins come first. Tap a photo to see it full size." />
+      <PageHeader title="Review" subtitle="Flagged clock-ins come first. Tap a photo to see it full size.">
+        <button onClick={refresh} disabled={refreshing} className={button.secondary}>
+          <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} aria-hidden /> Refresh
+        </button>
+      </PageHeader>
       <section aria-label="Filters" className={`${card} p-3 grid grid-cols-2 sm:grid-cols-6 gap-3 text-sm`}>
         <label className="font-medium text-gray-700">From
           <input type="date" value={from} max={today} onChange={(e) => changeFilter(() => setFrom(e.target.value))} className={inputClass} />
@@ -208,12 +224,20 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
           )}
         </div>
       )}
+      {notice && <Alert tone="success">{notice}</Alert>}
       {bulkMessage && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{bulkMessage}</p>}
 
       <ul className="grid gap-3 lg:grid-cols-2">
         {shown.map((e) => (
           <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={openPhoto} onRenew={renew}
-            onReviewed={(row) => onReviewed([row])} />
+            onReviewed={(row) => {
+              onReviewed([row]);
+              const who = e.staff?.full_name ?? 'the worker';
+              const filtered = status !== 'all' && status !== row.review_status;
+              setNotice(row.review_status === 'rejected'
+                ? `Rejected ${who}'s ${e.type === 'CLOCK_IN' ? 'clock-in' : 'clock-out'}. It stays on record${filtered ? ': choose Status → Rejected to see it' : ''}, and the worker sees it as rejected with your reason.`
+                : `Approved ${who}'s ${e.type === 'CLOCK_IN' ? 'clock-in' : 'clock-out'}.${filtered ? ' Choose Status → Approved to see it again.' : ''}`);
+            }} />
         ))}
       </ul>
 

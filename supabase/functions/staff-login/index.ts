@@ -33,13 +33,15 @@ Deno.serve(withCors(async (req) => {
   const { data: blockedUntil } = await svc.rpc('login_throttle_blocked', { p_key: address })
   if (blockedUntil) return json({ error: 'too_many_attempts' }, 429)
   // Every failed attempt counts against the address, whatever account it tried.
-  const failed = async () => {
+  // Tries left and lock times are counted the same way for staff codes that
+  // don't exist (migration 20261015190000), so they can't reveal which do.
+  const failed = async (outcome: { attemptsLeft?: number | null; lockedUntil?: string | null } = {}) => {
     const { data: justBlocked } = await svc.rpc('login_throttle_record_failure', {
       p_key: address, p_limit: THROTTLE_LIMIT, p_block: `${THROTTLE_BLOCK_MINUTES} minutes`,
     })
     if (justBlocked) await reportError('staff-login', 'sign-ins blocked for an address after repeated failures')
-    // A locked account answers exactly like a wrong PIN, so lockouts can't reveal which staff codes exist.
-    return json({ error: 'invalid_credentials' }, 401)
+    if (outcome.lockedUntil) return json({ error: 'locked', locked_until: outcome.lockedUntil }, 423)
+    return json({ error: 'invalid_credentials', ...(typeof outcome.attemptsLeft === 'number' ? { attempts_left: outcome.attemptsLeft } : {}) }, 401)
   }
 
   const { org, code, pin } = body
@@ -52,13 +54,14 @@ Deno.serve(withCors(async (req) => {
 
   const { data, error } = await svc
     .rpc('staff_pin_verify', { p_org_slug: org.trim(), p_staff_code: code.trim(), p_pin: pin })
-    .single<{ result: string; user_id: string | null; locked_until: string | null }>()
+    .single<{ result: string; user_id: string | null; locked_until: string | null; attempts_left: number | null }>()
   if (error || !data) {
     await logError('staff-login', 'staff_pin_verify failed', error)
     return json({ error: 'server_error' }, 500)
   }
   if (data.result === 'deactivated') return json({ error: 'deactivated' }, 403) // only after the right PIN
-  if (data.result !== 'ok' || !data.user_id) return failed() // invalid or locked
+  if (data.result === 'locked') return failed({ lockedUntil: data.locked_until })
+  if (data.result !== 'ok' || !data.user_id) return failed({ attemptsLeft: data.attempts_left })
 
   const { data: userData, error: userError } = await svc.auth.admin.getUserById(data.user_id)
   const email = userData?.user?.email

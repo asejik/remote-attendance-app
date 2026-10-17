@@ -97,10 +97,12 @@ describe.skipIf(!hasCredentials)('staff accounts (Edge Functions)', () => {
       expect(accepted).not.toBeNull()
     })
 
-    it('gives the same answer for a wrong PIN, unknown code and unknown organisation', async () => {
-      expect((await login(worker.staff_code, '000000')).body).toEqual({ error: 'invalid_credentials' })
-      expect((await login('W-9999X', pin)).body).toEqual({ error: 'invalid_credentials' })
-      expect((await login(worker.staff_code, pin, 'no-such-org')).body).toEqual({ error: 'invalid_credentials' })
+    it('gives the same answer, with tries left, for a wrong PIN, an unknown code and an unknown organisation', async () => {
+      const first = { status: 401, body: { error: 'invalid_credentials', attempts_left: 4 } }
+      expect(await login(worker.staff_code, '000000')).toEqual(first)
+      expect(await login(`U-${w.run}`, pin)).toEqual(first) // made-up codes are counted the same way
+      expect(await login(worker.staff_code, pin, `no-org-${w.run}`)).toEqual(first)
+      expect((await login(worker.staff_code, '000000')).body).toEqual({ error: 'invalid_credentials', attempts_left: 3 })
       await login(worker.staff_code, pin) // success resets the failure count
     })
 
@@ -110,12 +112,25 @@ describe.skipIf(!hasCredentials)('staff accounts (Edge Functions)', () => {
       expect(await authPasswordGrant(data.user!.email!, pin)).toBe(400)
     })
 
-    it('locks the account after 5 wrong PINs, even for the right PIN, answering exactly like an unknown code', async () => {
-      for (let i = 0; i < 5; i++) expect((await login(worker.staff_code, '111111')).status).toBe(401)
-      const locked = await login(worker.staff_code, pin)
-      const unknown = await login('W-9998X', pin)
-      expect(locked).toEqual(unknown) // same status and body: lockouts can't reveal which codes exist
-      expect(locked).toEqual({ status: 401, body: { error: 'invalid_credentials' } })
+    it('locks the account after 5 wrong PINs, even for the right PIN, exactly as an unknown code is locked', async () => {
+      const lefts: unknown[] = []
+      for (let i = 0; i < 4; i++) lefts.push((await login(worker.staff_code, '111111')).body)
+      expect(lefts.map((b) => (b as { attempts_left: number }).attempts_left)).toEqual([4, 3, 2, 1])
+      const fifth = await login(worker.staff_code, '111111')
+      expect(fifth.status).toBe(423)
+      const locked = await login(worker.staff_code, pin) // the right PIN no longer works
+      expect(locked.status).toBe(423)
+      expect(locked.body.error).toBe('locked')
+      const minutes = (Date.parse(locked.body.locked_until) - Date.now()) / 60_000
+      expect(minutes).toBeGreaterThan(13)
+      expect(minutes).toBeLessThanOrEqual(15.5) // first lock: 15 minutes (allowing for clock differences)
+      // A made-up code behaves the same: 5 tries, then the same kind of lock.
+      const fake = `X-${w.run}`
+      for (let i = 0; i < 5; i++) await login(fake, '111111')
+      const fakeLocked = await login(fake, pin)
+      expect(fakeLocked.status).toBe(423)
+      expect(Object.keys(fakeLocked.body).sort()).toEqual(Object.keys(locked.body).sort())
+      expect(Math.abs(Date.parse(fakeLocked.body.locked_until) - Date.parse(locked.body.locked_until))).toBeLessThan(120_000)
       const { data: log } = await w.adminA.client.from('audit_log').select('action, details').eq('target_id', worker.id).eq('action', 'pin_locked')
       expect(log).toHaveLength(1)
       expect(log![0].details).toMatchObject({ lock: 1 }) // first lock: 15 minutes

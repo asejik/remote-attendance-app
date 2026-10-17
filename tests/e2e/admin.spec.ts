@@ -125,7 +125,9 @@ const imageLoaded = (page: Page, alt: string) =>
 test('review queue: flagged first, photos side by side, reject needs a note, approve, audited', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
   await login(page)
-  await expect(page.getByRole('status')).toHaveText('2 clock-ins')
+  await expect(page.getByText('2 clock-ins', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Refresh' }).click() // reloads the list on request
+  await expect(page.getByText('2 clock-ins', { exact: true })).toBeVisible()
   const cards = page.locator('main ul > li')
   await expect(cards.first()).toContainText('Outside site (2.0 km)') // flagged first
   await imageLoaded(page, `Clock-in photo of ${EVIL}`)
@@ -149,7 +151,8 @@ test('review queue: flagged first, photos side by side, reject needs a note, app
   await expect(flagged.getByRole('alert')).toHaveText('Add a short reason for rejecting.')
   await flagged.getByLabel('Reason for rejecting').fill('Not at the site')
   await flagged.getByRole('button', { name: 'Confirm reject' }).click()
-  await expect(page.getByRole('status')).toHaveText('1 clock-in') // left "Needs review"
+  await expect(page.getByText('1 clock-in', { exact: true })).toBeVisible() // left "Needs review"
+  await expect(page.getByText(/It stays on record: choose Status → Rejected/)).toBeVisible()
   // Updated in place: the other card's photo link was not signed again.
   expect(await unflaggedPhoto.getAttribute('src')).toBe(photoUrl)
 

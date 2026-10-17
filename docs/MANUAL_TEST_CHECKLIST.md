@@ -33,9 +33,9 @@ Rewritten 2026-10-17 for SiteProof. The older milestone-by-milestone lists are i
 ### 2.1 Install and log in
 - ☐ The home screen shows **SiteProof** with the teal pin-and-lens icon; the splash screen is teal. On Android 13+ with *themed icons* on, the icon follows the phone's colours.
 - ☐ Log in with organisation `demo`, staff code `WRK-01` and its PIN. On first login, or when the notice has changed, the privacy notice appears. **I understand and agree** → the worker home with your name.
-- ☐ Close the app fully and reopen it, online and in airplane mode: you go straight back to the home screen without logging in again.
+- ☐ Close the app fully and reopen it, online and in airplane mode: the teal SiteProof screen, then straight to the home screen. **The login form never flashes.**
 - ☐ Logged out and offline, try to log in: a clear "can't reach the server" message, no endless spinner.
-- ☐ Wrong PIN 5 times: the account locks. The admin resets the PIN (Staff → key icon) and the new PIN works.
+- ☐ Wrong PIN: the message says how many tries are left (4, 3, 2, 1). On the 5th wrong PIN: **"This account is locked … Try again after HH:MM"**, and even the right PIN is refused until then. The admin resets the PIN (Staff → key icon): the new PIN works at once.
 
 ### 2.2 Clock in and out (online)
 - ☐ Choose your site with the **large site buttons**: the chosen one turns teal with a tick.
@@ -58,12 +58,13 @@ Rewritten 2026-10-17 for SiteProof. The older milestone-by-milestone lists are i
 ### 2.3 Offline (the core promise)
 - ☐ Airplane mode on → clock out. The slip says **"Waiting to send"**. Home shows *Offline* and **"1 waiting to upload · Oldest: … ago"**.
 - ☐ **Restart the phone** (still in airplane mode). Open the app: the record is still waiting.
-- ☐ Airplane mode off and keep the app open: it uploads by itself within about a minute, with no tapping. The box changes to **All records uploaded**.
+- ☐ Airplane mode off and keep the app open: it uploads by itself within about a minute, with no tapping. The box changes to **All records uploaded**, with a **Sync now** button you can tap at any time.
 - ☐ Logging out with records waiting asks for confirmation first. Logging out offline really logs you out (you stay logged out when the network returns).
 - ☐ On a very weak signal: clock-ins still save at once and upload later; nothing spins forever.
 
 ### 2.4 When the server says no
 - ☐ Admin **deactivates** the worker while they're still logged in. The worker clocks in: within about a minute **"1 record not accepted"** appears with the reason, and the row says *Not accepted*. Reactivate, tap **Try again**: *All records uploaded*.
+- ☐ **Rejected by the admin:** the admin rejects one of the worker's clock-ins with a reason. On the phone, tap **Sync now** (or reopen the app): a red notice says it was rejected, with the reason, and the row in Recent clock-ins says *Rejected*. An approved one says *Approved*.
 - ☐ **Block mode** (admin → Settings → *Block*): a clock-in far from the site is refused before any photo, with the distance shown. Set it back to *Allow and flag*.
 
 ### 2.5 Real conditions
@@ -85,15 +86,16 @@ Rewritten 2026-10-17 for SiteProof. The older milestone-by-milestone lists are i
 ### 3.2 Review
 - ☐ Today's clock-ins: flagged ones first (amber border, plain-word flags such as *Outside site (2.2 km)*, *Weak GPS*, *Recorded by …*). On a laptop the cards sit two per row.
 - ☐ Photos show at once (small previews). Tap one: the full photo opens; Escape or a tap closes it.
-- ☐ **Reject** without a reason is refused; with a reason the card leaves *Needs review*. **Approve** removes the card instantly, without reloading the others.
+- ☐ **Reject** without a reason is refused. With a reason the card leaves *Needs review* and a message explains it is kept under **Status → Rejected** (nothing is deleted). **Approve** works the same way, instantly, without reloading the others.
+- ☐ **Refresh** (top right) loads clock-ins that arrived since the page opened.
 - ☐ **Approve N without flags** approves only the unflagged ones; flagged ones stay.
 - ☐ Filters (dates, worker, site, status, flagged only) work. **Map** opens the clock-in location.
 - ☐ On a phone, all six tabs show as two rows, with no sideways scrolling.
 
 ### 3.3 Staff
-- ☐ **Add worker** with a reference photo: on a phone, the photo opens the **back** camera. After saving, the organisation code, staff code and PIN are shown once.
+- ☐ **Add worker:** the photo area is a clear **Take or choose photo** box (on a phone it opens the **back** camera). Next comes **adjust the crop**: drag the face into the oval and zoom; **Use photo** shows a preview with **Change photo**. After saving, the organisation code, staff code and PIN are shown once.
 - ☐ The pencil icon: change the name, switch to Supervisor, add a phone, then save. The list updates; the staff code is unchanged and still logs in.
-- ☐ Tap a photo circle to replace a reference photo: the new photo shows straight away.
+- ☐ Tap a photo circle to replace a reference photo: the same crop step, then the new photo shows straight away.
 - ☐ Deactivate (person-x icon): that worker's next login says the account is deactivated. Reactivate restores it.
 
 ### 3.4 Sites, Absent, Reports, Settings

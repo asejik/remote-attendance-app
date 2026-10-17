@@ -77,7 +77,7 @@ describe.skipIf(!hasCredentials)('site audit and organisation suspension', () =>
     const refused = await clockIn()
     expect(DENIED).toContain(refused.error?.code)
     const res = await login()
-    expect(res.body).toEqual({ error: 'invalid_credentials' })
+    expect(res.body).toMatchObject({ error: 'invalid_credentials' }) // counted like an unknown code
   })
 
   it('reactivation clears the suspension (audited) and restores everything', async () => {

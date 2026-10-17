@@ -5,6 +5,7 @@ import { AuthContext } from './authContextDef';
 import { clearStaffCache } from './useStaff';
 import { sessionAal } from '../lib/mfa';
 import { signOut as signOutDevice } from '../lib/signOut';
+import { Splash } from '../components/ui';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -36,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   return (
     <AuthContext.Provider value={{ user, session, loading, aal: sessionAal(session), signOut }}>
-      {!loading && children}
+      {loading ? <Splash /> : children}
     </AuthContext.Provider>
   );
 };

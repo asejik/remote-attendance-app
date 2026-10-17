@@ -30,7 +30,8 @@ const LivenessCamera = lazy(() => import('../components/LivenessCamera').then((m
 type Tables = Database['public']['Tables'];
 type Site = Pick<Tables['work_sites']['Row'], 'id' | 'name' | 'latitude' | 'longitude' | 'radius_m'>;
 type OrgSettings = Pick<Tables['organizations']['Row'], 'site_photo_required' | 'geofence_mode'>;
-type ServerEvent = Pick<Tables['attendance_events']['Row'], 'id' | 'type' | 'captured_at' | 'site_name_snapshot' | 'flags'>;
+type ServerEvent = Pick<Tables['attendance_events']['Row'], 'id' | 'type' | 'captured_at' | 'site_name_snapshot' | 'flags'>
+  & Partial<Pick<Tables['attendance_events']['Row'], 'review_status' | 'review_note'>>; // missing in caches from before 2026-10-17
 
 
 // Small per-organisation cache so the screen works offline after one online visit.
@@ -93,7 +94,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const loadFromServer = useCallback(() => Promise.all([
       supabase.from('organizations').select('site_photo_required, geofence_mode').eq('id', organization.id).maybeSingle(),
       supabase.from('work_sites').select('id, name, latitude, longitude, radius_m').order('name'),
-      supabase.from('attendance_events').select('id, type, captured_at, site_name_snapshot, flags')
+      supabase.from('attendance_events').select('id, type, captured_at, site_name_snapshot, flags, review_status, review_note')
         .eq('staff_id', staff.id).order('captured_at', { ascending: false }).limit(5),
   ]), [organization.id, staff.id]);
   const applyFromServer = useCallback(([orgRes, sitesRes, eventsRes]: Awaited<ReturnType<typeof loadFromServer>>) => {
@@ -147,11 +148,14 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
 
   // History: this device's records plus the server's, newest first, no duplicates.
   const localIds = new Set(local.map((e) => e.id));
+  // The admin's review (approved / rejected, with a note) comes from the server.
+  const reviews = new Map(serverEvents.map((e) => [e.id, { review: e.review_status ?? null, note: e.review_note ?? null }]));
   const history: HistoryItem[] = [
-    ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], state: e.status })),
+    ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], state: e.status, ...reviews.get(e.id) })),
     ...serverEvents.filter((e) => !localIds.has(e.id))
-      .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, state: 'synced' as const })),
+      .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, state: 'synced' as const, review: e.review_status ?? null, note: e.review_note ?? null })),
   ].sort((a, b) => b.at.localeCompare(a.at));
+  const rejected = history.slice(0, 5).find((h) => h.review === 'rejected');
   // A record the server refused doesn't count towards clocked in/out.
   const last = history.find((h) => h.state !== 'failed');
   const clockedIn = last?.type === 'CLOCK_IN';
@@ -351,9 +355,23 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
             </button>
           </div>
         ) : failed.length === 0 && (
-          <p className="flex items-center gap-2 text-sm font-semibold text-brand-700" role="status">
-            <CloudCheck size={20} aria-hidden /> All records uploaded
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="flex items-center gap-2 text-sm font-semibold text-brand-700" role="status">
+              <CloudCheck size={20} aria-hidden /> All records uploaded
+            </p>
+            <button onClick={syncNow} disabled={syncing || !online} className={`${button.secondary} min-h-11 px-3 text-sm`}>
+              {syncing ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <RefreshCw size={16} aria-hidden />} Sync now
+            </button>
+          </div>
+        )}
+        {rejected && (
+          <Alert tone="error">
+            <p className="font-semibold">
+              Your {rejected.type === 'CLOCK_IN' ? 'clock-in' : 'clock-out'} on {new Date(rejected.at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {new Date(rejected.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} was rejected by your admin.
+            </p>
+            {rejected.note && <p>Reason: {rejected.note}</p>}
+            <p>If this is a mistake, talk to your admin.</p>
+          </Alert>
         )}
 
         <section aria-label="Current status">

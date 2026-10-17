@@ -25,9 +25,9 @@ test.beforeAll(async () => {
   await s.from('staff').insert({ organization_id: o!.id, user_id: adminUserId, full_name: 'E2E Accounts Admin', staff_code: `ADM-${adminUserId.slice(0, 6)}`, role: 'admin', status: 'active' })
 })
 
-// 1x1 JPEG.
+// A small valid JPEG (the add-worker crop step decodes it).
 const JPEG = Buffer.from(
-  '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAAoAB4DASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDpKKKKZzhRRRQAUUUUAFFFFABRRRQAUUUUAf/Z',
   'base64',
 )
 const workerName = `E2E Worker ${Date.now()}`
@@ -88,6 +88,10 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
   await page.getByRole('button', { name: 'Add worker' }).click()
   await page.getByLabel('Full name').fill(workerName)
   await page.getByLabel(/Reference photo/).setInputFiles({ name: 'face.jpg', mimeType: 'image/jpeg', buffer: JPEG })
+  // The crop step, then a preview of the chosen photo.
+  await expect(page.getByRole('heading', { name: 'Reference photo', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Use photo' }).click()
+  await expect(page.getByRole('img', { name: 'Reference photo preview' })).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: 'Add worker' }).click()
   const code = (await page.getByTestId('new-staff-code').textContent())!.trim()
   const pin = (await page.getByTestId('new-pin').textContent())!.trim()
@@ -101,7 +105,7 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
 
   // Worker: wrong PIN is refused, the right PIN leads to the notice, then home.
   await workerLogin(page, code, pin === '000000' ? '111111' : '000000')
-  await expect(page.getByRole('alert')).toContainText('Organisation, staff code or PIN is not correct.')
+  await expect(page.getByRole('alert')).toContainText('Organisation, staff code or PIN is not correct. 4 tries left before this account is locked.')
   await workerLogin(page, code, pin)
   // PIN sign-in runs an Edge Function (cold starts of 4-5 s seen on dev) plus a session exchange.
   await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible({ timeout: 15_000 })

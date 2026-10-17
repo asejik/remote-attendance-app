@@ -5,6 +5,7 @@ import { createStaff, resetPin, setStaffStatus, updateStaff, uploadReferencePhot
 import type { Staff } from '../../lib/staffAuth';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
+import { PhotoCropper } from '../../components/PhotoCropper';
 import { useLatestOnly } from '../../hooks/useLatestOnly';
 import { renewPhotoUrl, signListPhotos, type ListPhoto } from '../../lib/photoUrls';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
@@ -84,8 +85,10 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
     else setRowError(result.message);
   };
 
-  const onPhoto = async (s: Staff, file: File | undefined) => {
-    if (!file) return;
+  // Replacing a photo from the list: pick, crop, then upload.
+  const [cropping, setCropping] = useState<{ staff: Staff; file: File } | null>(null);
+  const onPhoto = async (s: Staff, file: Blob) => {
+    setCropping(null);
     setRowBusy(s.id);
     setRowError('');
     const result = await uploadReferencePhoto(s, file);
@@ -121,7 +124,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                 )}
                 <span className="sr-only">{s.reference_photo_path ? 'Replace' : 'Add'} reference photo for {s.full_name}</span>
                 <input type="file" accept="image/jpeg,image/*" capture="environment" className="sr-only" disabled={rowBusy === s.id}
-                  onChange={(e) => onPhoto(s, e.target.files?.[0])} />
+                  onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) setCropping({ staff: s, file: f }); }} />
               </label>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-gray-900 break-words">{s.full_name}</p>
@@ -153,6 +156,10 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
         </ul>
       </div>
 
+      {cropping && (
+        <PhotoCropper file={cropping.file} title={`Reference photo: ${cropping.staff.full_name}`}
+          onCancel={() => setCropping(null)} onDone={(blob) => onPhoto(cropping.staff, blob)} />
+      )}
       {showAdd && (
         <AddStaffDialog
           onClose={() => setShowAdd(false)}
@@ -183,10 +190,22 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
   const [role, setRole] = useState<'worker' | 'supervisor'>('worker');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<Blob | null>(null);
+  const [preview, setPreview] = useState('');
+  const [picked, setPicked] = useState<File | null>(null); // chosen, waiting to be cropped
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEscape(onClose);
+  useEscape(() => { if (!picked) onClose(); });
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  const pick = (file: File | undefined) => {
+    if (file) setPicked(file);
+  };
+  const cropped = (blob: Blob) => {
+    setPicked(null);
+    setPhoto(blob);
+    setPreview(URL.createObjectURL(blob));
+    setError('');
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -236,16 +255,33 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
           Staff code (optional, created automatically if empty)
           <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} className={inputClass} />
         </label>
-        <label className="block text-sm font-medium text-gray-700">
-          Reference photo (face, clear and well lit)
-          <input required type="file" accept="image/jpeg,image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
-            className="mt-1 block w-full text-sm text-gray-700" />
-        </label>
+        <div>
+          <p className="text-sm font-medium text-gray-700">Reference photo <span className="font-normal text-gray-600">(face, clear and well lit)</span></p>
+          {photo ? (
+            <div className="mt-2 flex items-center gap-4">
+              <img src={preview} alt="Reference photo preview" className="h-28 w-[5.25rem] rounded-control border border-gray-200 object-cover" />
+              <label className={`${button.secondary} cursor-pointer has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-brand`}>
+                <Camera size={18} aria-hidden /> Change photo
+                <input type="file" accept="image/jpeg,image/*" capture="environment" className="sr-only" aria-label="Change reference photo"
+                  onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+              </label>
+            </div>
+          ) : (
+            <label className="mt-2 flex min-h-28 cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed border-gray-300 bg-gray-50 p-4 text-center transition duration-150 hover:border-brand hover:bg-brand-50 has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-brand">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand text-white"><Camera size={22} aria-hidden /></span>
+              <span className="font-semibold text-gray-900">Take or choose photo</span>
+              <span className="text-xs text-gray-600">Opens the camera on a phone. You can adjust the crop next.</span>
+              <input type="file" accept="image/jpeg,image/*" capture="environment" className="sr-only" aria-label="Reference photo (face, clear and well lit)"
+                onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          )}
+        </div>
         {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
         <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12`}>
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Adding worker" /> : 'Add worker'}
         </button>
       </form>
+      {picked && <PhotoCropper file={picked} title="Reference photo" onCancel={() => setPicked(null)} onDone={cropped} />}
     </div>
   );
 };

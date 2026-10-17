@@ -79,3 +79,15 @@ export const SkeletonList = ({ rows = 3, label }: { rows?: number; label: string
     ))}
   </div>
 );
+
+// Shown while the app works out where to send someone (saved session, staff
+// record). It matches the phone's launch screen, so reopening the app goes
+// teal → home with no login form flashing in between.
+export const Splash = () => (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand" role="status" aria-label="Loading SiteProof">
+    <svg width="96" height="96" viewBox="0 0 512 512" aria-hidden>
+      <path d="M256 92c-66 0-120 54-120 120 0 90 120 208 120 208s120-118 120-208c0-66-54-120-120-120z M320 212a64 64 0 1 0-128 0a64 64 0 1 0 128 0z" fill="#fff" fillRule="evenodd" />
+      <circle cx="256" cy="212" r="27" fill="#fff" />
+    </svg>
+  </div>
+);

@@ -555,6 +555,7 @@ export type Database = {
       staff_pin_verify: {
         Args: { p_org_slug: string; p_pin: string; p_staff_code: string }
         Returns: {
+          attempts_left: number
           locked_until: string
           result: string
           staff_id: string

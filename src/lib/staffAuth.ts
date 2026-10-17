@@ -26,6 +26,23 @@ export const functionError = async (error: unknown): Promise<{ error?: string; [
   return { error: 'network' };
 };
 
+// Wrong PIN: how many tries are left. Locked: until when (the same for staff
+// codes that don't exist, so this reveals nothing about which codes are real).
+const loginMessage = (body: { error?: string; attempts_left?: unknown; locked_until?: unknown }) => {
+  if (body.error === 'invalid_credentials' && typeof body.attempts_left === 'number') {
+    const left = body.attempts_left;
+    return `Organisation, staff code or PIN is not correct. ${left} ${left === 1 ? 'try' : 'tries'} left before this account is locked.`;
+  }
+  if (body.error === 'locked' && typeof body.locked_until === 'string') {
+    const until = new Date(body.locked_until);
+    const minutes = Math.max(1, Math.ceil((until.getTime() - Date.now()) / 60_000));
+    const time = until.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const wait = minutes >= 120 ? `${Math.round(minutes / 60)} hours` : minutes >= 60 ? 'about an hour' : `about ${minutes} minutes`;
+    return `This account is locked after too many wrong PINs. Try again after ${time} (${wait}), or ask your admin to reset your PIN to unlock it now.`;
+  }
+  return LOGIN_MESSAGES[body.error ?? ''] ?? 'Something went wrong. Please try again.';
+};
+
 const LOGIN_MESSAGES: Record<string, string> = {
   // The server gives the same answer for a wrong PIN and a locked account (so
   // lockouts can't reveal staff codes); the hint covers both.
@@ -44,8 +61,7 @@ export const staffLogin = async (org: string, code: string, pin: string): Promis
     body: { org: org.trim().toLowerCase(), code: code.trim(), pin },
   });
   if (error) {
-    const body = await functionError(error);
-    return LOGIN_MESSAGES[body.error ?? ''] ?? 'Something went wrong. Please try again.';
+    return loginMessage(await functionError(error));
   }
   const { error: sessionError } = await supabase.auth.setSession(data);
   if (sessionError) return 'Something went wrong. Please try again.';

@@ -4,15 +4,17 @@ import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getLastOrgSlug, staffLogin } from '../lib/staffAuth';
 import { useStaff } from '../context/useStaff';
+import { useAuth } from '../context/useAuth';
 import { SUPPORT_EMAIL } from '../lib/support';
 import { signOut } from '../lib/signOut';
-import { Alert, LogoMark, Wordmark } from '../components/ui';
+import { Alert, LogoMark, Splash, Wordmark } from '../components/ui';
 import { button, card, field, label } from '../components/classes';
 
 export const StaffLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { context } = useStaff();
+  const { user } = useAuth();
+  const { context, loading } = useStaff();
   const [mode, setMode] = useState<'worker' | 'admin'>('worker');
   const [org, setOrg] = useState(getLastOrgSlug);
   const [code, setCode] = useState('');
@@ -29,6 +31,9 @@ export const StaffLoginPage = () => {
   useEffect(() => {
     if (context) navigate(context.staff.role === 'admin' ? '/admin/review' : '/home', { replace: true });
   }, [context, navigate]);
+
+  // Signed in already: show the launch screen until we know where to go, never the form.
+  const redirecting = !!user && (loading || !!context);
 
   const workerLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -75,6 +80,8 @@ export const StaffLoginPage = () => {
     setInfo(resetError ? '' : 'If that email belongs to an admin, a reset link is on its way.');
     if (resetError) setError('Could not send the reset email. Please try again later.');
   };
+
+  if (redirecting) return <Splash />;
 
   return (
     <main className="flex min-h-screen flex-col justify-center bg-gray-50 px-5 py-10">

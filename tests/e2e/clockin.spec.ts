@@ -169,6 +169,13 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
   await expect(page.getByText('Clocked in', { exact: true })).toBeVisible()
   const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
   expect(count).toBe(3)
+
+  // The admin rejects it: after "Sync now" the worker sees it rejected, with the reason.
+  const { data: latest } = await svc().from('attendance_events').select('id').eq('organization_id', orgId).order('captured_at', { ascending: false }).limit(1).single()
+  await svc().from('attendance_events').update({ review_status: 'rejected', review_note: 'Photo shows someone else' }).eq('id', latest!.id)
+  await page.getByRole('button', { name: 'Sync now' }).click()
+  await expect(page.getByRole('alert').filter({ hasText: 'was rejected by your admin' })).toContainText('Reason: Photo shows someone else')
+  await expect(page.getByText('Rejected', { exact: true })).toBeVisible()
 })
 
 test('logging out with no network really signs the phone out', async ({ page, context }) => {

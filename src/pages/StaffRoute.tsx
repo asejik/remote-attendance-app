@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { useStaff, type StaffContext } from '../context/useStaff';
 import { PRIVACY_NOTICE_VERSION } from '../lib/support';
+import { Splash } from '../components/ui';
 
 interface StaffRouteProps {
   // 'admin': organisation admins only. 'member': workers and supervisors, who
@@ -18,13 +18,7 @@ export const StaffRoute = ({ require, children }: StaffRouteProps) => {
   const location = useLocation();
 
   if (!user) return <Navigate to="/" replace />;
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center" role="status" aria-label="Loading">
-        <Loader2 className="animate-spin text-gray-400" />
-      </div>
-    );
-  }
+  if (loading) return <Splash />;
   if (!context) return <Navigate to="/" replace state={{ notice: 'no_staff' }} />;
 
   const isAdmin = context.staff.role === 'admin';
