@@ -19,6 +19,13 @@ let orgId = ''
 let userId = ''
 
 const svc = () => createClient(url, secret!, { auth: { persistSession: false } })
+// Site buttons (radio buttons styled as large tap targets).
+const chooseSite = (page: import('@playwright/test').Page) => page.getByText('E2E Site', { exact: true }).click()
+// The proof slip covers the screen after each clock-in until "Done".
+const closeSlip = async (page: import('@playwright/test').Page) => {
+  await expect(page.getByRole('heading', { name: 'Your proof is saved' })).toBeVisible({ timeout: 30_000 })
+  await page.getByRole('button', { name: 'Done' }).click()
+}
 // PIN sign-in runs an Edge Function (cold starts of 4-5 s seen on dev) plus a session exchange.
 const PIN_LOGIN_MS = 15_000
 
@@ -64,21 +71,23 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
   await page.getByRole('button', { name: 'I understand and agree' }).click({ timeout: PIN_LOGIN_MS })
-  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
-  await page.getByLabel('Your site').selectOption({ label: 'E2E Site' })
+  await expect(page.getByText('Clocked out', { exact: true })).toBeVisible()
+  await chooseSite(page)
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
 
   // Clock in with no network.
   await context.setOffline(true)
-  await page.getByRole('button', { name: 'Tap to clock IN' }).click()
+  await page.getByRole('button', { name: /^Clock in/ }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Saved on this phone' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Waiting to send')).toBeVisible() // on the proof slip
+  await closeSlip(page)
   await expect(page.getByText('1 waiting to upload')).toBeVisible()
-  await expect(page.getByText('CLOCKED IN', { exact: true })).toBeVisible()
+  await expect(page.getByText('Clocked in', { exact: true })).toBeVisible()
 
   // Still there after a reload while offline.
   await page.reload()
   await expect(page.getByText('1 waiting to upload')).toBeVisible()
-  await expect(page.getByText('CLOCKED IN', { exact: true })).toBeVisible()
+  await expect(page.getByText('Clocked in', { exact: true })).toBeVisible()
 
   // Back online: uploads by itself.
   await context.setOffline(false)
@@ -101,17 +110,19 @@ test('offline clock-in uploads on reconnect; clock-out; block mode refuses outsi
   expect(thumb!.size).toBeLessThan(photo!.size)
 
   // Clock out online.
-  await page.getByRole('button', { name: 'Tap to clock OUT' }).click()
-  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText('All records uploaded')).toBeVisible({ timeout: 30_000 })
+  await page.getByRole('button', { name: /^Clock out/ }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Clocked out. Uploaded.' })).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByText('Sent to your organisation')).toBeVisible()
+  await closeSlip(page)
+  await expect(page.getByText('Clocked out', { exact: true })).toBeVisible()
+  await expect(page.getByText('All records uploaded')).toBeVisible({ timeout: 30_000 })
 
   // Block mode: ~2 km away is refused before any photo is taken.
   await svc().from('organizations').update({ geofence_mode: 'block' }).eq('id', orgId)
   await context.setGeolocation({ latitude: SITE.latitude + 0.018, longitude: SITE.longitude, accuracy: 15 })
   // The screen uses cached settings until the fresh ones arrive; wait for them.
   await Promise.all([page.waitForResponse((r) => r.url().includes('/rest/v1/organizations')), page.reload()])
-  await page.getByRole('button', { name: 'Tap to clock IN' }).click()
+  await page.getByRole('button', { name: /^Clock in/ }).click()
   await expect(page.getByRole('alert')).toContainText('You are about 2002 m from E2E Site')
   const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
   expect(count).toBe(2)
@@ -131,12 +142,12 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
   await expect(page.getByRole('heading', { name: 'Our privacy notice has changed' })).toBeVisible({ timeout: PIN_LOGIN_MS })
   await expect(page.getByText('Photos are deleted automatically after 60 days')).toBeVisible()
   await page.getByRole('button', { name: 'I understand and agree' }).click()
-  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible()
+  await expect(page.getByText('Clocked out', { exact: true })).toBeVisible()
   const { data: me } = await svc().from('staff').select('id, consent_version').eq('user_id', userId).single()
   expect(me!.consent_version).toBe(2)
   const { data: log } = await svc().from('audit_log').select('details').eq('target_id', me!.id).eq('action', 'accept_consent')
   expect(log).toContainEqual({ details: { version: 2 } })
-  await page.getByLabel('Your site').selectOption({ label: 'E2E Site' })
+  await chooseSite(page)
 
   // The server refuses the record as it would for a deactivated worker.
   const refuse = (route: import('@playwright/test').Route) => route.request().method() === 'POST'
@@ -144,17 +155,18 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
     : route.continue()
   await page.route('**/rest/v1/attendance_events*', refuse)
 
-  await page.getByRole('button', { name: 'Tap to clock IN' }).click()
+  await page.getByRole('button', { name: /^Clock in/ }).click()
+  await closeSlip(page)
   // First refusal is retried (backoff 30 s); the second marks it not accepted.
   await expect(page.getByRole('alert').filter({ hasText: '1 record not accepted' })).toBeVisible({ timeout: 60_000 })
   await expect(page.getByRole('alert')).toContainText('not allowed to send records')
   await expect(page.getByText('Not accepted', { exact: true })).toBeVisible()
-  await expect(page.getByText('CLOCKED OUT', { exact: true })).toBeVisible() // a refused clock-in doesn't count
+  await expect(page.getByText('Clocked out', { exact: true })).toBeVisible() // a refused clock-in doesn't count
 
   await page.unroute('**/rest/v1/attendance_events*', refuse)
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByText('All records uploaded')).toBeVisible({ timeout: 30_000 })
-  await expect(page.getByText('CLOCKED IN', { exact: true })).toBeVisible()
+  await expect(page.getByText('Clocked in', { exact: true })).toBeVisible()
   const { count } = await svc().from('attendance_events').select('id', { count: 'exact', head: true }).eq('organization_id', orgId)
   expect(count).toBe(3)
 })
@@ -165,7 +177,7 @@ test('logging out with no network really signs the phone out', async ({ page, co
   await page.getByLabel('Staff code').fill(code)
   await page.getByLabel('PIN (6 digits)').fill(pin)
   await page.getByRole('button', { name: 'Log in', exact: true }).click()
-  await expect(page.getByText(/CLOCKED (IN|OUT)/)).toBeVisible({ timeout: PIN_LOGIN_MS })
+  await expect(page.getByText(/^Clocked (in|out)$/)).toBeVisible({ timeout: PIN_LOGIN_MS })
   await page.evaluate(async () => { await navigator.serviceWorker.ready })
 
   await context.setOffline(true)

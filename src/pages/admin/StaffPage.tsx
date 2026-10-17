@@ -8,8 +8,10 @@ import { useEscape } from '../../hooks/useEscape';
 import { useLatestOnly } from '../../hooks/useLatestOnly';
 import { renewPhotoUrl, signListPhotos, type ListPhoto } from '../../lib/photoUrls';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
+import { PageHeader, SkeletonList } from '../../components/ui';
+import { button, field } from '../../components/classes';
 
-const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-3 text-gray-900';
+const inputClass = field;
 
 interface StaffList {
   staff: Staff[];
@@ -95,19 +97,21 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
   return (
     <div>
 
-      <div className="space-y-4">
-        <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand text-white font-medium">
-          <UserPlus size={18} aria-hidden /> Add worker
-        </button>
+      <div className="space-y-5">
+        <PageHeader title="Staff" subtitle="Workers and supervisors: login codes, PINs and reference photos.">
+          <button onClick={() => setShowAdd(true)} className={button.primary}>
+            <UserPlus size={18} aria-hidden /> Add worker
+          </button>
+        </PageHeader>
 
-        {rowError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{rowError}</p>}
-        {loadError && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{loadError}</p>}
-        {!staff && !loadError && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading staff" /></div>}
+        {rowError && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{rowError}</p>}
+        {loadError && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{loadError}</p>}
+        {!staff && !loadError && <SkeletonList label="Loading staff" />}
         {staff?.length === 0 && <p className="text-center text-gray-500 py-10">No staff yet. Add your first worker.</p>}
 
         <ul className="space-y-2">
           {staff?.map((s) => (
-            <li key={s.id} className={`bg-white rounded-xl border p-3 flex items-center gap-3 ${s.status === 'active' ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
+            <li key={s.id} className={`bg-white rounded-card border p-3 flex items-center gap-3 ${s.status === 'active' ? 'border-gray-200' : 'border-gray-200 opacity-60'}`}>
               <label className="relative shrink-0 cursor-pointer" title="Take or choose a reference photo">
                 {s.reference_photo_path && photos[s.reference_photo_path] ? (
                   <img src={photos[s.reference_photo_path].url} alt={`Reference photo of ${s.full_name}`} loading="lazy" decoding="async"
@@ -132,12 +136,12 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
                   {rowBusy === s.id ? <Loader2 className="animate-spin text-gray-400" aria-label="Working" /> : (
                     <>
                       <button onClick={() => setEditing(s)} aria-label={`Edit ${s.full_name}`}
-                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100"><Pencil size={18} /></button>
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-control text-gray-600 hover:bg-gray-100"><Pencil size={18} /></button>
                       <button onClick={() => onReset(s)} disabled={s.status !== 'active'} aria-label={`Reset PIN for ${s.full_name}`}
-                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 disabled:opacity-40"><KeyRound size={18} /></button>
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-control text-gray-600 hover:bg-gray-100 disabled:opacity-40"><KeyRound size={18} /></button>
                       <button onClick={() => onToggleStatus(s)}
                         aria-label={`${s.status === 'active' ? 'Deactivate' : 'Reactivate'} ${s.full_name}`}
-                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100">
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-control text-gray-600 hover:bg-gray-100">
                         {s.status === 'active' ? <UserX size={18} /> : <UserCheck size={18} />}
                       </button>
                     </>
@@ -205,9 +209,9 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
 
   return (
     <div className="fixed inset-0 z-20 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="add-staff-title">
-      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-card p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h2 id="add-staff-title" className="text-lg font-bold text-gray-900">Add worker</h2>
+          <h2 id="add-staff-title" className="font-display text-xl font-extrabold text-gray-900">Add worker</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">
@@ -237,8 +241,8 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
           <input required type="file" accept="image/jpeg,image/*" capture="environment" onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
             className="mt-1 block w-full text-sm text-gray-700" />
         </label>
-        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium flex justify-center disabled:opacity-60">
+        {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+        <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12`}>
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Adding worker" /> : 'Add worker'}
         </button>
       </form>
@@ -268,9 +272,9 @@ const EditStaffDialog = ({ staff, onClose, onSaved }: { staff: Staff; onClose: (
 
   return (
     <div className="fixed inset-0 z-20 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="edit-staff-title">
-      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
+      <form onSubmit={submit} className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-card p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h2 id="edit-staff-title" ref={titleRef} tabIndex={-1} className="text-lg font-bold text-gray-900 outline-none">Edit {staff.staff_code}</h2>
+          <h2 id="edit-staff-title" ref={titleRef} tabIndex={-1} className="font-display text-xl font-extrabold text-gray-900 outline-none">Edit {staff.staff_code}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">
@@ -292,8 +296,8 @@ const EditStaffDialog = ({ staff, onClose, onSaved }: { staff: Staff; onClose: (
           <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass} />
         </label>
         <p className="text-xs text-gray-500">The staff code {staff.staff_code} can&apos;t change: it is part of the login. The change is recorded in the audit log.</p>
-        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium flex justify-center disabled:opacity-60">
+        {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+        <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12`}>
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'Save changes'}
         </button>
       </form>
@@ -303,15 +307,15 @@ const EditStaffDialog = ({ staff, onClose, onSaved }: { staff: Staff; onClose: (
 
 const PinDialog = ({ org, notice, onClose }: { org: string; notice: { name: string; code: string; pin: string }; onClose: () => void }) => (
   <div className="fixed inset-0 z-30 bg-black/70 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="pin-title">
-    <div className="bg-white w-full max-w-sm rounded-2xl p-6 space-y-4 text-center">
-      <h2 id="pin-title" className="text-lg font-bold text-gray-900">Login details for {notice.name}</h2>
-      <dl className="bg-gray-50 rounded-xl p-4 space-y-2 text-left">
+    <div className="bg-white w-full max-w-sm rounded-card p-6 space-y-4 text-center">
+      <h2 id="pin-title" className="font-display text-xl font-extrabold text-gray-900">Login details for {notice.name}</h2>
+      <dl className="bg-gray-50 rounded-card p-4 space-y-2 text-left">
         <div className="flex justify-between"><dt className="text-gray-500">Organisation code</dt><dd className="font-mono font-semibold">{org}</dd></div>
         <div className="flex justify-between"><dt className="text-gray-500">Staff code</dt><dd className="font-mono font-semibold" data-testid="new-staff-code">{notice.code}</dd></div>
         <div className="flex justify-between"><dt className="text-gray-500">PIN</dt><dd className="font-mono font-semibold text-2xl tracking-widest" data-testid="new-pin">{notice.pin}</dd></div>
       </dl>
-      <p className="text-sm text-amber-800 bg-amber-50 rounded-lg p-3">Give these to the worker privately. The PIN won&apos;t be shown again; you can reset it later.</p>
-      <button autoFocus onClick={onClose} className="w-full py-3 rounded-lg bg-gray-800 text-white font-medium">Done</button>
+      <p className="text-sm text-amber-800 bg-amber-50 rounded-control p-3">Give these to the worker privately. The PIN won&apos;t be shown again; you can reset it later.</p>
+      <button autoFocus onClick={onClose} className={`${button.primary} w-full min-h-12`}>Done</button>
     </div>
   </div>
 );

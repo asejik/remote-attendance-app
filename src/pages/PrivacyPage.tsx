@@ -8,13 +8,13 @@ import { PRIVACY_NOTICE_UPDATED, SUPPORT_EMAIL } from '../lib/support';
 // counsel before launch (Nigeria Data Protection Act 2023).
 export const PrivacyPage = () => (
   <main className="min-h-screen bg-gray-50 px-5 py-8">
-    <article className="max-w-2xl mx-auto bg-white rounded-2xl shadow p-6 space-y-4 text-gray-700">
+    <article className="max-w-2xl mx-auto rounded-card border border-gray-200 bg-white p-6 shadow-card space-y-4 text-gray-700">
       <Link to="/" className="inline-flex min-h-11 items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
         <ArrowLeft size={16} aria-hidden /> Back
       </Link>
       <div className="flex items-center gap-3">
         <ShieldCheck className="text-brand" size={28} aria-hidden />
-        <h1 className="text-xl font-bold text-gray-900">Privacy notice</h1>
+        <h1 className="font-display text-2xl font-extrabold text-gray-900">Privacy notice</h1>
       </div>
       <p className="text-sm text-gray-500">Last updated {PRIVACY_NOTICE_UPDATED}</p>
 

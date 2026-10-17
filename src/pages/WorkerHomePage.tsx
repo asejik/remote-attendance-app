@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Camera as CapacitorCamera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { Geolocation } from '@capacitor/geolocation';
-import { AlertTriangle, ArrowRight, Camera, CheckCircle, Clock, Cloud, CloudOff, HardDrive, History, Loader2, LogOut, MapPin, RefreshCw, XCircle } from 'lucide-react';
+import { Camera, CloudCheck, CloudOff, Loader2, LogOut, MapPin, RefreshCw } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '../lib/supabase';
 import type { Database } from '../lib/database.types';
@@ -10,13 +10,18 @@ import { queue, subscribeQueue, type EventType, type QueuedEvent } from '../lib/
 import { startAutoSync, syncPendingRecords } from '../lib/sync';
 import { dataUrlToBlob, shrinkPhoto } from '../lib/image';
 import { distanceM, outsideSite, type Fix } from '../lib/geo';
-import { flagLabel } from '../lib/reports';
 import { DIAGNOSTICS } from '../lib/buildFlags';
 import { getStorageInfo } from '../lib/storage';
 import { SUPPORT_EMAIL, suspensionOf } from '../lib/support';
 import type { StaffContext } from '../context/useStaff';
 import { signOut } from '../lib/signOut';
 import { timeAgo } from '../lib/time';
+import { Alert, LogoMark } from '../components/ui';
+import { button, eyebrow } from '../components/classes';
+import { ClockSteps, StepRing } from '../components/worker/ClockSteps';
+import { SitePicker } from '../components/worker/SitePicker';
+import { RecentList, type HistoryItem } from '../components/worker/RecentList';
+import { ProofSlip, type Slip } from '../components/worker/ProofSlip';
 
 // The face camera (face-api.js + TensorFlow) is the largest part of the app;
 // load it only when a clock-in starts. It is precached for offline use.
@@ -82,6 +87,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   const [fixForCapture, setFixForCapture] = useState<Fix | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [storageLow, setStorageLow] = useState(false);
+  const [slip, setSlip] = useState<Slip | null>(null);
 
   // Organisation settings, sites and the server's recent events (cached for offline).
   const loadFromServer = useCallback(() => Promise.all([
@@ -141,7 +147,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
 
   // History: this device's records plus the server's, newest first, no duplicates.
   const localIds = new Set(local.map((e) => e.id));
-  const history = [
+  const history: HistoryItem[] = [
     ...local.map((e) => ({ id: e.id, type: e.type, at: e.capturedAt, site: e.siteName, flags: e.flags ?? [], state: e.status })),
     ...serverEvents.filter((e) => !localIds.has(e.id))
       .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, state: 'synced' as const })),
@@ -214,6 +220,13 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
       }, { face, site: sitePhoto });
       writeCache(cacheKey(staff.id, 'site'), site?.id);
       setMessage({ kind: 'saved', id, label: type === 'CLOCK_IN' ? 'Clocked in' : 'Clocked out', noGps: !fix });
+      setSlip({
+        id, type, at: new Date().toISOString(), siteName: site?.name ?? null,
+        distanceM: fix && site ? distanceM(fix.latitude, fix.longitude, site.latitude, site.longitude) : null,
+        radiusM: site?.radius_m ?? null, accuracyM: fix?.accuracyM ?? null, livenessPassed,
+        workerName: staff.full_name, staffCode: staff.staff_code,
+        facePhotoUrl: URL.createObjectURL(face), sitePhotoUrl: sitePhoto ? URL.createObjectURL(sitePhoto) : null,
+      });
       if (navigator.onLine) syncPendingRecords().then(refreshFromServer).catch(() => undefined);
     } catch (err) {
       console.error(err);
@@ -222,6 +235,15 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
       setStep('idle');
       setPending(null);
     }
+  };
+
+  const closeSlip = () => {
+    if (slip) {
+      URL.revokeObjectURL(slip.facePhotoUrl);
+      if (slip.sitePhotoUrl) URL.revokeObjectURL(slip.sitePhotoUrl);
+    }
+    setSlip(null);
+    setMessage(null);
   };
 
   const syncNow = async () => {
@@ -243,155 +265,130 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
     navigate('/', { replace: true });
   };
 
+  const steps = settings.site_photo_required;
+  const stepCount = steps ? 3 : 2;
+  const savedUpload = saved?.status ?? 'pending';
+  const lastTime = last ? new Date(last.at) : null;
+
   return (
     <div className="min-h-screen bg-gray-50">
       {step === 'face' && (
         <Suspense fallback={<div className="fixed inset-0 z-50 bg-black flex items-center justify-center"><Loader2 className="animate-spin text-white" size={32} aria-label="Opening camera" /></div>}>
-          <LivenessCamera onCapture={onFace} onCancel={() => setStep('idle')} />
+          <LivenessCamera onCapture={onFace} onCancel={() => setStep('idle')} stepLabel={`Step 2 of ${stepCount} · Face photo`} />
         </Suspense>
       )}
-      {step === 'site-instruction' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" role="dialog" aria-modal="true" aria-labelledby="site-photo-title">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
-            <Camera className="mx-auto text-brand" size={36} aria-hidden />
-            <h2 id="site-photo-title" className="text-xl font-bold text-gray-900">Now a photo of the site</h2>
-            <p className="text-gray-600">Take a clear picture of where you are working, so your admin can see the site.</p>
-            <button autoFocus onClick={takeSitePhoto} className="w-full py-3 bg-brand text-white font-bold rounded-xl flex items-center justify-center gap-2">
-              Open camera <ArrowRight size={20} aria-hidden />
-            </button>
-            <button onClick={() => { setStep('idle'); setPending(null); }} className="min-h-11 px-4 text-gray-600 text-sm underline">Cancel</button>
+      {(step === 'locating' || step === 'saving') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50/95 px-5" role="dialog" aria-modal="true" aria-labelledby="busy-title">
+          <div className="w-full max-w-sm space-y-6 text-center">
+            {step === 'locating' && <ClockSteps current={0} withSitePhoto={steps} />}
+            <div className="flex justify-center">
+              <StepRing current={step === 'locating' ? 0 : stepCount} withSitePhoto={steps}>
+                {step === 'locating' ? <MapPin size={40} className="text-brand" aria-hidden /> : <Loader2 size={40} className="animate-spin text-brand" aria-hidden />}
+              </StepRing>
+            </div>
+            <div>
+              <h2 id="busy-title" className="font-display text-2xl font-extrabold">{step === 'locating' ? 'Getting your location…' : 'Saving on this phone…'}</h2>
+              {step === 'locating' && <p className="mt-1 text-gray-600">Stay outdoors or near a window. This takes up to 20 seconds.</p>}
+            </div>
           </div>
         </div>
       )}
-
-      <header className="bg-white border-b px-4 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">{staff.full_name}</h1>
-          <p className="text-xs text-gray-500">{organization.name} · {staff.staff_code}</p>
+      {step === 'site-instruction' && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-50 px-5 py-6" role="dialog" aria-modal="true" aria-labelledby="site-photo-title">
+          <div className="mx-auto flex min-h-full max-w-sm flex-col gap-6">
+            <ClockSteps current={2} withSitePhoto />
+            <div className="flex justify-center">
+              <StepRing current={2} withSitePhoto><Camera size={40} className="text-brand" aria-hidden /></StepRing>
+            </div>
+            <div className="text-center">
+              <h2 id="site-photo-title" className="font-display text-3xl font-extrabold">Photo of the site</h2>
+              <p className="mt-1 text-gray-600">Point the camera at where you are working, so your admin can see the site.</p>
+            </div>
+            <div className="mt-auto flex flex-col gap-2">
+              <button autoFocus onClick={takeSitePhoto} className={`${button.primary} min-h-14 font-display text-xl`}>
+                <Camera size={22} aria-hidden /> Open camera
+              </button>
+              <button onClick={() => { setStep('idle'); setPending(null); }} className={button.link}>Cancel · nothing is saved yet</button>
+            </div>
+          </div>
         </div>
-        <button onClick={logOut} aria-label="Log out" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+      )}
+      {slip && <ProofSlip slip={slip} upload={savedUpload} statusText={messageText ?? ''} onDone={closeSlip} />}
+
+      <header className="sticky top-0 z-10 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-md items-center gap-3 px-4 py-3">
+          <LogoMark size={36} />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-bold leading-tight">{staff.full_name}</h1>
+            <p className="truncate text-sm text-gray-600"><span className="font-mono">{staff.staff_code}</span> · {organization.name}</p>
+          </div>
+          <button onClick={logOut} aria-label="Log out" className={`${button.icon} border border-gray-200`}><LogOut size={20} aria-hidden /></button>
+        </div>
       </header>
 
-      <main className="p-4 max-w-md mx-auto flex flex-col items-center gap-5">
-        {!online && (
-          <p className="w-full text-sm bg-gray-800 text-white rounded-lg px-3 py-2 flex items-center gap-2" role="status">
-            <CloudOff size={16} aria-hidden /> Offline. Clock-ins are saved on this phone.
-          </p>
-        )}
-
-        <label className="w-full text-sm font-medium text-gray-700">
-          Your site
-          <div className="relative mt-1">
-            <select value={siteId} onChange={(e) => setSiteId(e.target.value)}
-              className="block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-3 pr-10 text-gray-900">
-              <option value="">Choose site…</option>
-              {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-            <MapPin className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={16} aria-hidden />
-          </div>
-          {!sites.length && <span className="block mt-1 text-xs text-amber-700">No sites yet. Connect to the internet, or ask your admin to add your site.</span>}
-        </label>
-
-        {clockInsBlocked && (
-          <p role="alert" className="w-full text-sm bg-red-50 border border-red-200 text-red-900 rounded-xl p-3">
-            {organization.name}&apos;s account is suspended, so clock-ins are not being accepted. Please tell your admin.
-          </p>
-        )}
-
+      <main className="mx-auto flex max-w-md flex-col gap-5 p-4">
+        {!online && <Alert tone="info">Offline. Clock-ins are saved on this phone.</Alert>}
+        {clockInsBlocked && <Alert tone="error">{organization.name}&apos;s account is suspended, so clock-ins are not being accepted. Please tell your admin.</Alert>}
         {failed.length > 0 && (
-          <div className="w-full bg-red-50 border border-red-200 rounded-xl p-3 space-y-2" role="alert">
-            <p className="flex items-center gap-2 text-red-800 text-sm font-semibold">
-              <XCircle size={18} aria-hidden /> {failed.length} record{failed.length > 1 ? 's' : ''} not accepted
-            </p>
-            <p className="text-sm text-red-800">{failed[0].failReason} Show this screen to your supervisor or admin.</p>
-            <button onClick={retryFailed} disabled={syncing || !online} className="min-h-11 text-sm bg-red-100 text-red-900 px-4 rounded-full flex items-center gap-1.5 disabled:opacity-50">
-              {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Try again
+          <Alert tone="error">
+            <p className="font-semibold">{failed.length} record{failed.length > 1 ? 's' : ''} not accepted</p>
+            <p>{failed[0].failReason} Show this screen to your supervisor or admin.</p>
+            <button onClick={retryFailed} disabled={syncing || !online} className={`${button.secondary} mt-2 min-h-11 border-red-300 text-red-900`}>
+              {syncing ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <RefreshCw size={16} aria-hidden />} Try again
             </button>
-          </div>
+          </Alert>
         )}
-
-        {storageLow && (
-          <p className="w-full text-sm bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-3 flex items-start gap-2" role="status">
-            <HardDrive size={16} className="mt-0.5 shrink-0" aria-hidden /> Phone storage is nearly full. Connect to the internet so your records upload, and free up some space.
-          </p>
-        )}
+        {storageLow && <Alert tone="warning">Phone storage is nearly full. Connect to the internet so your records upload, and free up some space.</Alert>}
 
         {waiting.length > 0 ? (
-          <div className="w-full bg-orange-50 border border-orange-200 rounded-xl p-3 flex items-center justify-between gap-2" role="status">
-            <div>
-              <span className="flex items-center gap-2 text-orange-800 text-sm font-semibold">
-                <CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload
-              </span>
-              {oldestWaiting && <span className="block mt-0.5 text-xs text-orange-800">Oldest: {timeAgo(oldestWaiting)} ago</span>}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-control border border-amber-200 bg-amber-50 p-3" role="status">
+            <div className="min-w-[10rem] flex-1">
+              <p className="flex items-center gap-2 font-semibold text-amber-950"><CloudOff size={18} aria-hidden /> {waiting.length} waiting to upload</p>
+              {oldestWaiting && <p className="mt-0.5 text-sm text-amber-950">Oldest: {timeAgo(oldestWaiting)} ago</p>}
             </div>
-            <button onClick={syncNow} disabled={syncing || !online} className="min-h-11 text-sm bg-orange-100 text-orange-900 px-4 rounded-full flex items-center gap-1.5 disabled:opacity-50">
-              {syncing ? <Loader2 className="animate-spin" size={12} aria-hidden /> : <RefreshCw size={12} aria-hidden />} Upload now
+            <button onClick={syncNow} disabled={syncing || !online} className={`${button.secondary} shrink-0 border-amber-300 px-4`}>
+              {syncing ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <RefreshCw size={16} aria-hidden />} Upload now
             </button>
           </div>
         ) : failed.length === 0 && (
-          <p className="w-full bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-center gap-2 text-green-800 text-sm font-semibold" role="status">
-            <Cloud size={16} aria-hidden /> All records uploaded
+          <p className="flex items-center gap-2 text-sm font-semibold text-brand-700" role="status">
+            <CloudCheck size={20} aria-hidden /> All records uploaded
           </p>
         )}
 
-        <div className={`w-full rounded-xl border p-5 text-center ${clockedIn ? 'bg-green-50 border-green-200' : 'bg-white border-gray-200'}`}>
-          <p className="text-sm text-gray-500">Current status</p>
-          <p className={`text-[min(1.875rem,9vw)] leading-tight font-bold ${clockedIn ? 'text-green-700' : 'text-gray-800'}`}>{clockedIn ? 'CLOCKED IN' : 'CLOCKED OUT'}</p>
-          {last && (
-            <p className="mt-1 text-xs text-gray-500 flex items-center justify-center gap-1">
-              <Clock size={12} aria-hidden /> {last.site ?? 'No site'} · {new Date(last.at).toLocaleString('en-NG', { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
-            </p>
-          )}
-        </div>
-
-        {message && (
-          <p role={message.kind === 'error' ? 'alert' : 'status'}
-            className={`w-full text-sm rounded-lg p-3 ${message.kind === 'error' || saved?.status === 'failed' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
-            {messageText}
+        <section aria-label="Current status">
+          <p className={eyebrow}>You are</p>
+          <p className="font-display text-[min(2.75rem,11vw)] font-extrabold leading-none tracking-tight">{clockedIn ? 'Clocked in' : 'Clocked out'}</p>
+          <p className="mt-1 text-gray-600">
+            {lastTime
+              ? <>since {lastTime.toLocaleDateString('en-GB', { weekday: 'short' })} <span className="font-mono tabular-nums">{lastTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>{last?.site ? ` at ${last.site}` : ''}</>
+              : 'No clock-ins yet'}
           </p>
-        )}
+        </section>
+
+        <SitePicker sites={sites} value={siteId} onChange={setSiteId} />
+
+        {message?.kind === 'error' && <Alert tone="error">{message.text}</Alert>}
 
         <button onClick={start} disabled={step !== 'idle' || clockInsBlocked}
-          className={`flex flex-col items-center justify-center w-[min(12rem,75vw)] aspect-square p-2 text-center border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-brand-100'}`}>
-          <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-brand'}`}>
-            {step === 'idle' ? <Camera size={40} aria-hidden /> : <Loader2 className="animate-spin" size={40} aria-hidden />}
+          className={`flex min-h-20 w-full items-center gap-4 rounded-[1.125rem] px-5 text-left text-white shadow-raised transition duration-150 ease-out-soft active:scale-[0.98] disabled:opacity-60 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand ${clockedIn ? 'bg-gray-900 hover:bg-gray-800' : 'bg-brand hover:bg-brand-700'}`}>
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-control bg-white/15">
+            {step === 'idle' ? <Camera size={26} aria-hidden /> : <Loader2 className="animate-spin" size={26} aria-hidden />}
           </span>
-          <span className={`font-bold ${clockedIn ? 'text-red-700' : 'text-gray-800'}`}>
-            {clockInsBlocked ? 'Clock-ins paused' : step === 'locating' ? 'Getting location…' : step === 'saving' ? 'Saving…' : clockedIn ? 'Tap to clock OUT' : 'Tap to clock IN'}
+          <span className="flex min-w-0 flex-col">
+            <span className="font-display text-[min(1.65rem,8vw)] font-extrabold leading-tight">
+              {clockInsBlocked ? 'Clock-ins paused' : step === 'locating' ? 'Getting location…' : step === 'saving' ? 'Saving…' : clockedIn ? 'Clock out' : 'Clock in'}
+            </span>
+            <span className="text-[15px]">{steps ? 'Location, face photo and site photo' : 'Location and face photo'}</span>
           </span>
         </button>
 
-        <section className="w-full bg-white rounded-xl border border-gray-200 overflow-hidden" aria-labelledby="history-title">
-          <h2 id="history-title" className="bg-gray-50 px-4 py-3 border-b text-sm font-bold text-gray-700 flex items-center gap-2">
-            <History size={16} aria-hidden /> Recent activity
-          </h2>
-          {history.length === 0 && <p className="px-4 py-6 text-sm text-gray-500 text-center">No clock-ins yet.</p>}
-          <ul className="divide-y divide-gray-100">
-            {history.slice(0, 5).map((h) => (
-              <li key={h.id} className="px-4 py-3 flex justify-between items-start gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{h.type === 'CLOCK_IN' ? 'Clock in' : 'Clock out'} · {h.site ?? 'No site'}</p>
-                  <p className="text-xs text-gray-500">{new Date(h.at).toLocaleString('en-NG', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}</p>
-                  {h.flags.length > 0 && (
-                    <p className="mt-1 text-xs text-amber-800 flex items-center gap-1">
-                      <AlertTriangle size={12} aria-hidden /> {h.flags.map(flagLabel).join(', ')}
-                    </p>
-                  )}
-                </div>
-                <span className={`text-xs font-medium whitespace-nowrap flex items-center gap-1 ${h.state === 'failed' ? 'text-red-700' : h.state === 'pending' ? 'text-orange-700' : 'text-green-700'}`}>
-                  {h.state === 'failed' ? <><XCircle size={12} aria-hidden /> Not accepted</>
-                    : h.state === 'pending' ? <><CloudOff size={12} aria-hidden /> Waiting</>
-                    : <><CheckCircle size={12} aria-hidden /> Uploaded</>}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <RecentList items={history.slice(0, 5)} />
 
-        <p className="text-xs text-gray-500 pb-6 text-center space-x-3">
-          <Link to="/privacy" className="underline">Privacy notice</Link>
-          <span>Help: ask your admin, or <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
-          {DIAGNOSTICS && <Link to="/diagnostics" className="underline">Device diagnostics</Link>}
+        <p className="flex flex-wrap justify-center gap-x-4 pb-4 text-center text-sm text-gray-600">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-2">Privacy notice</Link>
+          <span>Help: ask your admin, or <a className="inline-flex min-h-11 items-center underline underline-offset-2" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
+          {DIAGNOSTICS && <Link to="/diagnostics" className="inline-flex min-h-11 items-center underline underline-offset-2">Device diagnostics</Link>}
         </p>
       </main>
     </div>

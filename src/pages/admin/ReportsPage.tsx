@@ -4,6 +4,8 @@ import { fetchEventsForReport, fetchStaffForReport } from '../../lib/adminEvents
 import { downloadCsv, downloadXlsx } from '../../lib/download';
 import { dayRangeUtc, EVENT_HEADER, eventRows, localDay, MAX_SHIFT_MS, summarise, summaryRows, SUMMARY_HEADER } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
+import { Alert, PageHeader } from '../../components/ui';
+import { button } from '../../components/classes';
 
 // Download attendance for a date range as CSV (two files) or one Excel workbook.
 export const ReportsPage = ({ context }: { context: StaffContext }) => {
@@ -47,14 +49,15 @@ export const ReportsPage = ({ context }: { context: StaffContext }) => {
   };
 
   return (
-    <div className="space-y-4 max-w-xl">
-      <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-4">
+    <div className="space-y-5 max-w-xl">
+      <PageHeader title="Reports" subtitle="Attendance for payroll and funders, as Excel or CSV." />
+      <div className="rounded-card border border-gray-200 bg-white p-5 space-y-4 shadow-card">
         <div className="grid grid-cols-2 gap-3">
           <label className="text-sm font-medium text-gray-700">From
-            <input type="date" value={from} max={today} onChange={(e) => setFrom(e.target.value)} className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm" />
+            <input type="date" value={from} max={today} onChange={(e) => setFrom(e.target.value)} className="mt-1 block w-full min-h-11 rounded-control border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/25 text-sm" />
           </label>
           <label className="text-sm font-medium text-gray-700">To
-            <input type="date" value={to} max={today} onChange={(e) => setTo(e.target.value)} className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm" />
+            <input type="date" value={to} max={today} onChange={(e) => setTo(e.target.value)} className="mt-1 block w-full min-h-11 rounded-control border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/25 text-sm" />
           </label>
         </div>
         <p className="text-sm text-gray-600">
@@ -62,19 +65,15 @@ export const ReportsPage = ({ context }: { context: StaffContext }) => {
           Times are in {tz.replace('_', ' ')} time.
         </p>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => run('xlsx')} disabled={busy !== null} className="min-h-11 px-4 rounded-lg bg-green-700 text-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
+          <button onClick={() => run('xlsx')} disabled={busy !== null} className={button.primary}>
             {busy === 'xlsx' ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Download size={16} aria-hidden />} Download Excel (.xlsx)
           </button>
-          <button onClick={() => run('csv')} disabled={busy !== null} className="min-h-11 px-4 rounded-lg border border-gray-300 bg-white text-sm font-medium flex items-center gap-2 disabled:opacity-60">
+          <button onClick={() => run('csv')} disabled={busy !== null} className={button.secondary}>
             {busy === 'csv' ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <Download size={16} aria-hidden />} Download CSV (2 files)
           </button>
         </div>
       </div>
-      {message && (
-        <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm rounded-lg p-3 ${message.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>
-          {message.text}
-        </p>
-      )}
+      {message && <Alert tone={message.kind === 'error' ? 'error' : 'success'}>{message.text}</Alert>}
     </div>
   );
 };

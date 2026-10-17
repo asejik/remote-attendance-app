@@ -6,6 +6,14 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## New design: "Field Ledger" (2026-10-17)
+- ☐ **Worker home (phone):** the site is chosen with large buttons (the selected one turns teal with a tick); the big teal **Clock in** button shows the steps underneath; recent clock-ins list times in one column.
+- ☐ **Clocking in:** "Getting your location…" shows the step chips and ring; the camera shows "Step 2 of 2 · Face photo" (or 3 if the site photo is on); with site photos on, the site-photo step shows step 3 in amber.
+- ☐ **Proof slip:** after saving, a receipt shows the time, date, site, distance, GPS accuracy, your code, the photos and "Saved on this phone" then "Sent to your organisation". At the site it shows a round **ON SITE** stamp. **Done** goes back. In airplane mode it says "Waiting to send".
+- ☐ **Outdoors in sunlight:** text and buttons stay readable; tapping sites and the clock button works with a gloved or dusty finger.
+- ☐ **Admin (laptop):** each tab has a page title; Review shows cards two per row on a wide screen; loading shows grey placeholder rows; buttons and badges look consistent.
+- ☐ **Large text:** set the phone's font size to the largest: the worker home still fits without sideways scrolling.
+
 ## SiteProof brand, teal colour and link previews (2026-10-17)
 - ☐ **Phone:** uninstall the old "Attendance" test app, then install `siteproof-test.apk` from the android-test release. The home screen shows **SiteProof** with the teal pin-and-lens icon; on Android 13+ with themed icons on, it follows the phone's colours. The splash screen is teal.
 - ☐ **Screens:** buttons, the login hard-hat circle, admin tabs and links are teal (no blue left).

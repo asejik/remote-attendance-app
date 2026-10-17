@@ -8,6 +8,8 @@ import { dayRangeUtc, flagLabel, localDay, localTime } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
 import { useEscape } from '../../hooks/useEscape';
 import { orSuspended } from '../../lib/support';
+import { Badge, PageHeader, SkeletonList } from '../../components/ui';
+import { button, card, field } from '../../components/classes';
 import { renewPhotoUrl, signListPhotos, signPhotoUrls, type ListPhoto, type PhotoBucket } from '../../lib/photoUrls';
 
 interface Option { id: string; label: string }
@@ -17,7 +19,7 @@ type ReviewedRow = Awaited<ReturnType<typeof reviewEvent>>;
 // Bulk approvals sent at once.
 const BULK_CHUNK = 5;
 
-const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm text-gray-900';
+const inputClass = `${field} text-sm`;
 
 export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const tz = context.organization.timezone;
@@ -155,8 +157,9 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <section aria-label="Filters" className="bg-white rounded-xl border border-gray-200 p-3 grid grid-cols-2 sm:grid-cols-6 gap-2 text-sm">
+    <div className="space-y-5">
+      <PageHeader title="Review" subtitle="Flagged clock-ins come first. Tap a photo to see it full size." />
+      <section aria-label="Filters" className={`${card} p-3 grid grid-cols-2 sm:grid-cols-6 gap-3 text-sm`}>
         <label className="font-medium text-gray-700">From
           <input type="date" value={from} max={today} onChange={(e) => changeFilter(() => setFrom(e.target.value))} className={inputClass} />
         </label>
@@ -189,8 +192,8 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
         </label>
       </section>
 
-      {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-      {!result && !error && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading clock-ins" /></div>}
+      {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {!result && !error && <SkeletonList label="Loading clock-ins" />}
       {result && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-gray-600" role="status">
@@ -198,16 +201,16 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
           </p>
           {bulkCandidates.length > 0 && (
             <button onClick={approveUnflagged} disabled={bulkBusy}
-              className="min-h-11 px-4 rounded-lg border border-green-700 text-green-800 bg-white text-sm font-medium flex items-center gap-1.5 disabled:opacity-60">
+              className="min-h-11 px-4 rounded-control border border-brand text-brand-900 bg-white text-sm font-medium flex items-center gap-1.5 disabled:opacity-60">
               {bulkBusy ? <Loader2 className="animate-spin" size={16} aria-hidden /> : <CheckCheck size={16} aria-hidden />}
               Approve {bulkCandidates.length} without flags
             </button>
           )}
         </div>
       )}
-      {bulkMessage && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{bulkMessage}</p>}
+      {bulkMessage && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{bulkMessage}</p>}
 
-      <ul className="space-y-3">
+      <ul className="grid gap-3 lg:grid-cols-2">
         {shown.map((e) => (
           <EventCard key={e.id} event={e} tz={tz} photos={photos} recordedBy={recorders[e.captured_by]} onOpen={openPhoto} onRenew={renew}
             onReviewed={(row) => onReviewed([row])} />
@@ -216,15 +219,15 @@ export const ReviewPage = ({ context }: { context: StaffContext }) => {
 
       {result && shown.length === 0 && total > 0 && (
         <div className="flex justify-center">
-          <button onClick={showMore} className="min-h-11 px-4 rounded-lg border bg-white text-sm font-medium">Show the next clock-ins</button>
+          <button onClick={showMore} className="min-h-11 px-4 rounded-control border bg-white text-sm font-medium">Show the next clock-ins</button>
         </div>
       )}
 
       {result && shown.length > 0 && pages > 1 && (
         <nav aria-label="Pages" className="flex items-center justify-center gap-3 text-sm">
-          <button disabled={page === 0} onClick={() => setPage(page - 1)} className="min-h-11 px-4 rounded-lg border bg-white disabled:opacity-40">Previous</button>
+          <button disabled={page === 0} onClick={() => setPage(page - 1)} className="min-h-11 px-4 rounded-control border bg-white disabled:opacity-40">Previous</button>
           <span>Page {page + 1} of {pages}</span>
-          <button disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} className="min-h-11 px-4 rounded-lg border bg-white disabled:opacity-40">Next</button>
+          <button disabled={page + 1 >= pages} onClick={() => setPage(page + 1)} className="min-h-11 px-4 rounded-control border bg-white disabled:opacity-40">Next</button>
         </nav>
       )}
 
@@ -241,7 +244,7 @@ const Lightbox = ({ photo, onClose }: { photo: { src: string; alt: string }; onC
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={photo.alt} onClick={onClose}>
       <button autoFocus onClick={onClose} aria-label="Close photo" className="absolute top-4 right-4 text-white min-h-11 min-w-11 inline-flex items-center justify-center"><X size={28} /></button>
-      <img src={photo.src} alt={photo.alt} className="max-h-full max-w-full rounded-lg" />
+      <img src={photo.src} alt={photo.alt} className="max-h-full max-w-full rounded-control" />
     </div>
   );
 };
@@ -259,10 +262,10 @@ const Photo = ({ bucket, path, photos, alt, label, onOpen, onRenew }: {
       {path && shown ? (
         <button onClick={() => onOpen(bucket, path, alt)} className="block">
           <img src={shown.url} alt={alt} loading="lazy" decoding="async" onError={() => onRenew(bucket, path, shown)}
-            className="h-28 w-24 object-cover rounded-lg border border-gray-200" />
+            className="h-28 w-24 object-cover rounded-control border border-gray-200" />
         </button>
       ) : (
-        <span className="h-28 w-24 rounded-lg border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
+        <span className="h-28 w-24 rounded-control border border-dashed border-gray-300 flex items-center justify-center text-xs text-gray-500 px-1">None</span>
       )}
       <figcaption className="mt-1 text-xs text-gray-500">{label}</figcaption>
     </figure>
@@ -300,15 +303,15 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReview
       : flagLabel(flag);
 
   return (
-    <li className={`bg-white rounded-xl border p-4 ${(e.flag_count ?? 0) > 0 && e.review_status === 'pending' ? 'border-amber-300' : 'border-gray-200'}`}>
+    <li className={`rounded-card border bg-white p-4 shadow-card ${(e.flag_count ?? 0) > 0 && e.review_status === 'pending' ? 'border-amber-300' : 'border-gray-200'}`}>
       <div className="flex flex-wrap justify-between gap-2">
         <div>
-          <p className="font-semibold text-gray-900">{name} <span className="text-xs text-gray-500">{e.staff?.staff_code}</span></p>
+          <p className="font-bold text-gray-900">{name} <span className="font-mono text-xs font-medium text-gray-600">{e.staff?.staff_code}</span></p>
           <p className="text-sm text-gray-600">
-            <span className={`font-semibold ${e.type === 'CLOCK_IN' ? 'text-green-700' : 'text-red-700'}`}>{e.type === 'CLOCK_IN' ? 'IN' : 'OUT'}</span>
-            {' · '}{localDay(e.captured_at, tz)} {localTime(e.captured_at, tz)} · {e.site_name_snapshot ?? 'No site'}
+            <span className={`font-bold ${e.type === 'CLOCK_IN' ? 'text-brand-700' : 'text-gray-900'}`}>{e.type === 'CLOCK_IN' ? 'IN' : 'OUT'}</span>
+            {' · '}{localDay(e.captured_at, tz)} <span className="font-mono font-medium tabular-nums text-gray-900">{localTime(e.captured_at, tz)}</span> · {e.site_name_snapshot ?? 'No site'}
           </p>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-600">
             {e.distance_m !== null ? `${Math.round(e.distance_m)} m from site` : 'No location'}
             {e.accuracy_m !== null && ` · GPS ±${Math.round(e.accuracy_m)} m`}
             {e.latitude !== null && e.longitude !== null && (
@@ -316,16 +319,17 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReview
             )}
           </p>
         </div>
-        <span className={`self-start text-xs font-semibold px-2 py-1 rounded-full ${
-          e.review_status === 'approved' ? 'bg-green-100 text-green-800' : e.review_status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-700'}`}>
-          {e.review_status === 'pending' ? 'Needs review' : e.review_status === 'approved' ? 'Approved' : 'Rejected'}
+        <span className="self-start">
+          <Badge tone={e.review_status === 'approved' ? 'success' : e.review_status === 'rejected' ? 'danger' : 'neutral'}>
+            {e.review_status === 'pending' ? 'Needs review' : e.review_status === 'approved' ? 'Approved' : 'Rejected'}
+          </Badge>
         </span>
       </div>
 
       {e.flags.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="Flags">
           {e.flags.map((f) => (
-            <li key={f} className="text-xs bg-amber-50 text-amber-900 border border-amber-200 rounded-full px-2 py-0.5 flex items-center gap-1">
+            <li key={f} className="flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-950">
               <AlertTriangle size={11} aria-hidden /> {flagText(f)}
             </li>
           ))}
@@ -347,24 +351,24 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReview
       {rejecting ? (
         <div className="mt-3 space-y-2">
           <label className="block text-sm font-medium text-gray-700">Reason for rejecting
-            <textarea autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={2} className="mt-1 block w-full rounded-lg border border-gray-300 p-2 text-sm" />
+            <textarea autoFocus value={note} onChange={(ev) => setNote(ev.target.value)} maxLength={500} rows={2} className={`${field} text-sm`} />
           </label>
           <div className="flex gap-2">
-            <button onClick={() => decide('rejected')} disabled={busy} className="min-h-11 px-4 rounded-lg bg-red-700 text-white text-sm font-medium disabled:opacity-60">Confirm reject</button>
-            <button onClick={() => { setRejecting(false); setError(''); }} className="min-h-11 px-4 rounded-lg border text-sm">Cancel</button>
+            <button onClick={() => decide('rejected')} disabled={busy} className={`${button.danger} text-sm`}>Confirm reject</button>
+            <button onClick={() => { setRejecting(false); setError(''); }} className={`${button.secondary} text-sm`}>Cancel</button>
           </div>
         </div>
       ) : (
         <div className="mt-3 flex gap-2">
           {e.review_status !== 'approved' && (
             <button onClick={() => decide('approved')} disabled={busy} aria-label={`Approve clock-in by ${name}`}
-              className="min-h-11 px-4 rounded-lg bg-green-700 text-white text-sm font-medium flex items-center gap-1 disabled:opacity-60">
+              className={`${button.primary} px-4 text-sm`}>
               <Check size={16} aria-hidden /> Approve
             </button>
           )}
           {e.review_status !== 'rejected' && (
             <button onClick={() => setRejecting(true)} disabled={busy} aria-label={`Reject clock-in by ${name}`}
-              className="min-h-11 px-4 rounded-lg border border-red-300 text-red-700 text-sm font-medium flex items-center gap-1 disabled:opacity-60">
+              className={`${button.dangerOutline} px-4 text-sm`}>
               <X size={16} aria-hidden /> Reject
             </button>
           )}

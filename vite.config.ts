@@ -51,7 +51,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}', 'models/*'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}', 'models/*'], // woff2: the bundled fonts, for offline use
         // Admin-only libraries (Excel export, site map) aren't precached, so workers'
         // phones don't download them; they're cached the first time an admin uses them.
         // The link-preview image is only for WhatsApp and other link previews.

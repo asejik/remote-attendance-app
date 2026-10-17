@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import { fetchEventsForReport, fetchStaffForReport } from '../../lib/adminEvents';
 import { absentees, dayRangeUtc, localDay, MAX_SHIFT_MS, type ReportStaff } from '../../lib/reports';
 import type { StaffContext } from '../../context/useStaff';
+import { PageHeader, Spinner } from '../../components/ui';
 
 // Who did not clock in on a given day, and who clocked in but never out.
 export const AbsentPage = ({ context }: { context: StaffContext }) => {
@@ -35,13 +35,14 @@ export const AbsentPage = ({ context }: { context: StaffContext }) => {
   const loading = !error && result?.day !== day;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      <PageHeader title="Absent" subtitle="Who didn't clock in on a day, and who clocked in but never out." />
       <label className="block max-w-xs text-sm font-medium text-gray-700">Day
         <input type="date" value={day} max={today} onChange={(e) => setDay(e.target.value || today)}
-          className="mt-1 block w-full min-h-11 rounded-lg border border-gray-300 bg-white py-2 px-2 text-sm" />
+          className="mt-1 block w-full min-h-11 rounded-control border border-gray-300 bg-white px-3 py-2 text-gray-900 focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/25 text-sm" />
       </label>
-      {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-      {loading && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading" /></div>}
+      {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {loading && <Spinner label="Loading" />}
       {!loading && result && (
         <div className="grid sm:grid-cols-2 gap-4">
           <PeopleList title="Did not clock in" people={result.noClockIn} empty="Everyone clocked in." tone="red" />
@@ -53,7 +54,7 @@ export const AbsentPage = ({ context }: { context: StaffContext }) => {
 };
 
 const PeopleList = ({ title, people, empty, tone }: { title: string; people: ReportStaff[]; empty: string; tone: 'red' | 'amber' }) => (
-  <section className="bg-white rounded-xl border border-gray-200 overflow-hidden" aria-label={title}>
+  <section className="bg-white rounded-card border border-gray-200 overflow-hidden" aria-label={title}>
     <h2 className={`px-4 py-3 border-b text-sm font-bold ${tone === 'red' ? 'text-red-800 bg-red-50' : 'text-amber-900 bg-amber-50'}`}>
       {title} ({people.length})
     </h2>

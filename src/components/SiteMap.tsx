@@ -37,7 +37,7 @@ const FollowPin = ({ position }: { position: [number, number] | null }) => {
 const SiteMap = ({ latitude, longitude, radiusM, onPick }: SiteMapProps) => {
   const position: [number, number] | null = latitude !== null && longitude !== null ? [latitude, longitude] : null;
   return (
-    <MapContainer center={position ?? NIGERIA_CENTRE} zoom={position ? 16 : 6} className="h-72 w-full rounded-lg z-0" aria-label="Map: tap to place the site">
+    <MapContainer center={position ?? NIGERIA_CENTRE} zoom={position ? 16 : 6} className="h-72 w-full rounded-control z-0" aria-label="Map: tap to place the site">
       <TileLayer url={TILE_URL} attribution={TILE_ATTRIBUTION} maxZoom={19} />
       <ClickToPick onPick={onPick} />
       <FollowPin position={position} />

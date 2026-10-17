@@ -9,6 +9,8 @@ import { useEscape } from '../../hooks/useEscape';
 import { useLatestOnly } from '../../hooks/useLatestOnly';
 import { useFocusOnMount } from '../../hooks/useFocusOnMount';
 import { orSuspended } from '../../lib/support';
+import { PageHeader, SkeletonList } from '../../components/ui';
+import { button, field } from '../../components/classes';
 
 const SiteMap = lazy(() => import('../../components/SiteMap'));
 
@@ -16,7 +18,7 @@ type Site = Database['public']['Tables']['work_sites']['Row'];
 interface Draft { id?: string; name: string; address: string; latitude: string; longitude: string; radius_m: number }
 
 const EMPTY: Draft = { name: '', address: '', latitude: '', longitude: '', radius_m: 200 };
-const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2 px-2 text-sm';
+const inputClass = `${field} text-sm`;
 
 const fetchSites = async () => {
   const { data, error } = await supabase.from('work_sites').select('*').order('active', { ascending: false }).order('name');
@@ -48,17 +50,19 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
   };
 
   return (
-    <div className="space-y-4">
-      <button onClick={() => setDraft(EMPTY)} className="min-h-11 flex items-center gap-2 px-4 rounded-lg bg-brand text-white text-sm font-medium">
-        <Plus size={16} aria-hidden /> Add site
-      </button>
-      {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-      {!sites && !error && <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" aria-label="Loading sites" /></div>}
+    <div className="space-y-5">
+      <PageHeader title="Sites" subtitle="Where your staff clock in. Each site has a radius for the location check.">
+        <button onClick={() => setDraft(EMPTY)} className={button.primary}>
+          <Plus size={18} aria-hidden /> Add site
+        </button>
+      </PageHeader>
+      {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+      {!sites && !error && <SkeletonList label="Loading sites" />}
       {sites?.length === 0 && <p className="text-gray-500 text-center py-8">No sites yet. Add the places where your staff work.</p>}
 
       <ul className="grid sm:grid-cols-2 gap-3">
         {sites?.map((s) => (
-          <li key={s.id} className={`bg-white rounded-xl border border-gray-200 p-4 ${s.active ? '' : 'opacity-60'}`}>
+          <li key={s.id} className={`bg-white rounded-card border border-gray-200 p-4 ${s.active ? '' : 'opacity-60'}`}>
             <div className="flex justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-semibold text-gray-900 flex items-center gap-1.5"><MapPin size={16} className="text-brand shrink-0" aria-hidden /> {s.name}</p>
@@ -69,7 +73,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
                 </p>
               </div>
               <button onClick={() => setDraft({ id: s.id, name: s.name, address: s.address ?? '', latitude: String(s.latitude), longitude: String(s.longitude), radius_m: s.radius_m })}
-                aria-label={`Edit ${s.name}`} className="min-h-11 min-w-11 inline-flex items-center justify-center h-fit rounded-lg text-gray-600 hover:bg-gray-100"><Pencil size={16} /></button>
+                aria-label={`Edit ${s.name}`} className="min-h-11 min-w-11 inline-flex items-center justify-center h-fit rounded-control text-gray-600 hover:bg-gray-100"><Pencil size={16} /></button>
             </div>
             <button onClick={() => setActive(s, !s.active)} className="mt-1 min-h-11 text-sm underline text-gray-600">
               {s.active ? `Deactivate ${s.name}` : `Reactivate ${s.name}`}
@@ -142,9 +146,9 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-30 bg-black/60 flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-labelledby="site-dialog-title">
-      <form onSubmit={save} className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-3 max-h-[95vh] overflow-y-auto">
+      <form onSubmit={save} className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-card p-5 space-y-3 max-h-[95vh] overflow-y-auto">
         <div className="flex justify-between items-center">
-          <h2 id="site-dialog-title" ref={titleRef} tabIndex={-1} className="text-lg font-bold text-gray-900 outline-none">{draft.id ? 'Edit site' : 'Add site'}</h2>
+          <h2 id="site-dialog-title" ref={titleRef} tabIndex={-1} className="font-display text-xl font-extrabold text-gray-900 outline-none">{draft.id ? 'Edit site' : 'Add site'}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500"><X size={20} /></button>
         </div>
         <label className="block text-sm font-medium text-gray-700">Site name
@@ -157,10 +161,10 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
         <fieldset className="space-y-2">
           <legend className="text-sm font-medium text-gray-700">Location</legend>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={useCurrentLocation} disabled={locating} className="min-h-11 px-3 rounded-lg border text-sm flex items-center gap-1.5 disabled:opacity-60">
+            <button type="button" onClick={useCurrentLocation} disabled={locating} className="min-h-11 px-3 rounded-control border text-sm flex items-center gap-1.5 disabled:opacity-60">
               {locating ? <Loader2 className="animate-spin" size={14} aria-hidden /> : <LocateFixed size={14} aria-hidden />} Use my current location
             </button>
-            <button type="button" onClick={() => setShowMap(!showMap)} className="min-h-11 px-3 rounded-lg border text-sm flex items-center gap-1.5">
+            <button type="button" onClick={() => setShowMap(!showMap)} className="min-h-11 px-3 rounded-control border text-sm flex items-center gap-1.5">
               <MapIcon size={14} aria-hidden /> {showMap ? 'Hide map' : 'Pick on map'}
             </button>
           </div>
@@ -173,7 +177,7 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
             </label>
           </div>
           {showMap && (
-            <Suspense fallback={<div className="h-72 flex items-center justify-center bg-gray-100 rounded-lg"><Loader2 className="animate-spin text-gray-400" aria-label="Loading map" /></div>}>
+            <Suspense fallback={<div className="h-72 flex items-center justify-center bg-gray-100 rounded-control"><Loader2 className="animate-spin text-gray-400" aria-label="Loading map" /></div>}>
               <SiteMap latitude={validCoords ? lat : null} longitude={validCoords ? lng : null} radiusM={draft.radius_m}
                 onPick={(la, ln) => setDraft((d) => ({ ...d, latitude: String(la), longitude: String(ln) }))} />
               <p className="text-xs text-gray-500">Tap the map to place the site. The blue circle shows the radius.</p>
@@ -186,9 +190,9 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
           <span className="block text-xs text-gray-500 font-normal">Clock-ins further than this from the location are flagged (or blocked, if your settings say so). Remote sites with weak GPS need a bigger radius.</span>
         </label>
 
-        {info && <p role="status" className="text-sm text-green-800 bg-green-50 rounded-lg p-3">{info}</p>}
-        {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium disabled:opacity-60">
+        {info && <p role="status" className="rounded-control border border-brand-100 bg-brand-50 p-3 text-sm text-brand-900">{info}</p>}
+        {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+        <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12`}>
           {busy ? 'Saving…' : 'Save site'}
         </button>
       </form>

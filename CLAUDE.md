@@ -97,9 +97,11 @@ The new tables live **in the same Supabase project as the legacy prototype table
   1. Site, org settings and recent server events are read from cache, then refreshed.
   2. GPS fix (Capacitor Geolocation).
   3. Block-mode geofence check (`src/lib/geo.ts`, same formula as the server).
-  4. `LivenessCamera`: a smile auto-captures; after 20 s "take photo without smile check" → `liveness_passed=false`.
+  4. `LivenessCamera` (shows the step label): a smile auto-captures; after 20 s "take photo without smile check" → `liveness_passed=false`.
   5. Optional site photo (`site_photo_required`), shrunk by `shrinkPhoto`.
-  6. `queue.add`.
+  6. `queue.add`, then the **proof slip** (`ProofSlip`) until "Done": time, site, distance, photos and live upload ticks.
+
+  Sites are chosen with large buttons (`SitePicker`, radio inputs; a dropdown above 8 sites). While locating and on the site-photo step, `ClockSteps`/`StepRing` show progress.
 
   Clock in vs out comes from the newest of the local queue and the server's recent events.
 - **Request time limit** (`src/lib/fetchTimeout.ts`, the Supabase client's `global.fetch`): 30 s for every request, 120 s for photo uploads. A request with no answer fails like a dropped connection, so screens show their "check your connection" message instead of loading forever, and sync retries. `sync.ts` treats timeouts as network errors (not refusals, not reported).
@@ -151,6 +153,10 @@ The new tables live **in the same Supabase project as the legacy prototype table
   - Release: the release key, kept in the private repo (`docs/private/android-release/`) plus offline. Gradle reads `RELEASE_KEYSTORE*`, `VERSION_CODE` and `VERSION_NAME` from the environment.
   - **Brand** (SiteProof, deep teal `#0F6B63`, icon "photo at a place": a pin whose head is a camera lens): `scripts/generate-brand-assets.mjs` draws every icon and the link-preview image (`public/og-image.png`) from one SVG; then `npx @capacitor/assets generate --android` (flags in the script header) makes the Android launcher icons and splash. The adaptive icon XMLs add a `<monochrome>` layer for Android 13 themed icons (re-add it if the tool rewrites them). Tailwind colour `brand` (+ `brand-50/100/700/900`, `src/index.css`) is the app's primary colour; no Tailwind blue remains.
 - **Search and link previews (P08):** a private app, so every response says `noindex, nofollow` (meta in `index.html` + `X-Robots-Tag` in `public/_headers`); `public/robots.txt` allows crawling so crawlers can read that; no sitemap. Open Graph/Twitter tags in `index.html` use absolute `https://siteproof.asejik.com/` URLs and `public/og-image.png` (not precached). Smoke E2E checks all of this.
+
+## Design system
+
+`docs/DESIGN.md` ("Field Ledger", chosen 2026-10-17) is the look of every screen. Tokens are in `src/index.css` (`@theme`: brand teal, brand-tinted neutrals replacing Tailwind's grey, `font-sans` Atkinson Hyperlegible Next, `font-display` Archivo, `font-mono` Atkinson Hyperlegible Mono, `rounded-control`/`rounded-card`, `shadow-card`/`shadow-raised`, `animate-stamp`/`animate-rise`). Fonts are bundled from Fontsource (Latin subset) and precached (`woff2` in the service-worker globs). Shared pieces: `src/components/ui.tsx` (Alert, Badge, PageHeader, Spinner, SkeletonList, LogoMark, Wordmark) and `src/components/classes.ts` (`button.*`, `field`, `label`, `card`, `eyebrow`); worker pieces in `src/components/worker/` (SitePicker, ClockSteps/StepRing, ProofSlip, RecentList). Use these rather than one-off classes; keep text at least 7:1 on worker screens and touch targets at least 44 px.
 
 ## Conventions (from .cursorrules)
 

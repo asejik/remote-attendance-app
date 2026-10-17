@@ -1,10 +1,81 @@
 @import "tailwindcss";
 
-/* SiteProof brand colour (deep teal; scripts/generate-brand-assets.mjs uses the same). */
+/* Fonts are bundled (offline, CSP font-src 'self'): Latin subset, only the weights used. */
+@import "@fontsource/atkinson-hyperlegible-next/latin-400.css";
+@import "@fontsource/atkinson-hyperlegible-next/latin-600.css";
+@import "@fontsource/atkinson-hyperlegible-next/latin-700.css";
+@import "@fontsource/atkinson-hyperlegible-mono/latin-500.css";
+@import "@fontsource/archivo/latin-700.css";
+@import "@fontsource/archivo/latin-800.css";
+
+/*
+ * SiteProof design tokens ("Field Ledger"; full guide: docs/DESIGN.md).
+ * Every screen uses these through Tailwind classes; no one-off colours.
+ */
 @theme {
+  /* Type: legible body (tells I, l and 1 apart), sturdy headings, aligned numbers. */
+  --font-sans: "Atkinson Hyperlegible Next", "Segoe UI", Roboto, system-ui, sans-serif;
+  --font-display: "Archivo", "Arial Narrow", Arial, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Brand: deep teal (scripts/generate-brand-assets.mjs uses the same). White on brand 6.4:1. */
   --color-brand: #0f6b63;
   --color-brand-50: #eef7f6;
   --color-brand-100: #d4ece9;
   --color-brand-700: #0b5751;
   --color-brand-900: #06312e;
+
+  /* Neutrals, tinted toward the brand (replace Tailwind's grey everywhere).
+     Text: 500 = 5.8:1, 600 = 7.8:1, 700+ = 10:1 or more on white. 300-400 only for lines and icons. */
+  --color-gray-50: #f2f5f4;
+  --color-gray-100: #e7edeb;
+  --color-gray-200: #d3dddb;
+  --color-gray-300: #b4c4c1;
+  --color-gray-400: #8a9d9a;
+  --color-gray-500: #566966;
+  --color-gray-600: #445653;
+  --color-gray-700: #33433f;
+  --color-gray-800: #1f2e2b;
+  --color-gray-900: #0f1f1d;
+
+  /* Shape and depth: one radius family, two soft shadows. */
+  --radius-card: 1rem;
+  --radius-control: 0.75rem;
+  --shadow-card: 0 1px 2px rgb(15 31 29 / 0.06), 0 1px 1px rgb(15 31 29 / 0.04);
+  --shadow-raised: 0 1px 2px rgb(15 31 29 / 0.08), 0 12px 28px -14px rgb(15 31 29 / 0.28);
+
+  /* Motion: three durations, one easing. */
+  --ease-out-soft: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-stamp: stamp 400ms var(--ease-out-soft) both;
+  --animate-rise: rise 250ms var(--ease-out-soft) both;
+}
+
+@keyframes stamp {
+  from { opacity: 0; transform: scale(1.35) rotate(-14deg); }
+  to { opacity: 1; transform: scale(1) rotate(-9deg); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-gray-50 font-sans text-gray-900;
+  }
+  /* Archivo's heavy weights set words tight; open the gaps a little. */
+  h1, h2, h3, .font-display { word-spacing: 0.08em; }
+}
+
+/* Motion is feedback only; people who ask for less get none. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
 }

@@ -28,9 +28,10 @@ const FALLBACK_AFTER_MS = 20_000;
 interface LivenessCameraProps {
   onCapture: (imageSrc: string, livenessPassed: boolean) => void;
   onCancel: () => void;
+  stepLabel?: string; // shown on the camera, e.g. 'Step 2 of 3 · Face photo'
 }
 
-export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCancel }) => {
+export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCancel, stepLabel }) => {
   const webcamRef = useRef<Webcam>(null);
   const onCaptureRef = useRef(onCapture);
   const [loading, setLoading] = useState(true);
@@ -139,12 +140,15 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
       <button
         onClick={onCancel}
         aria-label="Close camera"
-        className="absolute top-4 right-4 text-white bg-black/40 p-2 rounded-full z-50"
+        className="absolute top-4 right-4 text-white bg-black/50 min-h-11 min-w-11 inline-flex items-center justify-center rounded-full z-50"
       >
         <X size={24} />
       </button>
+      {stepLabel && (
+        <p className="absolute top-5 left-4 z-50 rounded-full bg-amber-400 px-3 py-1.5 font-display text-sm font-extrabold uppercase tracking-wide text-gray-900">{stepLabel}</p>
+      )}
 
-      <div className="relative w-full max-w-md aspect-[3/4] bg-gray-900 overflow-hidden rounded-xl">
+      <div className="relative w-full max-w-md aspect-[3/4] bg-gray-900 overflow-hidden rounded-card">
         <Webcam
           ref={webcamRef}
           audio={false}
@@ -182,7 +186,7 @@ export const LivenessCamera: React.FC<LivenessCameraProps> = ({ onCapture, onCan
           <span className="font-medium">{message}</span>
         </div>
         {showFallback && (
-          <button onClick={captureWithoutSmile} className="block mx-auto px-5 py-3 rounded-full bg-white text-gray-900 font-semibold">
+          <button onClick={captureWithoutSmile} className="block mx-auto min-h-11 px-5 py-3 rounded-full bg-white text-gray-900 font-semibold">
             Take photo without smile check
           </button>
         )}

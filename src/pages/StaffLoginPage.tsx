@@ -1,13 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { HardHat, Loader2, Shield } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { getLastOrgSlug, staffLogin } from '../lib/staffAuth';
 import { useStaff } from '../context/useStaff';
 import { SUPPORT_EMAIL } from '../lib/support';
 import { signOut } from '../lib/signOut';
-
-const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-brand focus:ring-brand';
+import { Alert, LogoMark, Wordmark } from '../components/ui';
+import { button, card, field, label } from '../components/classes';
 
 export const StaffLoginPage = () => {
   const navigate = useNavigate();
@@ -77,73 +77,74 @@ export const StaffLoginPage = () => {
   };
 
   return (
-    <main className="min-h-screen flex flex-col justify-center px-6 py-12 bg-gray-50">
-      <p className="mb-6 flex items-center justify-center gap-2.5">
-        <img src="/icon.svg" alt="" className="h-10 w-10" />
-        <span className="text-2xl font-extrabold tracking-tight text-gray-900">Site<span className="text-brand">Proof</span></span>
-      </p>
-      <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl">
-        <div className="text-center mb-6">
-          <div className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center text-white mb-3 ${mode === 'admin' ? 'bg-gray-800' : 'bg-brand'}`}>
-            {mode === 'admin' ? <Shield size={28} aria-hidden /> : <HardHat size={28} aria-hidden />}
+    <main className="flex min-h-screen flex-col justify-center bg-gray-50 px-5 py-10">
+      <div className="mx-auto w-full max-w-sm">
+        <p className="mb-6 flex items-center justify-center gap-2.5">
+          <LogoMark size={40} />
+          <Wordmark className="text-[1.75rem]" />
+        </p>
+        <div className={`${card} p-6 shadow-raised`}>
+          <h1 className="font-display text-[1.75rem] font-extrabold leading-tight">{mode === 'admin' ? 'Admin login' : 'Worker login'}</h1>
+          <p className="mt-1 mb-5 text-gray-600">
+            {mode === 'admin' ? 'For organisation admins. You will also need your authenticator app.' : 'Use the codes and PIN your admin gave you.'}
+          </p>
+
+          {mode === 'worker' ? (
+            <form onSubmit={workerLogin} className="space-y-4">
+              <label className={label}>
+                Organisation code
+                <input required value={org} onChange={(e) => setOrg(e.target.value)} autoCapitalize="none" autoComplete="organization" className={field} />
+              </label>
+              <label className={label}>
+                Staff code
+                <input required value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="username" className={`${field} font-mono`} />
+              </label>
+              <label className={label}>
+                PIN (6 digits)
+                <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} autoComplete="current-password" className={`${field} font-mono tracking-[0.3em]`} />
+              </label>
+              <SubmitButton busy={busy} label="Log in" />
+            </form>
+          ) : (
+            <form onSubmit={adminLogin} className="space-y-4">
+              <label className={label}>
+                Email
+                <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={field} />
+              </label>
+              <label className={label}>
+                Password
+                <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={field} />
+              </label>
+              <SubmitButton busy={busy} label="Log in" />
+              <button type="button" onClick={forgotPassword} className={`${button.link} w-full text-sm`}>Forgot password?</button>
+            </form>
+          )}
+
+          {error && <Alert tone="error" className="mt-4">{error}</Alert>}
+          {info && <Alert tone="success" className="mt-4">{info}</Alert>}
+
+          <div className="mt-5 border-t border-gray-100 pt-3">
+            <button
+              type="button"
+              onClick={() => { setMode(mode === 'worker' ? 'admin' : 'worker'); setError(''); setInfo(''); }}
+              className={`${button.link} w-full text-sm text-gray-700`}
+            >
+              {mode === 'worker' ? 'Organisation admin? Log in here' : '← Back to worker login'}
+            </button>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">{mode === 'admin' ? 'Admin login' : 'Worker login'}</h1>
         </div>
-
-        {mode === 'worker' ? (
-          <form onSubmit={workerLogin} className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Organisation code
-              <input required value={org} onChange={(e) => setOrg(e.target.value)} autoCapitalize="none" autoComplete="organization" className={inputClass} />
-            </label>
-            <label className="block text-sm font-medium text-gray-700">
-              Staff code
-              <input required value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} autoCapitalize="characters" autoComplete="username" className={inputClass} />
-            </label>
-            <label className="block text-sm font-medium text-gray-700">
-              PIN (6 digits)
-              <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} autoComplete="current-password" className={`${inputClass} tracking-widest`} />
-            </label>
-            <SubmitButton busy={busy} label="Log in" />
-          </form>
-        ) : (
-          <form onSubmit={adminLogin} className="space-y-4">
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-              <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className={inputClass} />
-            </label>
-            <label className="block text-sm font-medium text-gray-700">
-              Password
-              <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className={inputClass} />
-            </label>
-            <SubmitButton busy={busy} label="Log in" dark />
-            <button type="button" onClick={forgotPassword} className="w-full min-h-11 text-sm text-gray-600 underline">Forgot password?</button>
-          </form>
-        )}
-
-        {error && <p role="alert" className="mt-4 text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        {info && <p role="status" className="mt-4 text-sm text-green-800 bg-green-50 rounded-lg p-3">{info}</p>}
-
-        <button
-          type="button"
-          onClick={() => { setMode(mode === 'worker' ? 'admin' : 'worker'); setError(''); setInfo(''); }}
-          className="mt-4 w-full min-h-11 text-sm font-medium text-gray-600 hover:text-gray-900"
-        >
-          {mode === 'worker' ? 'Organisation admin? Log in here' : '← Back to worker login'}
-        </button>
+        <p className="mt-4 flex flex-wrap justify-center gap-x-4 text-center text-sm text-gray-600">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center underline underline-offset-2">Privacy notice</Link>
+          <span>Help: <a className="inline-flex min-h-11 items-center underline underline-offset-2" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
+        </p>
       </div>
-      <p className="mt-6 text-center text-xs text-gray-500 space-x-3">
-        <Link to="/privacy" className="underline">Privacy notice</Link>
-        <span>Help: <a className="underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></span>
-      </p>
     </main>
   );
 };
 
-const SubmitButton = ({ busy, label, dark = false }: { busy: boolean; label: string; dark?: boolean }) => (
-  <button type="submit" disabled={busy}
-    className={`w-full flex justify-center py-3 rounded-lg text-white font-medium disabled:opacity-60 ${dark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-brand hover:bg-brand-700'}`}>
-    {busy ? <Loader2 className="animate-spin" size={20} aria-label="Logging in" /> : label}
+const SubmitButton = ({ busy, label: text }: { busy: boolean; label: string }) => (
+  <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12 text-lg`}>
+    {busy ? <Loader2 className="animate-spin" size={20} aria-label="Logging in" /> : text}
   </button>
 );

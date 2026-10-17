@@ -6,6 +6,7 @@ import { useStaff } from '../context/useStaff';
 import { startTotpEnrolment, verifiedTotpFactor, verifyTotp } from '../lib/mfa';
 import { signOut } from '../lib/signOut';
 import { SUPPORT_EMAIL } from '../lib/support';
+import { button } from '../components/classes';
 
 type Mode =
   | { kind: 'loading' }
@@ -71,15 +72,15 @@ export const AdminVerifyPage = () => {
 
   return (
     <main className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
-      <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
+      <div className="w-full max-w-sm mx-auto rounded-card border border-gray-200 bg-white p-6 shadow-raised space-y-4">
         <div className="flex items-center gap-3">
           <ShieldCheck className="text-brand" size={28} aria-hidden />
-          <h1 className="text-xl font-bold text-gray-900">{mode.kind === 'enrol' ? 'Set up two-step login' : 'Two-step login'}</h1>
+          <h1 className="font-display text-2xl font-extrabold text-gray-900">{mode.kind === 'enrol' ? 'Set up two-step login' : 'Two-step login'}</h1>
         </div>
 
         {mode.kind === 'loading' && <div className="flex justify-center py-6"><Loader2 className="animate-spin text-gray-400" aria-label="Loading" /></div>}
         {mode.kind === 'failed' && (
-          <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">Could not start two-step login. Check your connection and reload the page.</p>
+          <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">Could not start two-step login. Check your connection and reload the page.</p>
         )}
 
         {mode.kind === 'enrol' && (
@@ -90,7 +91,7 @@ export const AdminVerifyPage = () => {
               <li>In the app, add an account and scan this code.</li>
               <li>Type the 6-digit code the app shows.</li>
             </ol>
-            <img src={mode.qrCode} alt="QR code for your authenticator app" className="mx-auto w-48 h-48 border rounded-lg" />
+            <img src={mode.qrCode} alt="QR code for your authenticator app" className="mx-auto w-48 h-48 border rounded-control" />
             <details className="text-xs text-gray-600">
               <summary className="cursor-pointer">Can&apos;t scan? Type this key instead</summary>
               <p className="mt-1 font-mono break-all select-all" data-testid="totp-secret">{mode.secret}</p>
@@ -105,12 +106,12 @@ export const AdminVerifyPage = () => {
               6-digit code
               <div className="relative mt-1">
                 <input autoFocus value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric"
-                  autoComplete="one-time-code" required className="block w-full rounded-lg border border-gray-300 py-2.5 pl-3 pr-10 tracking-widest text-lg" />
+                  autoComplete="one-time-code" required className="block w-full min-h-11 rounded-control border border-gray-300 bg-white pl-3 pr-10 py-2 text-gray-900 focus:border-brand focus:outline-none focus:ring-3 focus:ring-brand/25 font-mono tracking-[0.3em] text-lg" />
                 <KeyRound className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={16} aria-hidden />
               </div>
             </label>
-            {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-            <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-gray-800 text-white font-medium flex justify-center disabled:opacity-60">
+            {error && <p role="alert" className="rounded-control border border-red-200 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
+            <button type="submit" disabled={busy} className={`${button.primary} w-full min-h-12`}>
               {busy ? <Loader2 className="animate-spin" size={20} aria-label="Checking" /> : mode.kind === 'enrol' ? 'Finish set-up' : 'Continue'}
             </button>
           </form>
@@ -135,12 +136,12 @@ const LockedNotice = () => {
   };
   return (
     <main className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
-      <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
+      <div className="w-full max-w-sm mx-auto rounded-card border border-gray-200 bg-white p-6 shadow-raised space-y-4">
         <div className="flex items-center gap-3">
           <ShieldAlert className="text-red-600" size={28} aria-hidden />
-          <h1 className="text-xl font-bold text-gray-900">Admin access locked</h1>
+          <h1 className="font-display text-2xl font-extrabold text-gray-900">Admin access locked</h1>
         </div>
-        <p role="alert" className="text-sm text-red-800 bg-red-50 rounded-lg p-3">
+        <p role="alert" className="text-sm text-red-800 bg-red-50 rounded-control p-3">
           Too many wrong two-step codes were entered for this account, so admin access is locked to protect your workers&apos; data.
         </p>
         <p className="text-sm text-gray-700">

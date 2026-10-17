@@ -105,22 +105,22 @@ export const DiagnosticsPage = () => {
           <h1 className="text-lg font-bold text-gray-800">Device diagnostics</h1>
         </div>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white rounded-card border border-gray-200 p-4">
           <Row label="App version" value={__APP_VERSION__} />
           <Row label="Platform" value={Capacitor.getPlatform()} />
           <Row label="Network" value={online ? 'online' : 'OFFLINE'} />
           <Row label="Offline app (service worker)" value={Capacitor.isNativePlatform() ? 'not needed (native)' : navigator.serviceWorker?.controller ? 'active' : 'not active yet'} />
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white rounded-card border border-gray-200 p-4">
           <Row label="Storage protected" value={storage?.persisted == null ? 'unknown' : storage.persisted ? 'yes' : 'NO'} />
           <Row label="Storage used / available" value={`${formatBytes(storage?.usageBytes)} / ${formatBytes(storage?.quotaBytes)}`} />
           {storage?.persisted === false && (
-            <button onClick={protectStorage} className="mt-3 w-full py-2 rounded-lg bg-brand text-white text-sm font-medium">Protect storage</button>
+            <button onClick={protectStorage} className="mt-3 w-full py-2 rounded-control bg-brand text-white text-sm font-medium">Protect storage</button>
           )}
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-4">
+        <section className="bg-white rounded-card border border-gray-200 p-4">
           <Row label="Waiting to upload" value={String(pending.length)} />
           <Row label="Oldest waiting" value={formatAge(pending[0]?.capturedAt)} />
           <Row label="Last upload run" value={lastSync ? `${formatAge(lastSync.finishedAt)} ago: ${lastSync.synced} sent, ${lastSync.errors} failed` : 'never'} />
@@ -138,11 +138,11 @@ export const DiagnosticsPage = () => {
           <Row label="Newest waiting site photo" value={formatBytes(photoSizes.site)} />
         </section>
 
-        <section className="bg-white rounded-xl border border-gray-200 p-4 space-y-3">
+        <section className="bg-white rounded-card border border-gray-200 p-4 space-y-3">
           <Row label="Face models" value={modelResult} />
-          <button onClick={testModels} className="w-full py-2 rounded-lg border border-gray-300 text-sm font-medium">Test face model load</button>
+          <button onClick={testModels} className="w-full py-2 rounded-control border border-gray-300 text-sm font-medium">Test face model load</button>
           <Row label="GPS" value={gpsResult} />
-          <button onClick={testGps} className="w-full py-2 rounded-lg border border-gray-300 text-sm font-medium">Test GPS fix</button>
+          <button onClick={testGps} className="w-full py-2 rounded-control border border-gray-300 text-sm font-medium">Test GPS fix</button>
         </section>
       </div>
     </div>

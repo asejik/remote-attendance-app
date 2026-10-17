@@ -4,6 +4,8 @@ import { ClipboardCheck, FileSpreadsheet, Lock, LogOut, MapPin, Settings, UserMi
 import type { StaffContext } from '../../context/useStaff';
 import { SUPPORT_EMAIL, suspensionOf } from '../../lib/support';
 import { signOut } from '../../lib/signOut';
+import { LogoMark } from '../../components/ui';
+import { button } from '../../components/classes';
 
 const TABS = [
   { to: '/admin/review', label: 'Review', icon: ClipboardCheck },
@@ -25,20 +27,21 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 pt-3 flex justify-between items-center">
-          <div>
-            <p className="text-xs text-gray-500">Admin</p>
-            <h1 className="text-lg font-bold text-gray-900">{context.organization.name}</h1>
+      <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 pt-3">
+          <LogoMark size={34} />
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate font-display text-xl font-extrabold leading-tight text-gray-900">{context.organization.name}</h1>
+            <p className="text-xs font-semibold text-gray-600">SiteProof · Admin</p>
           </div>
-          <button onClick={logOut} aria-label="Log out" className="min-h-11 min-w-11 inline-flex items-center justify-center text-gray-500 hover:text-red-600"><LogOut size={20} /></button>
+          <button onClick={logOut} className={`${button.secondary} min-h-10 px-3 text-sm`}><LogOut size={16} aria-hidden /> Log out</button>
         </div>
         {/* Phones: two rows of three, so no section is hidden off-screen. */}
-        <nav aria-label="Admin sections" className="max-w-5xl mx-auto px-2 grid grid-cols-3 sm:flex sm:gap-1">
+        <nav aria-label="Admin sections" className="mx-auto mt-1 grid max-w-6xl grid-cols-3 px-2 sm:flex sm:gap-1">
           {TABS.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
-              className={({ isActive }) => `min-h-11 flex items-center justify-center sm:justify-start gap-1.5 px-3 text-sm font-medium whitespace-nowrap border-b-2 ${
-                isActive ? 'border-brand text-brand-700' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+              className={({ isActive }) => `flex min-h-11 items-center justify-center gap-1.5 whitespace-nowrap border-b-[3px] px-3 text-sm transition duration-150 sm:justify-start ${
+                isActive ? 'border-brand font-bold text-gray-900' : 'border-transparent font-semibold text-gray-600 hover:text-gray-900'}`}>
               <Icon size={16} aria-hidden /> {label}
             </NavLink>
           ))}
@@ -46,7 +49,7 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
       </header>
       {suspension && (
         <div role="alert" className="bg-red-50 border-b border-red-200">
-          <p className="max-w-5xl mx-auto px-4 py-3 text-sm text-red-900 flex items-start gap-2">
+          <p className="max-w-6xl mx-auto px-4 py-3 text-sm text-red-900 flex items-start gap-2">
             <Lock size={16} className="mt-0.5 shrink-0" aria-hidden />
             <span>
               <strong>This organisation's subscription is suspended.</strong> You can still view and export records, but changes are turned off.{' '}
@@ -58,7 +61,7 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
           </p>
         </div>
       )}
-      <main className="max-w-5xl mx-auto p-4">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
     </div>
   );
 };
