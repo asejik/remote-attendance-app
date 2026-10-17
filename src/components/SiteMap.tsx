@@ -43,8 +43,8 @@ const SiteMap = ({ latitude, longitude, radiusM, onPick }: SiteMapProps) => {
       <FollowPin position={position} />
       {position && (
         <>
-          <Circle center={position} radius={radiusM} pathOptions={{ color: '#2563eb', fillOpacity: 0.15 }} />
-          <CircleMarker center={position} radius={7} pathOptions={{ color: '#1d4ed8', fillColor: '#2563eb', fillOpacity: 1 }} />
+          <Circle center={position} radius={radiusM} pathOptions={{ color: '#0f6b63', fillOpacity: 0.15 }} />
+          <CircleMarker center={position} radius={7} pathOptions={{ color: '#0b5751', fillColor: '#0f6b63', fillOpacity: 1 }} />
         </>
       )}
     </MapContainer>

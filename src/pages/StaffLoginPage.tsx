@@ -7,7 +7,7 @@ import { useStaff } from '../context/useStaff';
 import { SUPPORT_EMAIL } from '../lib/support';
 import { signOut } from '../lib/signOut';
 
-const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-blue-500 focus:ring-blue-500';
+const inputClass = 'mt-1 block w-full min-h-11 rounded-lg border border-gray-300 py-2.5 px-3 text-gray-900 focus:border-brand focus:ring-brand';
 
 export const StaffLoginPage = () => {
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ export const StaffLoginPage = () => {
       </p>
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl">
         <div className="text-center mb-6">
-          <div className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center text-white mb-3 ${mode === 'admin' ? 'bg-gray-800' : 'bg-blue-600'}`}>
+          <div className={`mx-auto h-14 w-14 rounded-full flex items-center justify-center text-white mb-3 ${mode === 'admin' ? 'bg-gray-800' : 'bg-brand'}`}>
             {mode === 'admin' ? <Shield size={28} aria-hidden /> : <HardHat size={28} aria-hidden />}
           </div>
           <h1 className="text-2xl font-bold text-gray-900">{mode === 'admin' ? 'Admin login' : 'Worker login'}</h1>
@@ -143,7 +143,7 @@ export const StaffLoginPage = () => {
 
 const SubmitButton = ({ busy, label, dark = false }: { busy: boolean; label: string; dark?: boolean }) => (
   <button type="submit" disabled={busy}
-    className={`w-full flex justify-center py-3 rounded-lg text-white font-medium disabled:opacity-60 ${dark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-blue-600 hover:bg-blue-500'}`}>
+    className={`w-full flex justify-center py-3 rounded-lg text-white font-medium disabled:opacity-60 ${dark ? 'bg-gray-800 hover:bg-gray-700' : 'bg-brand hover:bg-brand-700'}`}>
     {busy ? <Loader2 className="animate-spin" size={20} aria-label="Logging in" /> : label}
   </button>
 );

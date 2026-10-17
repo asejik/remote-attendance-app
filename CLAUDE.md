@@ -149,7 +149,8 @@ The new tables live **in the same Supabase project as the legacy prototype table
 - **Android signing:**
   - Debug/test APK: the shared debug key (`ANDROID_DEBUG_KEYSTORE_B64`).
   - Release: the release key, kept in the private repo (`docs/private/android-release/`) plus offline. Gradle reads `RELEASE_KEYSTORE*`, `VERSION_CODE` and `VERSION_NAME` from the environment.
-  - **Brand** (SiteProof, deep teal `#0F6B63`, icon "photo at a place": a pin whose head is a camera lens): `scripts/generate-brand-assets.mjs` draws every icon and the link-preview image (`public/og-image.png`) from one SVG; then `npx @capacitor/assets generate --android` (flags in the script header) makes the Android launcher icons and splash. The adaptive icon XMLs add a `<monochrome>` layer for Android 13 themed icons (re-add it if the tool rewrites them). Tailwind token `brand` (`src/index.css`).
+  - **Brand** (SiteProof, deep teal `#0F6B63`, icon "photo at a place": a pin whose head is a camera lens): `scripts/generate-brand-assets.mjs` draws every icon and the link-preview image (`public/og-image.png`) from one SVG; then `npx @capacitor/assets generate --android` (flags in the script header) makes the Android launcher icons and splash. The adaptive icon XMLs add a `<monochrome>` layer for Android 13 themed icons (re-add it if the tool rewrites them). Tailwind colour `brand` (+ `brand-50/100/700/900`, `src/index.css`) is the app's primary colour; no Tailwind blue remains.
+- **Search and link previews (P08):** a private app, so every response says `noindex, nofollow` (meta in `index.html` + `X-Robots-Tag` in `public/_headers`); `public/robots.txt` allows crawling so crawlers can read that; no sitemap. Open Graph/Twitter tags in `index.html` use absolute `https://siteproof.asejik.com/` URLs and `public/og-image.png` (not precached). Smoke E2E checks all of this.
 
 ## Conventions (from .cursorrules)
 

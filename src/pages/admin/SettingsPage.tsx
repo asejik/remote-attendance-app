@@ -81,7 +81,7 @@ export const SettingsPage = ({ context }: { context: StaffContext }) => {
       {message && (
         <p role={message.kind === 'error' ? 'alert' : 'status'} className={`text-sm rounded-lg p-3 ${message.kind === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'}`}>{message.text}</p>
       )}
-      <button type="submit" disabled={busy} className="min-h-11 px-5 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60">
+      <button type="submit" disabled={busy} className="min-h-11 px-5 rounded-lg bg-brand text-white font-medium disabled:opacity-60">
         {busy ? 'Saving…' : 'Save settings'}
       </button>
     </form>

@@ -36,7 +36,7 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
     <main className="min-h-screen bg-gray-50 px-5 py-8">
       <div className="max-w-md mx-auto bg-white rounded-2xl shadow p-6 space-y-4">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="text-blue-600" size={28} aria-hidden />
+          <ShieldCheck className="text-brand" size={28} aria-hidden />
           <h1 className="text-xl font-bold text-gray-900">{context.staff.consent_accepted_at ? 'Our privacy notice has changed' : 'Before you start'}</h1>
         </div>
         <p className="text-gray-700">
@@ -54,11 +54,11 @@ export const ConsentPage = ({ context, reload }: { context: StaffContext; reload
         </p>
         <p className="text-gray-700">
           You can ask your admin for a copy of your records, or to correct them. Questions: ask your admin or write to{' '}
-          <a className="text-blue-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.{' '}
-          <Link to="/privacy" className="text-blue-700 underline">Read the full privacy notice</Link>.
+          <a className="text-brand-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.{' '}
+          <Link to="/privacy" className="text-brand-700 underline">Read the full privacy notice</Link>.
         </p>
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button onClick={accept} disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60 flex justify-center">
+        <button onClick={accept} disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium disabled:opacity-60 flex justify-center">
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'I understand and agree'}
         </button>
         <button onClick={decline} className="w-full min-h-11 text-sm text-gray-600 underline">I don&apos;t agree (log out)</button>

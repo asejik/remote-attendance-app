@@ -73,7 +73,7 @@ export const AdminVerifyPage = () => {
     <main className="min-h-screen flex flex-col justify-center px-6 py-10 bg-gray-50">
       <div className="w-full max-w-sm mx-auto bg-white p-6 shadow-lg rounded-2xl space-y-4">
         <div className="flex items-center gap-3">
-          <ShieldCheck className="text-blue-600" size={28} aria-hidden />
+          <ShieldCheck className="text-brand" size={28} aria-hidden />
           <h1 className="text-xl font-bold text-gray-900">{mode.kind === 'enrol' ? 'Set up two-step login' : 'Two-step login'}</h1>
         </div>
 

@@ -253,10 +253,10 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
       {step === 'site-instruction' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4" role="dialog" aria-modal="true" aria-labelledby="site-photo-title">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4">
-            <Camera className="mx-auto text-blue-600" size={36} aria-hidden />
+            <Camera className="mx-auto text-brand" size={36} aria-hidden />
             <h2 id="site-photo-title" className="text-xl font-bold text-gray-900">Now a photo of the site</h2>
             <p className="text-gray-600">Take a clear picture of where you are working, so your admin can see the site.</p>
-            <button autoFocus onClick={takeSitePhoto} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl flex items-center justify-center gap-2">
+            <button autoFocus onClick={takeSitePhoto} className="w-full py-3 bg-brand text-white font-bold rounded-xl flex items-center justify-center gap-2">
               Open camera <ArrowRight size={20} aria-hidden />
             </button>
             <button onClick={() => { setStep('idle'); setPending(null); }} className="min-h-11 px-4 text-gray-600 text-sm underline">Cancel</button>
@@ -352,8 +352,8 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
         )}
 
         <button onClick={start} disabled={step !== 'idle' || clockInsBlocked}
-          className={`flex flex-col items-center justify-center w-[min(12rem,75vw)] aspect-square p-2 text-center border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-blue-100'}`}>
-          <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-blue-600'}`}>
+          className={`flex flex-col items-center justify-center w-[min(12rem,75vw)] aspect-square p-2 text-center border-4 rounded-full shadow-lg active:scale-95 disabled:opacity-70 ${clockedIn ? 'bg-red-50 border-red-100' : 'bg-white border-brand-100'}`}>
+          <span className={`p-4 rounded-full text-white mb-2 ${clockedIn ? 'bg-red-500' : 'bg-brand'}`}>
             {step === 'idle' ? <Camera size={40} aria-hidden /> : <Loader2 className="animate-spin" size={40} aria-hidden />}
           </span>
           <span className={`font-bold ${clockedIn ? 'text-red-700' : 'text-gray-800'}`}>

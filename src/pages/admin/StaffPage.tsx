@@ -96,7 +96,7 @@ export const StaffPage = ({ context }: { context: StaffContext }) => {
     <div>
 
       <div className="space-y-4">
-        <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-blue-600 text-white font-medium">
+        <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-brand text-white font-medium">
           <UserPlus size={18} aria-hidden /> Add worker
         </button>
 
@@ -238,7 +238,7 @@ const AddStaffDialog = ({ onClose, onCreated }: { onClose: () => void; onCreated
             className="mt-1 block w-full text-sm text-gray-700" />
         </label>
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center disabled:opacity-60">
+        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium flex justify-center disabled:opacity-60">
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Adding worker" /> : 'Add worker'}
         </button>
       </form>
@@ -293,7 +293,7 @@ const EditStaffDialog = ({ staff, onClose, onSaved }: { staff: Staff; onClose: (
         </label>
         <p className="text-xs text-gray-500">The staff code {staff.staff_code} can&apos;t change: it is part of the login. The change is recorded in the audit log.</p>
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium flex justify-center disabled:opacity-60">
+        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium flex justify-center disabled:opacity-60">
           {busy ? <Loader2 className="animate-spin" size={20} aria-label="Saving" /> : 'Save changes'}
         </button>
       </form>

@@ -13,7 +13,7 @@ export const PrivacyPage = () => (
         <ArrowLeft size={16} aria-hidden /> Back
       </Link>
       <div className="flex items-center gap-3">
-        <ShieldCheck className="text-blue-600" size={28} aria-hidden />
+        <ShieldCheck className="text-brand" size={28} aria-hidden />
         <h1 className="text-xl font-bold text-gray-900">Privacy notice</h1>
       </div>
       <p className="text-sm text-gray-500">Last updated {PRIVACY_NOTICE_UPDATED}</p>
@@ -67,7 +67,7 @@ export const PrivacyPage = () => (
       <Section title="Your rights">
         <p>
           You can ask for a copy of your records, for corrections, or for deletion where the law allows. Ask your employer&apos;s admin
-          first; you can also write to us at <a className="text-blue-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and
+          first; you can also write to us at <a className="text-brand-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a> and
           we will pass your request to your employer and help them answer it within 30 days. If you are unhappy with the answer, you can
           complain to the Nigeria Data Protection Commission.
         </p>
@@ -75,7 +75,7 @@ export const PrivacyPage = () => (
 
       <Section title="Contact">
         <p>
-          Questions about this app or this notice: <a className="text-blue-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+          Questions about this app or this notice: <a className="text-brand-700 underline" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </Section>
     </article>

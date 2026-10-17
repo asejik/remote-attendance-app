@@ -54,7 +54,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,ico,png,svg}', 'models/*'],
         // Admin-only libraries (Excel export, site map) aren't precached, so workers'
         // phones don't download them; they're cached the first time an admin uses them.
-        globIgnores: ['**/assets/xlsx-*', '**/assets/SiteMap-*'],
+        // The link-preview image is only for WhatsApp and other link previews.
+        globIgnores: ['**/assets/xlsx-*', '**/assets/SiteMap-*', 'og-image.png'],
         runtimeCaching: [{
           urlPattern: /\/assets\/(xlsx|SiteMap)-[\w-]+\.(js|css)$/,
           handler: 'CacheFirst', // file names change with every build

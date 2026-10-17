@@ -116,7 +116,7 @@ export const DiagnosticsPage = () => {
           <Row label="Storage protected" value={storage?.persisted == null ? 'unknown' : storage.persisted ? 'yes' : 'NO'} />
           <Row label="Storage used / available" value={`${formatBytes(storage?.usageBytes)} / ${formatBytes(storage?.quotaBytes)}`} />
           {storage?.persisted === false && (
-            <button onClick={protectStorage} className="mt-3 w-full py-2 rounded-lg bg-blue-600 text-white text-sm font-medium">Protect storage</button>
+            <button onClick={protectStorage} className="mt-3 w-full py-2 rounded-lg bg-brand text-white text-sm font-medium">Protect storage</button>
           )}
         </section>
 

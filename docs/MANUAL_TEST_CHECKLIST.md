@@ -6,6 +6,13 @@ Things to click through yourself. Each task adds its steps here, newest first. F
 
 ---
 
+## SiteProof brand, teal colour and link previews (2026-10-17)
+- ☐ **Phone:** uninstall the old "Attendance" test app, then install `siteproof-test.apk` from the android-test release. The home screen shows **SiteProof** with the teal pin-and-lens icon; on Android 13+ with themed icons on, it follows the phone's colours. The splash screen is teal.
+- ☐ **Screens:** buttons, the login hard-hat circle, admin tabs and links are teal (no blue left).
+- ☐ **Authenticator:** a newly set-up admin's code is listed as "SiteProof" in the authenticator app.
+- ☐ **After go-live:** send `https://siteproof.asejik.com` to yourself on WhatsApp: a teal SiteProof card appears. If not, Facebook Sharing Debugger → paste the URL → *Scrape Again*.
+- ☐ **After go-live:** `https://siteproof.asejik.com/robots.txt` shows plain text.
+
 ## Security re-run fixes (2026-10-17)
 - ☐ **Wrong-code lock:** with a throwaway admin, enter about 20 wrong two-step codes (Supabase may pause you after ~30 quick tries; wait a minute). Within 5 minutes even the right code shows **"Admin access locked"**. Unlock it with the SQL in RUNBOOK "Admin locked out after wrong codes": the admin can log in again.
 - ☐ **Normal admin login** still works first time with the right code.

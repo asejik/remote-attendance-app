@@ -26,3 +26,20 @@ test('a login request that never gets an answer ends with a connection message, 
   await expect(page.getByRole('alert')).toHaveText("Couldn't reach the server. Check your internet connection and try again.", { timeout: 40_000 })
   await expect(page.getByRole('button', { name: 'Log in', exact: true })).toBeEnabled()
 })
+
+test('crawlers: robots.txt allows fetching, every response says noindex, and link previews have their tags', async ({ request }) => {
+  const robots = await request.get('/robots.txt')
+  expect(robots.headers()['content-type']).toContain('text/plain')
+  expect(await robots.text()).toContain('Allow: /')
+  for (const path of ['/', '/admin/review', '/version.json']) {
+    expect((await request.get(path)).headers()['x-robots-tag'], path).toBe('noindex, nofollow')
+  }
+  // Raw HTML, as WhatsApp and search crawlers see it (no JavaScript).
+  const html = await (await request.get('/')).text()
+  expect(html).toContain('<meta name="robots" content="noindex, nofollow" />')
+  expect(html).toContain('<meta property="og:image" content="https://siteproof.asejik.com/og-image.png" />')
+  expect(html).toContain('<meta property="og:title" content="SiteProof" />')
+  const image = await request.get('/og-image.png')
+  expect(image.headers()['content-type']).toBe('image/png')
+  expect((await image.body()).length).toBeLessThan(150_000)
+})

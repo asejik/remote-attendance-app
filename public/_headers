@@ -8,6 +8,8 @@
   Permissions-Policy: camera=(self), geolocation=(self), microphone=(), payment=(), usb=()
   Cross-Origin-Opener-Policy: same-origin
   Strict-Transport-Security: max-age=31536000
+  # Private app: keep every file (HTML, JSON, images) out of search results.
+  X-Robots-Tag: noindex, nofollow
 
 # Read by the Android app to offer updates; must never be served stale.
 /version.json

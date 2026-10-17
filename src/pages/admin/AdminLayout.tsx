@@ -38,7 +38,7 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
           {TABS.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => `min-h-11 flex items-center justify-center sm:justify-start gap-1.5 px-3 text-sm font-medium whitespace-nowrap border-b-2 ${
-                isActive ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+                isActive ? 'border-brand text-brand-700' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
               <Icon size={16} aria-hidden /> {label}
             </NavLink>
           ))}

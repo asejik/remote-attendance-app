@@ -3,4 +3,8 @@
 /* SiteProof brand colour (deep teal; scripts/generate-brand-assets.mjs uses the same). */
 @theme {
   --color-brand: #0f6b63;
+  --color-brand-50: #eef7f6;
+  --color-brand-100: #d4ece9;
+  --color-brand-700: #0b5751;
+  --color-brand-900: #06312e;
 }

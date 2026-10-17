@@ -1,0 +1,4 @@
+# SiteProof is a private app. Crawlers may fetch pages so they can read that
+# every page asks not to be indexed (meta robots and the X-Robots-Tag header).
+User-agent: *
+Allow: /

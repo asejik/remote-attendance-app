@@ -49,7 +49,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => setDraft(EMPTY)} className="min-h-11 flex items-center gap-2 px-4 rounded-lg bg-blue-600 text-white text-sm font-medium">
+      <button onClick={() => setDraft(EMPTY)} className="min-h-11 flex items-center gap-2 px-4 rounded-lg bg-brand text-white text-sm font-medium">
         <Plus size={16} aria-hidden /> Add site
       </button>
       {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
@@ -61,7 +61,7 @@ export const SitesPage = ({ context }: { context: StaffContext }) => {
           <li key={s.id} className={`bg-white rounded-xl border border-gray-200 p-4 ${s.active ? '' : 'opacity-60'}`}>
             <div className="flex justify-between gap-2">
               <div className="min-w-0">
-                <p className="font-semibold text-gray-900 flex items-center gap-1.5"><MapPin size={16} className="text-blue-600 shrink-0" aria-hidden /> {s.name}</p>
+                <p className="font-semibold text-gray-900 flex items-center gap-1.5"><MapPin size={16} className="text-brand shrink-0" aria-hidden /> {s.name}</p>
                 {s.address && <p className="text-xs text-gray-500 truncate">{s.address}</p>}
                 <p className="text-xs text-gray-500 mt-1">
                   Radius {s.radius_m} m · <a href={mapLink(s.latitude, s.longitude)} target="_blank" rel="noreferrer" className="underline">{s.latitude.toFixed(5)}, {s.longitude.toFixed(5)}</a>
@@ -188,7 +188,7 @@ const SiteDialog = ({ draft: initial, orgId, userId, onClose, onSaved }: {
 
         {info && <p role="status" className="text-sm text-green-800 bg-green-50 rounded-lg p-3">{info}</p>}
         {error && <p role="alert" className="text-sm text-red-700 bg-red-50 rounded-lg p-3">{error}</p>}
-        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-blue-600 text-white font-medium disabled:opacity-60">
+        <button type="submit" disabled={busy} className="w-full py-3 rounded-lg bg-brand text-white font-medium disabled:opacity-60">
           {busy ? 'Saving…' : 'Save site'}
         </button>
       </form>
