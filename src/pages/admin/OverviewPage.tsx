@@ -49,10 +49,13 @@ export const OverviewPage = ({ context }: { context: StaffContext }) => {
 
   const load = useCallback(async (d: string) => {
     const { start, end } = dayRangeUtc(d, d, tz);
-    // A little past the day, so night shifts' clock-outs after midnight count.
+    // A shift's length either side of the day: tonight's clock-outs after
+    // midnight count, and last night's clock-outs this morning find their
+    // clock-in (otherwise they'd look like stray records of this day).
+    const before = new Date(Date.parse(start) - MAX_SHIFT_MS).toISOString();
     const after = new Date(Date.parse(end) + MAX_SHIFT_MS).toISOString();
     try {
-      const [events, staff] = await Promise.all([fetchEventsForReport(start, after), fetchStaffForReport()]);
+      const [events, staff] = await Promise.all([fetchEventsForReport(before, after), fetchStaffForReport()]);
       const rows = dayOverview(events, staff, d, tz);
       const [refPhotos, facePhotos] = await Promise.all([
         signListPhotos('reference-photos', rows.map((r) => r.staff.reference_photo_path ?? '')),

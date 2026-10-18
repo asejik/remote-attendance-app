@@ -178,7 +178,8 @@ export interface DayRow {
 // One row per active non-admin staff member for one local day (the Overview
 // tab). Shifts count on the day they started, as in summarise. An open shift is
 // "on site" while it could still be closed (under MAX_SHIFT_HOURS old),
-// otherwise "no clock-out". Pass events up to MAX_SHIFT_HOURS past the day.
+// otherwise "no clock-out". Pass events from MAX_SHIFT_HOURS before the day to
+// MAX_SHIFT_HOURS after it, so night shifts on either side pair up.
 export const dayOverview = (events: ReportEvent[], staff: ReportStaff[], day: string, timeZone: string, now = Date.now()): DayRow[] =>
   staff
     .filter((s) => s.status === 'active' && s.role !== 'admin')
