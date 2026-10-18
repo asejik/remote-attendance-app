@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  csvCell, dayOverview, dayRangeUtc, eventRows, localDay, shiftsOf, summarise, toCsv, EVENT_HEADER,
+  csvCell, dayOverview, dayRangeUtc, whichRecords, eventRows, localDay, shiftsOf, summarise, toCsv, EVENT_HEADER,
   type ReportEvent, type ReportStaff,
 } from './reports';
 
@@ -139,5 +139,24 @@ describe('CSV', () => {
     expect(lines).toHaveLength(3);
     expect(lines[1]).toBe('2026-10-14,08:00,Ada Worker,W-0001,Clock in,Site A,12,Yes,10,Weak GPS; Outside site,Yes,pending,,');
     expect(lines[2].startsWith('2026-10-14,16:00,Bayo Worker')).toBe(true);
+  });
+});
+
+describe('whichRecords', () => {
+  const flagged = (e: ReportEvent) => e.flags.length > 0;
+  const inn = ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z', { flags: ['outside_radius'] });
+  const out = ev('a', 'CLOCK_OUT', '2026-10-14T15:00:00Z', { flags: ['outside_radius'] });
+  const clean = (e: ReportEvent) => ({ ...e, flags: [] });
+
+  it('names the in and out records on a one-shift day', () => {
+    expect(whichRecords([inn, out], flagged)).toBe('In and out');
+    expect(whichRecords([inn, clean(out)], flagged)).toBe('In');
+    expect(whichRecords([clean(inn), out], flagged)).toBe('Out');
+    expect(whichRecords([clean(inn), clean(out)], flagged)).toBeNull();
+  });
+
+  it('counts when there are several shifts in the day', () => {
+    const later = ev('a', 'CLOCK_IN', '2026-10-14T16:00:00Z');
+    expect(whichRecords([inn, out, later], flagged)).toBe('2 of 3');
   });
 });

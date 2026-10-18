@@ -368,8 +368,8 @@ const EventCard = ({ event: e, tz, photos, recordedBy, onOpen, onRenew, onReview
       )}
 
       <div className="mt-3 flex gap-3 flex-wrap">
-        <Photo bucket="event-photos" path={e.face_photo_path} photos={photos} alt={`Clock-in photo of ${name}`}
-          label={e.photos_deleted_at ? 'Expired' : 'Clock-in'} onOpen={onOpen} onRenew={onRenew} />
+        <Photo bucket="event-photos" path={e.face_photo_path} photos={photos} alt={`${e.type === 'CLOCK_OUT' ? 'Clock-out' : 'Clock-in'} photo of ${name}`}
+          label={e.photos_deleted_at ? 'Expired' : e.type === 'CLOCK_OUT' ? 'Clock-out' : 'Clock-in'} onOpen={onOpen} onRenew={onRenew} />
         <Photo bucket="reference-photos" path={e.staff?.reference_photo_path} photos={photos} alt={`Reference photo of ${name}`}
           label="Reference" onOpen={onOpen} onRenew={onRenew} />
         <Photo bucket="event-photos" path={e.site_photo_path} photos={photos} alt={`Site photo from ${name}`}

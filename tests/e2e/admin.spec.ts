@@ -178,6 +178,7 @@ test('overview: who is present, on site or absent today; a person\'s day; link t
   const worker = staff.getByRole('listitem').filter({ hasText: EVIL })
   await expect(worker).toContainText('On site now') // clocked in, not out, within the last 16 hours
   await expect(worker).toContainText('Main Site')
+  await expect(worker).toContainText('1 of 2 flagged') // two clock-ins that day, one outside the site
 
   // The Absent tile filters the list.
   await summary.getByRole('button', { name: /Absent/ }).click()

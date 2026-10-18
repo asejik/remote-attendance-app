@@ -147,6 +147,19 @@ export const summarise = (events: ReportEvent[], staff: ReportStaff[], timeZone:
     })
     .sort((a, b) => a.staff.full_name.localeCompare(b.staff.full_name));
 
+// Which of a day's records a label is about: "In", "Out", "In and out" when the
+// day has at most one of each, otherwise "2 of 4" (several shifts in a day).
+export const whichRecords = (events: ReportEvent[], matching: (e: ReportEvent) => boolean) => {
+  const ins = events.filter((e) => e.type === 'CLOCK_IN');
+  const outs = events.filter((e) => e.type === 'CLOCK_OUT');
+  const n = events.filter(matching).length;
+  if (n === 0) return null;
+  if (ins.length > 1 || outs.length > 1) return `${n} of ${events.length}`;
+  const inHit = ins.some(matching);
+  const outHit = outs.some(matching);
+  return inHit && outHit ? 'In and out' : inHit ? 'In' : 'Out';
+};
+
 export type DayStatus = 'on_site' | 'clocked_out' | 'no_clock_out' | 'absent';
 
 export interface DayRow {

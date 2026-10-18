@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, MapPin, RefreshCw, UserRound, UserX } from 'lucide-react';
 import { fetchEventsForReport, fetchStaffForReport } from '../../lib/adminEvents';
-import { dayOverview, dayRangeUtc, flagLabel, localDay, localTime, MAX_SHIFT_MS, type DayRow, type DayStatus } from '../../lib/reports';
+import { dayOverview, dayRangeUtc, flagLabel, localDay, localTime, MAX_SHIFT_MS, whichRecords, type DayRow, type DayStatus } from '../../lib/reports';
 import { renewPhotoUrl, signListPhotos, type ListPhoto, type PhotoBucket } from '../../lib/photoUrls';
 import { useLatestOnly } from '../../hooks/useLatestOnly';
 import type { StaffContext } from '../../context/useStaff';
@@ -239,14 +239,21 @@ const Avatar = ({ row, photos, renew }: Pick<RowProps, 'row' | 'photos' | 'renew
 const time = (iso: string | undefined, tz: string) => (iso ? localTime(iso, tz) : '–');
 const hours = (r: DayRow) => (r.hoursWorked > 0 ? `${r.hoursWorked} h` : '–');
 
-const ReviewBadges = ({ row }: { row: DayRow }) => (
-  <span className="flex flex-wrap gap-1">
-    {row.flagged > 0 && <Badge tone="warning"><AlertTriangle size={13} aria-hidden /> {row.flagged} flagged</Badge>}
-    {row.pending > 0 && <Badge>{row.pending} to review</Badge>}
-    {row.rejected > 0 && <Badge tone="danger">{row.rejected} rejected</Badge>}
-    {row.events.length > 0 && row.pending + row.rejected === 0 && <Badge tone="success"><CheckCircle size={13} aria-hidden /> Approved</Badge>}
-  </span>
-);
+// Says which records ("In and out flagged", "Out to review"): a clock-out is a
+// record too, so a bare "2 flagged" read like two clock-ins.
+const ReviewBadges = ({ row }: { row: DayRow }) => {
+  const flagged = whichRecords(row.events, (e) => e.flags.length > 0);
+  const pending = whichRecords(row.events, (e) => e.review_status === 'pending');
+  const rejected = whichRecords(row.events, (e) => e.review_status === 'rejected');
+  return (
+    <span className="flex flex-wrap gap-1">
+      {flagged && <Badge tone="warning"><AlertTriangle size={13} aria-hidden /> {flagged} flagged</Badge>}
+      {pending && <Badge>{pending} to review</Badge>}
+      {rejected && <Badge tone="danger">{rejected} rejected</Badge>}
+      {row.events.length > 0 && row.pending + row.rejected === 0 && <Badge tone="success"><CheckCircle size={13} aria-hidden /> Approved</Badge>}
+    </span>
+  );
+};
 
 const NameButton = ({ row, open, toggle }: Pick<RowProps, 'row' | 'open' | 'toggle'>) => (
   <button type="button" onClick={toggle} aria-expanded={open} aria-controls={`day-${row.staff.id}`}
