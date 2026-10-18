@@ -32,6 +32,7 @@ Rewritten 2026-10-17 for SiteProof. The older milestone-by-milestone lists are i
 
 ### 2.1 Install and log in
 - ☐ The home screen shows **SiteProof** with the teal pin-and-lens icon; the splash screen is teal. On Android 13+ with *themed icons* on, the icon follows the phone's colours.
+- ☐ **Update notice:** with this build installed, push any app change (or ask me to) and wait for the new APK (about 10 minutes, see [GitHub Actions](https://github.com/asejik/remote-attendance-app/actions)). Reopen the app: a bar says **A new version of SiteProof is available (build N)**. **Download** opens the browser and downloads the APK; installing it keeps your data, and the bar goes away. **Later** hides it until the next build.
 - ☐ Log in with organisation `demo`, staff code `WRK-01` and its PIN. On first login, or when the notice has changed, the privacy notice appears. **I understand and agree** → the worker home with your name.
 - ☐ Close the app fully and reopen it, online and in airplane mode: the teal SiteProof screen, then straight to the home screen. **The login form never flashes.**
 - ☐ Logged out and offline, try to log in: a clear "can't reach the server" message, no endless spinner.

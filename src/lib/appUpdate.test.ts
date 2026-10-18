@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareVersions, parseVersionInfo, updateStatus } from './appUpdate';
+import { compareVersions, parseTestRelease, parseVersionInfo, updateStatus } from './appUpdate';
 
 const info = { latest: '1.3.0', minimum: '1.1.0', url: 'https://example.test/attendance.apk' };
 
@@ -22,5 +22,27 @@ describe('app update check', () => {
     expect(parseVersionInfo({ ...info, url: 'http://example.test/a.apk' })).toBeNull();
     expect(parseVersionInfo({ ...info, latest: 'soon' })).toBeNull();
     expect(parseVersionInfo(null)).toBeNull();
+  });
+});
+
+describe('test build update check', () => {
+  const release = {
+    body: 'Build 142. Test build from abc1234 (2026-10-18 10:00 UTC). Talks to the dev database.',
+    assets: [
+      { name: 'other.zip', browser_download_url: 'https://github.com/x/other.zip' },
+      { name: 'siteproof-test.apk', browser_download_url: 'https://github.com/x/siteproof-test.apk' },
+    ],
+  };
+
+  it('reads the build number and the APK link from the GitHub release', () => {
+    expect(parseTestRelease(release)).toEqual({ build: 142, url: 'https://github.com/x/siteproof-test.apk' });
+  });
+
+  it('ignores releases without a build number or the test APK', () => {
+    expect(parseTestRelease({ ...release, body: 'Test build from abc1234.' })).toBeNull();
+    expect(parseTestRelease({ ...release, assets: [release.assets[0]] })).toBeNull();
+    expect(parseTestRelease({ ...release, assets: [{ name: 'siteproof-test.apk', browser_download_url: 'http://x/a.apk' }] })).toBeNull();
+    expect(parseTestRelease({ message: 'API rate limit exceeded' })).toBeNull();
+    expect(parseTestRelease(null)).toBeNull();
   });
 });

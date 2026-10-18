@@ -52,6 +52,10 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
           VITE_ENABLE_DIAGNOSTICS: '1' # test builds keep the device diagnostics screen
+          # Update notice (src/lib/appUpdate.ts): this build's number, compared with the
+          # "Build N" the release notes below give the newest APK.
+          VITE_TEST_BUILD: ${{ github.run_number }}
+          VITE_UPDATE_URL: https://api.github.com/repos/${{ github.repository }}/releases/tags/android-test
         run: npx vite build
       - run: npm run check:secrets
       - run: npx cap sync android
@@ -94,4 +98,5 @@ jobs:
               --notes "Test build for field testing only. Talks to the dev database."
           gh release upload android-test siteproof-test.apk --clobber
           gh release delete-asset android-test attendance-test.apk -y 2>/dev/null || true # pre-SiteProof name (2026-10)
-          gh release edit android-test --notes "Test build from ${GITHUB_SHA::7} ($(date -u +'%Y-%m-%d %H:%M UTC')). Talks to the dev database."
+          # Written last, after the APK is in place: installed apps read "Build N" to offer the update.
+          gh release edit android-test --notes "Build ${GITHUB_RUN_NUMBER}. Test build from ${GITHUB_SHA::7} ($(date -u +'%Y-%m-%d %H:%M UTC')). Talks to the dev database."

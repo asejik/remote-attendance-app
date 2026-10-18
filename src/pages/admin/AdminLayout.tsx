@@ -5,6 +5,7 @@ import type { StaffContext } from '../../context/useStaff';
 import { SUPPORT_EMAIL, suspensionOf } from '../../lib/support';
 import { signOut } from '../../lib/signOut';
 import { LogoMark } from '../../components/ui';
+import { UpdateBanner } from '../../components/UpdateBanner';
 import { button } from '../../components/classes';
 
 const TABS = [
@@ -27,6 +28,7 @@ export const AdminLayout = ({ context, children }: { context: StaffContext; chil
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <UpdateBanner />
       <header className="sticky top-0 z-20 border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 pt-3">
           <LogoMark size={34} />
