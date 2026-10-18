@@ -90,7 +90,7 @@ The new tables live **in the same Supabase project as the legacy prototype table
 
 - **Routes** (`src/App.tsx`): `/` login (worker PIN / admin email), `/consent`, `/home` (worker clock-in), `/reset-password`, `/privacy` (public notice), `/diagnostics`, all inside `MobileLayout`. Admin pages are lazy-loaded.
 - **Privacy notice:** `ConsentPage` (accepted via `accept_consent(p_version)`, audited) and `PrivacyPage`. Raise `PRIVACY_NOTICE_VERSION` in `src/lib/support.ts` when the wording changes in substance: workers accept it again when next online. Wording changes need the client's and counsel's approval.
-- **Admin routes** `/admin/review|absent|sites|staff|reports|settings` use the wider `AdminLayout` (`src/pages/admin/`; tabs wrap to two rows on phones). Admins land on Review.
+- **Admin routes** `/admin/overview|review|sites|staff|reports|settings` use the wider `AdminLayout` (`src/pages/admin/`; tabs wrap to two rows on phones). Admins land on **Overview** (one day, one row per active staff member: status, site, first in, last out, hours, flags; tap for the day's clock-ins and a link to Review with `?day=&staff=&status=all`). Its logic is `dayOverview` in `reports.ts`. It replaced the Absent tab on 2026-10-18 (`/admin/absent` redirects).
   - `StaffRoute` gates each route by role and consent.
   - `useStaff` loads the user's staff record and organisation, cached in localStorage so offline reopen works. A network error falls back to the cache; a definite "no record" clears it.
 - **Clock-in** (`src/pages/WorkerHomePage.tsx`), in order:

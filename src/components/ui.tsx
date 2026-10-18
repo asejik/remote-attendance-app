@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { AlertTriangle, CheckCircle, Info, Loader2, XCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, Info, Loader2, X, XCircle } from 'lucide-react';
 import { card } from './classes';
 
 // Shared building blocks for every screen ("Field Ledger", docs/DESIGN.md).
@@ -27,12 +27,21 @@ const tones: Record<Tone, { box: string; Icon: typeof Info }> = {
 };
 
 // A message box: icon plus text, never colour alone. Errors are announced at once.
-export const Alert = ({ tone, children, className = '' }: { tone: Tone; children: ReactNode; className?: string }) => {
+// With onClose it gets a close (×) button.
+export const Alert = ({ tone, children, className = '', onClose, closeLabel = 'Close message' }: {
+  tone: Tone; children: ReactNode; className?: string; onClose?: () => void; closeLabel?: string;
+}) => {
   const { box, Icon } = tones[tone];
   return (
     <div role={tone === 'error' ? 'alert' : 'status'} className={`flex items-start gap-2.5 rounded-control border p-3 text-sm ${box} ${className}`}>
       <Icon size={18} className="mt-0.5 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">{children}</div>
+      {onClose && (
+        <button type="button" onClick={onClose} aria-label={closeLabel}
+          className="-my-2.5 -mr-2.5 flex size-11 shrink-0 items-center justify-center rounded-control hover:bg-black/5 focus-visible:outline-3 focus-visible:outline-current">
+          <X size={20} aria-hidden />
+        </button>
+      )}
     </div>
   );
 };
@@ -84,10 +93,11 @@ export const SkeletonList = ({ rows = 3, label }: { rows?: number; label: string
 // record). It matches the phone's launch screen, so reopening the app goes
 // teal → home with no login form flashing in between.
 export const Splash = () => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-brand" role="status" aria-label="Loading SiteProof">
+  <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-brand" role="status" aria-label="Loading SiteProof">
     <svg width="96" height="96" viewBox="0 0 512 512" aria-hidden>
       <path d="M256 92c-66 0-120 54-120 120 0 90 120 208 120 208s120-118 120-208c0-66-54-120-120-120z M320 212a64 64 0 1 0-128 0a64 64 0 1 0 128 0z" fill="#fff" fillRule="evenodd" />
       <circle cx="256" cy="212" r="27" fill="#fff" />
     </svg>
+    <span className="font-display text-4xl font-extrabold tracking-tight text-white" aria-hidden>Site<span className="text-brand-100">Proof</span></span>
   </div>
 );

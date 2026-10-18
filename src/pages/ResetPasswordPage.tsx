@@ -40,7 +40,7 @@ export const ResetPasswordPage = () => {
       return setError('Enter the 6-digit code from your authenticator app, then save again.');
     }
     if (updateError) return setError('Could not change the password. The link may have expired; request a new one.');
-    navigate('/admin/review', { replace: true });
+    navigate('/admin/overview', { replace: true });
   };
 
   return (

@@ -50,7 +50,7 @@ export const fetchEventsForReport = async (start: string, end: string): Promise<
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('attendance_events')
-      .select('id, staff_id, type, captured_at, site_name_snapshot, distance_m, within_radius, accuracy_m, flags, liveness_passed, review_status, review_note, reviewed_at')
+      .select('id, staff_id, type, captured_at, site_name_snapshot, distance_m, within_radius, accuracy_m, flags, liveness_passed, review_status, review_note, reviewed_at, face_photo_path')
       .gte('captured_at', start).lt('captured_at', end)
       .order('captured_at').order('id').range(from, from + 999); // id: stable paging on ties
     if (error) throw error;
@@ -60,7 +60,7 @@ export const fetchEventsForReport = async (start: string, end: string): Promise<
 };
 
 export const fetchStaffForReport = async (): Promise<ReportStaff[]> => {
-  const { data, error } = await supabase.from('staff').select('id, full_name, staff_code, role, status').order('full_name');
+  const { data, error } = await supabase.from('staff').select('id, full_name, staff_code, role, status, reference_photo_path').order('full_name');
   if (error) throw error;
   return data ?? [];
 };

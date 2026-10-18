@@ -29,7 +29,7 @@ export const StaffLoginPage = () => {
 
   // Already signed in as staff: go straight in.
   useEffect(() => {
-    if (context) navigate(context.staff.role === 'admin' ? '/admin/review' : '/home', { replace: true });
+    if (context) navigate(context.staff.role === 'admin' ? '/admin/overview' : '/home', { replace: true });
   }, [context, navigate]);
 
   // Signed in already: show the launch screen until we know where to go, never the form.

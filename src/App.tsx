@@ -19,7 +19,7 @@ import { AdminLayout } from './pages/admin/AdminLayout';
 
 // Admin screens load on demand, so workers' phones never download them.
 const ReviewPage = lazy(() => import('./pages/admin/ReviewPage').then((m) => ({ default: m.ReviewPage })));
-const AbsentPage = lazy(() => import('./pages/admin/AbsentPage').then((m) => ({ default: m.AbsentPage })));
+const OverviewPage = lazy(() => import('./pages/admin/OverviewPage').then((m) => ({ default: m.OverviewPage })));
 const SitesPage = lazy(() => import('./pages/admin/SitesPage').then((m) => ({ default: m.SitesPage })));
 const StaffPage = lazy(() => import('./pages/admin/StaffPage').then((m) => ({ default: m.StaffPage })));
 const ReportsPage = lazy(() => import('./pages/admin/ReportsPage').then((m) => ({ default: m.ReportsPage })));
@@ -44,13 +44,14 @@ function App() {
           <Route path="/home" element={mobile(<StaffRoute require="member">{(c) => <WorkerHomePage context={c} />}</StaffRoute>)} />
           {DIAGNOSTICS && <Route path="/diagnostics" element={mobile(<StaffRoute require="member">{() => <Suspense fallback={null}><DiagnosticsPage /></Suspense>}</StaffRoute>)} />}
 
+          <Route path="/admin/overview" element={admin((c) => <OverviewPage context={c} />)} />
           <Route path="/admin/review" element={admin((c) => <ReviewPage context={c} />)} />
-          <Route path="/admin/absent" element={admin((c) => <AbsentPage context={c} />)} />
           <Route path="/admin/sites" element={admin((c) => <SitesPage context={c} />)} />
           <Route path="/admin/staff" element={admin((c) => <StaffPage context={c} />)} />
           <Route path="/admin/reports" element={admin((c) => <ReportsPage context={c} />)} />
           <Route path="/admin/settings" element={admin((c) => <SettingsPage context={c} />)} />
-          <Route path="/admin" element={<Navigate to="/admin/review" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/overview" replace />} />
+          <Route path="/admin/absent" element={<Navigate to="/admin/overview" replace />} />{/* Overview replaced Absent (2026-10-18) */}
 
           {/* Old links (M3 preview paths and the prototype) */}
           <Route path="*" element={<Navigate to="/" replace />} />

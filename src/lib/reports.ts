@@ -15,6 +15,7 @@ export interface ReportEvent {
   review_status: 'pending' | 'approved' | 'rejected';
   review_note: string | null;
   reviewed_at: string | null;
+  face_photo_path?: string | null; // only where a screen shows photos (Overview)
 }
 
 export interface ReportStaff {
@@ -23,6 +24,7 @@ export interface ReportStaff {
   staff_code: string;
   role: 'admin' | 'supervisor' | 'worker';
   status: 'active' | 'deactivated';
+  reference_photo_path?: string | null; // only where a screen shows photos (Overview)
 }
 
 const FLAG_LABELS: Record<string, string> = {
@@ -145,17 +147,56 @@ export const summarise = (events: ReportEvent[], staff: ReportStaff[], timeZone:
     })
     .sort((a, b) => a.staff.full_name.localeCompare(b.staff.full_name));
 
-// For one local day: active non-admin staff with no clock-in, and those with a
-// shift that started that day and was never clocked out (a night shift's
-// clock-out after midnight counts; pass events up to MAX_SHIFT_HOURS later).
-export const absentees = (events: ReportEvent[], staff: ReportStaff[], day: string, timeZone: string) => {
-  const people = staff.filter((s) => s.status === 'active' && s.role !== 'admin');
-  const startedToday = (s: ReportStaff) =>
-    shiftsOf(events.filter((e) => e.staff_id === s.id)).filter((sh) => localDay(sh.clockIn.captured_at, timeZone) === day);
-  const noClockIn = people.filter((s) => startedToday(s).length === 0);
-  const noClockOut = people.filter((s) => startedToday(s).some((sh) => !sh.clockOut));
-  return { noClockIn, noClockOut };
-};
+export type DayStatus = 'on_site' | 'clocked_out' | 'no_clock_out' | 'absent';
+
+export interface DayRow {
+  staff: ReportStaff;
+  status: DayStatus;
+  site: string | null; // where the day's first clock-in was
+  firstIn: ReportEvent | null;
+  lastOut: ReportEvent | null;
+  hoursWorked: number; // closed shifts only, 1 decimal
+  events: ReportEvent[]; // the day's records, oldest first (a night shift's clock-out after midnight belongs to the day it started)
+  flagged: number;
+  pending: number;
+  rejected: number;
+}
+
+// One row per active non-admin staff member for one local day (the Overview
+// tab). Shifts count on the day they started, as in summarise. An open shift is
+// "on site" while it could still be closed (under MAX_SHIFT_HOURS old),
+// otherwise "no clock-out". Pass events up to MAX_SHIFT_HOURS past the day.
+export const dayOverview = (events: ReportEvent[], staff: ReportStaff[], day: string, timeZone: string, now = Date.now()): DayRow[] =>
+  staff
+    .filter((s) => s.status === 'active' && s.role !== 'admin')
+    .map((s) => {
+      const mine = events.filter((e) => e.staff_id === s.id);
+      const all = shiftsOf(mine);
+      const shifts = all.filter((sh) => localDay(sh.clockIn.captured_at, timeZone) === day);
+      const idsOf = (list: Shift[]) => new Set(list.flatMap((sh) => [sh.clockIn.id, sh.clockOut?.id]));
+      const inShifts = idsOf(shifts);
+      const otherDays = idsOf(all.filter((sh) => !shifts.includes(sh)));
+      // The day's shifts, plus stray records made that day (a clock-out with no clock-in).
+      const dayEvents = mine.filter((e) => inShifts.has(e.id) || (localDay(e.captured_at, timeZone) === day && !otherDays.has(e.id))).sort(byTime);
+      const last = shifts.at(-1);
+      const status: DayStatus = !last ? 'absent'
+        : last.clockOut ? 'clocked_out'
+        : now - Date.parse(last.clockIn.captured_at) <= MAX_SHIFT_MS ? 'on_site' : 'no_clock_out';
+      const workedMs = shifts.reduce((sum, sh) => sum + (sh.clockOut ? Date.parse(sh.clockOut.captured_at) - Date.parse(sh.clockIn.captured_at) : 0), 0);
+      return {
+        staff: s,
+        status,
+        site: shifts[0]?.clockIn.site_name_snapshot ?? null,
+        firstIn: shifts[0]?.clockIn ?? null,
+        lastOut: last?.clockOut ?? null,
+        hoursWorked: Math.round(workedMs / 360_000) / 10,
+        events: dayEvents,
+        flagged: dayEvents.filter((e) => e.flags.length > 0).length,
+        pending: dayEvents.filter((e) => e.review_status === 'pending').length,
+        rejected: dayEvents.filter((e) => e.review_status === 'rejected').length,
+      };
+    })
+    .sort((a, b) => a.staff.full_name.localeCompare(b.staff.full_name));
 
 // ---- Spreadsheet output ----
 

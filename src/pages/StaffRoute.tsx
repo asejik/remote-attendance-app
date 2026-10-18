@@ -25,7 +25,7 @@ export const StaffRoute = ({ require, children }: StaffRouteProps) => {
   if (require === 'admin' && !isAdmin) return <Navigate to="/home" replace />;
   // Admins have no power until two-step login is done (the database enforces it).
   if (require === 'admin' && (aal !== 'aal2' || context.adminLocked)) return <Navigate to="/admin/verify" replace />;
-  if (require === 'member' && isAdmin) return <Navigate to="/admin/review" replace />;
+  if (require === 'member' && isAdmin) return <Navigate to="/admin/overview" replace />;
   // First login: the notice must be accepted. A newer notice is shown again when
   // online (accepting needs the server), so offline clock-in is never blocked.
   const neverAccepted = !context.staff.consent_accepted_at;

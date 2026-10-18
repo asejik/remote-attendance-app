@@ -116,7 +116,7 @@ const login = async (page: Page) => {
   await expect(page).toHaveURL(/\/admin\/verify/, { timeout: 15_000 }) // password sign-in can take several seconds on dev
   await page.getByLabel('6-digit code').fill(totp(adminTotp))
   await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page).toHaveURL(/\/admin\/review/)
+  await expect(page).toHaveURL(/\/admin\/overview/) // admins land on Overview
 }
 
 const imageLoaded = (page: Page, alt: string) =>
@@ -125,6 +125,7 @@ const imageLoaded = (page: Page, alt: string) =>
 test('review queue: flagged first, photos side by side, reject needs a note, approve, audited', async ({ page }) => {
   page.on('dialog', (d) => d.accept())
   await login(page)
+  await page.getByRole('link', { name: 'Review' }).click()
   await expect(page.getByText('2 clock-ins', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Refresh' }).click() // reloads the list on request
   await expect(page.getByText('2 clock-ins', { exact: true })).toBeVisible()
@@ -166,11 +167,38 @@ test('review queue: flagged first, photos side by side, reject needs a note, app
   expect(log?.map((l) => (l.details as { decision: string }).decision).sort()).toEqual(['approved', 'rejected'])
 })
 
-test('absent list: no clock-in vs never clocked out', async ({ page }) => {
+test('overview: who is present, on site or absent today; a person\'s day; link to Review', async ({ page }) => {
   await login(page)
-  await page.getByRole('link', { name: 'Absent' }).click()
-  await expect(page.getByRole('region', { name: 'Did not clock in' })).toContainText(ABSENT)
-  await expect(page.getByRole('region', { name: 'Clocked in, never clocked out' })).toContainText(EVIL)
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible()
+  const summary = page.getByRole('region', { name: 'Summary' })
+  await expect(summary.getByRole('button', { name: /Present/ })).toContainText('1of 2')
+  await expect(summary.getByRole('button', { name: /Absent/ })).toContainText('1')
+  const staff = page.getByRole('list', { name: 'Staff' })
+  await expect(staff.getByRole('listitem').filter({ hasText: ABSENT })).toContainText('Absent')
+  const worker = staff.getByRole('listitem').filter({ hasText: EVIL })
+  await expect(worker).toContainText('On site now') // clocked in, not out, within the last 16 hours
+  await expect(worker).toContainText('Main Site')
+
+  // The Absent tile filters the list.
+  await summary.getByRole('button', { name: /Absent/ }).click()
+  await expect(staff.getByRole('listitem')).toHaveCount(1)
+  await expect(staff).toContainText(ABSENT)
+  await page.getByRole('button', { name: 'show everyone' }).click()
+
+  // A person's day: both clock-ins with photos, then the same records in Review.
+  await worker.getByRole('button', { name: EVIL }).click()
+  const day = page.getByRole('list', { name: `${EVIL}'s clock-ins` })
+  await expect(day.getByRole('listitem')).toHaveCount(2)
+  await expect(day).toContainText('Outside site')
+  await imageLoaded(page, 'Face photo, clock-in at')
+  await page.getByRole('link', { name: 'Open in Review' }).click()
+  await expect(page).toHaveURL(/\/admin\/review\?day=.*&staff=.*&status=all/)
+  await expect(page.getByLabel('Status')).toHaveValue('all')
+  await expect(page.getByText('2 clock-ins', { exact: true })).toBeVisible()
+
+  // The old Absent address goes to Overview.
+  await page.goto('/admin/absent')
+  await expect(page).toHaveURL(/\/admin\/overview/)
 })
 
 test('sites: add by typed coordinates, pick on the map, edit radius, deactivate', async ({ page }) => {
@@ -245,6 +273,7 @@ test('suspended organisation: banner, records still readable, changes refused wi
   try {
     await login(page)
     await expect(page.getByRole('alert').filter({ hasText: 'subscription is suspended' })).toContainText('Workers can clock in until')
+    await page.getByRole('link', { name: 'Review' }).click()
     await expect(page.getByRole('option', { name: `${EVIL} (W-1)` })).toBeAttached() // organisation records still load
     await page.getByRole('link', { name: 'Settings' }).click()
     await page.getByLabel(/Allow and flag/).check()
@@ -266,6 +295,7 @@ test('a clock-in recorded from someone else\'s login is flagged with who recorde
   })
   if (error) throw error
   await login(page)
+  await page.getByRole('link', { name: 'Review' }).click()
   const card = page.getByRole('listitem').filter({ hasText: ABSENT })
   await expect(card).toContainText('Recorded by E2E Admin (ADM-1)')
 })

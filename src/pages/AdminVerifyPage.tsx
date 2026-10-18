@@ -48,7 +48,7 @@ export const AdminVerifyPage = () => {
   if (loading) return <div className="h-screen flex items-center justify-center" role="status" aria-label="Loading"><Loader2 className="animate-spin text-gray-400" /></div>;
   if (!isAdmin) return <Navigate to="/" replace />;
   if (context.adminLocked) return <LockedNotice />;
-  if (aal === 'aal2') return <Navigate to="/admin/review" replace />;
+  if (aal === 'aal2') return <Navigate to="/admin/overview" replace />;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,7 +62,7 @@ export const AdminVerifyPage = () => {
       setCode('');
       return setError(problem);
     }
-    navigate('/admin/review', { replace: true });
+    navigate('/admin/overview', { replace: true });
   };
 
   const logOut = async () => {

@@ -80,6 +80,8 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
   );
   const [serverEvents, setServerEvents] = useState<ServerEvent[]>(() => readCache<ServerEvent[]>(cacheKey(staff.id, 'recent')) ?? []);
   const [local, setLocal] = useState<QueuedEvent[]>([]);
+  // Rejection notices the worker closed (record ids), so they stay closed.
+  const [closedNotices, setClosedNotices] = useState<string[]>(() => readCache<string[]>(cacheKey(staff.id, 'closedRejections')) ?? []);
   const [siteId, setSiteId] = useState(() => readCache<string>(cacheKey(staff.id, 'site')) ?? '');
   const [step, setStep] = useState<Step>('idle');
   const [online, setOnline] = useState(navigator.onLine);
@@ -155,7 +157,12 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
     ...serverEvents.filter((e) => !localIds.has(e.id))
       .map((e) => ({ id: e.id, type: e.type, at: e.captured_at, site: e.site_name_snapshot, flags: e.flags, state: 'synced' as const, review: e.review_status ?? null, note: e.review_note ?? null })),
   ].sort((a, b) => b.at.localeCompare(a.at));
-  const rejected = history.slice(0, 5).find((h) => h.review === 'rejected');
+  const rejected = history.slice(0, 5).find((h) => h.review === 'rejected' && !closedNotices.includes(h.id));
+  const closeNotice = (id: string) => {
+    const next = [id, ...closedNotices].slice(0, 50);
+    setClosedNotices(next);
+    writeCache(cacheKey(staff.id, 'closedRejections'), next);
+  };
   // A record the server refused doesn't count towards clocked in/out.
   const last = history.find((h) => h.state !== 'failed');
   const clockedIn = last?.type === 'CLOCK_IN';
@@ -365,7 +372,7 @@ export const WorkerHomePage = ({ context }: { context: StaffContext }) => {
           </div>
         )}
         {rejected && (
-          <Alert tone="error">
+          <Alert tone="error" onClose={() => closeNotice(rejected.id)} closeLabel="Close rejection notice">
             <p className="font-semibold">
               Your {rejected.type === 'CLOCK_IN' ? 'clock-in' : 'clock-out'} on {new Date(rejected.at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {new Date(rejected.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} was rejected by your admin.
             </p>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  absentees, csvCell, dayRangeUtc, eventRows, localDay, shiftsOf, summarise, toCsv, EVENT_HEADER,
+  csvCell, dayOverview, dayRangeUtc, eventRows, localDay, shiftsOf, summarise, toCsv, EVENT_HEADER,
   type ReportEvent, type ReportStaff,
 } from './reports';
 
@@ -73,20 +73,45 @@ describe('summarise', () => {
   });
 });
 
-describe('absentees', () => {
-  it('lists active workers with no clock-in, and those who never clocked out', () => {
-    const events = [ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z'), ev('b', 'CLOCK_IN', '2026-10-13T07:00:00Z')];
-    const { noClockIn, noClockOut } = absentees(events, staff, '2026-10-14', TZ);
-    expect(noClockIn.map((s) => s.id)).toEqual(['b']); // c is deactivated, z is admin
-    expect(noClockOut.map((s) => s.id)).toEqual(['a']);
+describe('dayOverview', () => {
+  const at = (iso: string) => Date.parse(iso);
+
+  it('one row per active worker: on site, absent; deactivated staff and admins left out', () => {
+    const events = [ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z', { flags: ['low_accuracy'] }), ev('b', 'CLOCK_IN', '2026-10-13T07:00:00Z')];
+    const rows = dayOverview(events, staff, '2026-10-14', TZ, at('2026-10-14T12:00:00Z'));
+    expect(rows.map((r) => [r.staff.id, r.status])).toEqual([['a', 'on_site'], ['b', 'absent']]);
+    expect(rows[0]).toMatchObject({ site: 'Site A', lastOut: null, hoursWorked: 0, flagged: 1, pending: 1 });
+    expect(rows[0].firstIn?.captured_at).toBe('2026-10-14T07:00:00Z');
+    expect(rows[1].events).toEqual([]); // the 13th's clock-in isn't the 14th's
   });
 
-  it("a night shift clocked out after midnight isn't listed as never clocked out", () => {
+  it('an open clock-in becomes "no clock-out" once it is too old to close', () => {
+    const events = [ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z')];
+    expect(dayOverview(events, staff, '2026-10-14', TZ, at('2026-10-15T08:00:00Z'))[0].status).toBe('no_clock_out');
+  });
+
+  it('first in, last out and hours over several shifts in a day', () => {
+    const events = [
+      ev('a', 'CLOCK_IN', '2026-10-14T07:00:00Z'), ev('a', 'CLOCK_OUT', '2026-10-14T11:00:00Z', { review_status: 'rejected' }),
+      ev('a', 'CLOCK_IN', '2026-10-14T12:00:00Z'), ev('a', 'CLOCK_OUT', '2026-10-14T16:30:00Z'),
+    ];
+    const [row] = dayOverview(events, staff, '2026-10-14', TZ, at('2026-10-14T18:00:00Z'));
+    expect(row).toMatchObject({ status: 'clocked_out', hoursWorked: 8.5, rejected: 1, pending: 3 });
+    expect([row.firstIn?.captured_at, row.lastOut?.captured_at]).toEqual(['2026-10-14T07:00:00Z', '2026-10-14T16:30:00Z']);
+    expect(row.events).toHaveLength(4);
+  });
+
+  it('a night shift clocked out after midnight is complete, on the day it started', () => {
     const events = [ev('a', 'CLOCK_IN', '2026-10-14T21:30:00Z'), ev('a', 'CLOCK_OUT', '2026-10-15T05:15:00Z'), ev('b', 'CLOCK_IN', '2026-10-14T21:00:00Z')];
-    const { noClockIn, noClockOut } = absentees(events, staff, '2026-10-14', TZ);
-    expect(noClockIn).toEqual([]);
-    expect(noClockOut.map((s) => s.id)).toEqual(['b']);
-    expect(absentees(events, staff, '2026-10-15', TZ).noClockIn.map((s) => s.id)).toEqual(['a', 'b']); // a clock-out alone isn't a clock-in
+    const rows = dayOverview(events, staff, '2026-10-14', TZ, at('2026-10-16T12:00:00Z'));
+    expect(rows.map((r) => r.status)).toEqual(['clocked_out', 'no_clock_out']);
+    expect(rows[0]).toMatchObject({ hoursWorked: 7.8 });
+    expect(rows[0].events).toHaveLength(2); // the clock-out after midnight belongs to this day
+    // On the 15th that clock-out belongs to the 14th, so it isn't shown again; a stray clock-out is.
+    const stray = ev('b', 'CLOCK_OUT', '2026-10-15T16:00:00Z'); // 19 h after b's clock-in: closes nothing
+    const next = dayOverview([...events, stray], staff, '2026-10-15', TZ, at('2026-10-16T12:00:00Z'));
+    expect(next.map((r) => r.status)).toEqual(['absent', 'absent']);
+    expect(next.map((r) => r.events.length)).toEqual([0, 1]);
   });
 });
 

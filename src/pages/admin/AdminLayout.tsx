@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { ClipboardCheck, FileSpreadsheet, Lock, LogOut, MapPin, Settings, UserMinus, Users } from 'lucide-react';
+import { ClipboardCheck, FileSpreadsheet, LayoutList, Lock, LogOut, MapPin, Settings, Users } from 'lucide-react';
 import type { StaffContext } from '../../context/useStaff';
 import { SUPPORT_EMAIL, suspensionOf } from '../../lib/support';
 import { signOut } from '../../lib/signOut';
@@ -9,8 +9,8 @@ import { UpdateBanner } from '../../components/UpdateBanner';
 import { button } from '../../components/classes';
 
 const TABS = [
+  { to: '/admin/overview', label: 'Overview', icon: LayoutList },
   { to: '/admin/review', label: 'Review', icon: ClipboardCheck },
-  { to: '/admin/absent', label: 'Absent', icon: UserMinus },
   { to: '/admin/sites', label: 'Sites', icon: MapPin },
   { to: '/admin/staff', label: 'Staff', icon: Users },
   { to: '/admin/reports', label: 'Reports', icon: FileSpreadsheet },

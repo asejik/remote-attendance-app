@@ -47,7 +47,7 @@ const adminLogin = async (page: Page) => {
   }
   await page.getByLabel('6-digit code').fill(totp(adminTotp))
   await page.getByRole('button', { name: /Finish set-up|Continue/ }).click()
-  await expect(page).toHaveURL(/\/admin\/review/)
+  await expect(page).toHaveURL(/\/admin\/overview/)
   await page.getByRole('link', { name: 'Staff' }).click()
   await expect(page.getByRole('button', { name: 'Add worker' })).toBeVisible()
 }
@@ -90,6 +90,9 @@ test('admin adds a worker, the worker logs in with a PIN, and deactivation block
   await page.getByLabel(/Reference photo/).setInputFiles({ name: 'face.jpg', mimeType: 'image/jpeg', buffer: JPEG })
   // The crop step, then a preview of the chosen photo.
   await expect(page.getByRole('heading', { name: 'Reference photo', exact: true })).toBeVisible()
+  // The photo is actually drawn in the frame (owner saw an empty frame, 2026-10-18).
+  await expect.poll(() => page.getByTestId('crop-preview').evaluate((c: HTMLCanvasElement) =>
+    c.getContext('2d')!.getImageData(c.width / 2, c.height / 2, 1, 1).data[3])).toBe(255)
   await page.getByRole('button', { name: 'Use photo' }).click()
   await expect(page.getByRole('img', { name: 'Reference photo preview' })).toBeVisible()
   await page.getByRole('dialog').getByRole('button', { name: 'Add worker' }).click()

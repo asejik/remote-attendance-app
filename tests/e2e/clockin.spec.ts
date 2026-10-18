@@ -176,6 +176,12 @@ test('a clock-in the server refuses twice is shown as not accepted, and "try aga
   await page.getByRole('button', { name: 'Sync now' }).click()
   await expect(page.getByRole('alert').filter({ hasText: 'was rejected by your admin' })).toContainText('Reason: Photo shows someone else')
   await expect(page.getByText('Rejected', { exact: true })).toBeVisible()
+  // Closing the notice is remembered after a reload; the row still says Rejected.
+  await page.getByRole('button', { name: 'Close rejection notice' }).click()
+  await expect(page.getByText('was rejected by your admin')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByText('Rejected', { exact: true })).toBeVisible()
+  await expect(page.getByText('was rejected by your admin')).toHaveCount(0)
 })
 
 test('logging out with no network really signs the phone out', async ({ page, context }) => {

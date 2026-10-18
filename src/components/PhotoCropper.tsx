@@ -17,11 +17,11 @@ export const PhotoCropper = ({ file, title, onCancel, onDone }: {
   useEscape(onCancel);
   const [bitmap, setBitmap] = useState<ImageBitmap | null>(null);
   const [failed, setFailed] = useState(false);
-  const [url] = useState(() => URL.createObjectURL(file));
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const drag = useRef<{ x: number; y: number } | null>(null);
   const frame = useRef<HTMLDivElement>(null);
+  const preview = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,9 +30,8 @@ export const PhotoCropper = ({ file, title, onCancel, onDone }: {
       .catch(() => { if (!cancelled) setFailed(true); });
     return () => {
       cancelled = true;
-      URL.revokeObjectURL(url);
     };
-  }, [file, url]);
+  }, [file]);
   useEffect(() => frame.current?.focus(), [bitmap]);
 
   const base = bitmap ? Math.max(FRAME_W / bitmap.width, FRAME_H / bitmap.height) : 1; // "cover" at zoom 1
@@ -48,6 +47,20 @@ export const PhotoCropper = ({ file, title, onCancel, onDone }: {
     setZoom(next);
     if (bitmap) setOffset((o) => clamp(o, bitmap.width * base * next, bitmap.height * base * next));
   };
+
+  // The photo is drawn onto the frame (no blob: link that could be closed
+  // before it loads), sharp on high-density screens.
+  useEffect(() => {
+    const canvas = preview.current;
+    if (!canvas || !bitmap) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = FRAME_W * dpr;
+    canvas.height = FRAME_H * dpr;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(bitmap, FRAME_W / 2 - shownW / 2 + offset.x, FRAME_H / 2 - shownH / 2 + offset.y, shownW, shownH);
+  }, [bitmap, shownW, shownH, offset]);
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -100,10 +113,7 @@ export const PhotoCropper = ({ file, title, onCancel, onDone }: {
               onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={() => { drag.current = null; }} onKeyDown={onKeyDown} onWheel={onWheel}
               className="relative cursor-grab touch-none select-none overflow-hidden rounded-card bg-gray-900 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-brand active:cursor-grabbing"
               style={{ width: FRAME_W, height: FRAME_H }}>
-              {bitmap && (
-                <img src={url} alt="" draggable={false} className="pointer-events-none absolute max-w-none"
-                  style={{ width: shownW, height: shownH, left: FRAME_W / 2 - shownW / 2 + offset.x, top: FRAME_H / 2 - shownH / 2 + offset.y }} />
-              )}
+              <canvas ref={preview} data-testid="crop-preview" className="pointer-events-none absolute inset-0 h-full w-full" />
               {/* Face guide */}
               <svg viewBox="0 0 240 320" className="pointer-events-none absolute inset-0 h-full w-full" aria-hidden>
                 <ellipse cx="120" cy="140" rx="70" ry="92" fill="none" stroke="#fff" strokeWidth="2" strokeDasharray="6 6" opacity="0.8" />

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Check, CheckCheck, ExternalLink, Loader2, RefreshCw, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
@@ -24,11 +25,17 @@ const inputClass = `${field} text-sm`;
 export const ReviewPage = ({ context }: { context: StaffContext }) => {
   const tz = context.organization.timezone;
   const today = localDay(new Date().toISOString(), tz);
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
-  const [staffId, setStaffId] = useState('');
+  // Overview links here with ?day=YYYY-MM-DD&staff=<id>&status=all.
+  const [params] = useSearchParams();
+  const linkedDay = /^\d{4}-\d{2}-\d{2}$/.test(params.get('day') ?? '') ? params.get('day')! : today;
+  const linkedStatus = params.get('status');
+  const [from, setFrom] = useState(linkedDay);
+  const [to, setTo] = useState(linkedDay);
+  const [staffId, setStaffId] = useState(params.get('staff') ?? '');
   const [siteId, setSiteId] = useState('');
-  const [status, setStatus] = useState<StatusFilter>('pending');
+  const [status, setStatus] = useState<StatusFilter>(
+    linkedStatus === 'all' || linkedStatus === 'pending' || linkedStatus === 'approved' || linkedStatus === 'rejected' ? linkedStatus : 'pending',
+  );
   const [flaggedOnly, setFlaggedOnly] = useState(false);
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<{ events: ReviewEvent[]; total: number } | null>(null);
